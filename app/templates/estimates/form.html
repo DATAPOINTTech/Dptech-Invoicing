@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}New Estimate - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">New Estimate / Quotation</h1>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <form id="estimate-form" class="space-y-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700">Client *</label>
+                        <select id="client_id" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select>
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700">Estimate Date</label><input type="date" id="estimate_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Valid Until</label><input type="date" id="valid_until" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div class="col-span-3"><label class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., Website Development Project"></div>
+                </div>
+                <div class="border-t pt-4">
+                    <h3 class="font-semibold text-gray-800 mb-3">Items</h3>
+                    <div id="items-container"></div>
+                    <button type="button" onclick="addItem()" class="text-cyan-600 text-sm font-medium mt-2"><i class="fas fa-plus mr-1"></i>Add Item</button>
+                </div>
+                <div class="border-t pt-4 grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700">Discount (%)</label><input type="number" step="0.01" id="discount" value="0" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
+                    <div class="text-right pt-6">
+                        <p class="text-sm text-gray-500">Subtotal: <span id="display-subtotal" class="font-semibold text-gray-800">0.00</span></p>
+                        <p class="text-sm text-gray-500">Tax (17%): <span id="display-tax" class="font-semibold text-gray-800">0.00</span></p>
+                        <p class="text-lg font-bold text-gray-800">Total: PKR <span id="display-total">0.00</span></p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700">Terms & Conditions</label><textarea id="terms" rows="3" class="w-full px-4 py-2 border rounded-lg text-sm mt-1">1. Payment: Net 30 days
+2. Prices include 17% GST as per Pakistan tax law
+3. Validity: 15 days from date
+4. Delivery: As per agreed timeline</textarea></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Notes</label><textarea id="notes" rows="3" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></textarea></div>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:shadow-lg"><i class="fas fa-save mr-2"></i>Create Estimate</button>
+                    <a href="/estimates" class="bg-gray-100 text-gray-700 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+let itemCount=0;
+function addItem(){
+    const idx=itemCount++;
+    const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-6 gap-2 items-end">
+        <div class="col-span-2"><label class="text-xs text-gray-500">Description</label><input type="text" name="desc" class="w-full px-2 py-1.5 border rounded text-sm" placeholder="Item description"></div>
+        <div><label class="text-xs text-gray-500">Qty</label><input type="number" name="qty" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm qty-input" value="1"></div>
+        <div><label class="text-xs text-gray-500">Unit</label><select name="unit" class="w-full px-2 py-1.5 border rounded text-sm"><option value="pcs">pcs</option><option value="hour">hour</option><option value="day">day</option><option value="service">service</option></select></div>
+        <div><label class="text-xs text-gray-500">Unit Price</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm price-input" value="0"></div>
+        <div><button type="button" onclick="this.closest('.item-row').remove();calcTotal();" class="text-red-500 text-sm"><i class="fas fa-times"></i></button></div>
+    </div>`;
+    $('#items-container').append(html);
+}
+function calcTotal(){
+    let subtotal=0;$('.item-row').each(function(){const qty=parseFloat($(this).find('[name=qty]').val())||0,price=parseFloat($(this).find('[name=price]').val())||0;subtotal+=qty*price;});
+    const disc=parseFloat($('#discount').val())||0;const afterDisc=subtotal*(1-disc/100);const tax=afterDisc*0.17;const total=afterDisc+tax;
+    $('#display-subtotal').text(subtotal.toFixed(2));$('#display-tax').text(tax.toFixed(2));$('#display-total').text(total.toFixed(2));
+}
+$(function(){
+    $('#estimate_date').val(new Date().toISOString().split('T')[0]);
+    const future=new Date();future.setDate(future.getDate()+15);$('#valid_until').val(future.toISOString().split('T')[0]);
+    $.ajax({url:'/api/clients',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(clients){clients.forEach(c=>{$('#client_id').append(`<option value="${c.id}">${c.name}${c.company?' ('+c.company+')':''}</option>`);});});
+    addItem();
+    $(document).on('input','.qty-input,.price-input,#discount',calcTotal);
+    $('#estimate-form').submit(function(e){e.preventDefault();
+        const items=[];$('.item-row').each(function(){items.push({description:$(this).find('[name=desc]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:17});});
+        const data={client_id:parseInt($('#client_id').val()),title:$('#title').val(),estimate_date:$('#estimate_date').val(),valid_until:$('#valid_until').val()||null,discount_percent:parseFloat($('#discount').val())||0,terms_conditions:$('#terms').val(),notes:$('#notes').val(),items};
+        $.ajax({url:'/api/estimates',method:'POST',contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(){window.location.href='/estimates';}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+    });
+});
+</script>
+{% endblock %}

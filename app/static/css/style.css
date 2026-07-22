@@ -1,0 +1,9 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8fafc; }
+.sidebar-active { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white !important; }
+.card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+.transition-all { transition: all 0.3s ease; }
+#sidebar { scrollbar-width: thin; }
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+@media print { #sidebar, .nav-item, button, form { display: none !important; } .ml-64 { margin-left: 0 !important; } }

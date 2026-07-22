@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Stock - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Stock Inventory</h1>
+            <button onclick="showIssueModal()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-700"><i class="fas fa-arrow-right mr-2"></i>Issue Stock</button>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-4 border-b border-gray-100"><label class="flex items-center gap-2"><input type="checkbox" id="low-only" class="rounded"> <span class="text-sm text-gray-600">Show low stock only</span></label></div>
+            <table class="w-full"><thead class="bg-gray-50"><tr><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Product</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">SKU</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Stock Qty</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Price</th><th class="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th></tr></thead><tbody id="stock-body"></tbody></table>
+        </div>
+    </main>
+</div>
+<div id="issue-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50"><div class="bg-white rounded-xl p-6 w-96">
+    <h3 class="font-bold text-lg mb-4">Issue Stock</h3>
+    <form id="issue-form" class="space-y-3">
+        <div><label class="block text-sm text-gray-600">Product ID</label><input type="number" id="issue-pid" required class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+        <div><label class="block text-sm text-gray-600">Quantity</label><input type="number" step="0.01" id="issue-qty" required class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+        <div><label class="block text-sm text-gray-600">Notes</label><textarea id="issue-notes" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea></div>
+        <div class="flex gap-2 pt-2"><button type="submit" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Issue</button><button type="button" onclick="hideIssueModal()" class="bg-gray-100 px-4 py-2 rounded-lg text-sm">Cancel</button></div>
+    </form>
+</div></div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+function load(){const low=$('#low-only').is(':checked');$.ajax({url:'/api/inventory'+(low?'?low_stock=true':''),method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(items){
+    if(!items.length){$('#stock-body').html('<tr><td colspan="5" class="text-center py-8 text-gray-400">No inventory records</td></tr>');return;}
+    $('#stock-body').html(items.map(i=>`<tr class="border-b border-gray-50 hover:bg-gray-50">
+        <td class="px-6 py-4 font-medium text-gray-800">${i.product_name}</td>
+        <td class="px-6 py-4 text-gray-500 text-sm">${i.sku||'-'}</td>
+        <td class="px-6 py-4 text-right font-semibold ${i.low_stock?'text-red-600':'text-gray-800'}">${i.quantity} <span class="text-xs text-gray-400">${i.unit}</span></td>
+        <td class="px-6 py-4 text-right">PKR ${i.unit_price?.toLocaleString()}</td>
+        <td class="px-6 py-4 text-center">${i.low_stock?'<span class="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Low Stock</span>':'<span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">In Stock</span>'}</td>
+    </tr>`).join('');
+});}
+function showIssueModal(){$('#issue-modal').removeClass('hidden').addClass('flex');}
+function hideIssueModal(){$('#issue-modal').removeClass('flex').addClass('hidden');}
+$('#issue-form').submit(function(e){e.preventDefault();
+    $.post({url:'/api/inventory/issue',contentType:'application/json',data:JSON.stringify({product_id:parseInt($('#issue-pid').val()),quantity:parseFloat($('#issue-qty').val()),notes:$('#issue-notes').val()}),headers:{Authorization:'Bearer '+token}}).done(function(r){alert(r.message);hideIssueModal();load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+});
+$(function(){load();$('#low-only').on('change',load);});
+</script>
+{% endblock %}

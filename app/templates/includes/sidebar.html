@@ -1,0 +1,69 @@
+<aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30 shadow-lg" id="sidebar">
+    <div class="flex items-center gap-3 px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-cyan-600 to-blue-600">
+        <div class="w-10 h-10 flex items-center justify-center">
+            <img src="/static/img/logo.png" alt="Logo" class="w-full h-full object-contain">
+        </div>
+        <div class="text-white">
+            <h2 class="font-bold text-sm">{{ company }}</h2>
+            <p class="text-xs text-white/70">Management System</p>
+        </div>
+    </div>
+    <nav class="mt-4 px-3 space-y-1 overflow-y-auto" style="height: calc(100vh - 80px);">
+        <a href="/dashboard" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-chart-pie w-5 text-center"></i> Dashboard
+        </a>
+        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">Sales</div>
+        <a href="/estimates" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-file-alt w-5 text-center"></i> Estimates
+        </a>
+        <a href="/invoices" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-file-invoice w-5 text-center"></i> Invoices
+        </a>
+        <a href="/clients" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-users w-5 text-center"></i> Clients
+        </a>
+        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">Inventory</div>
+        <a href="/products" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-box w-5 text-center"></i> Products
+        </a>
+        <a href="/inventory" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-warehouse w-5 text-center"></i> Stock
+        </a>
+        <a href="/purchases" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-truck-loading w-5 text-center"></i> Purchases
+        </a>
+        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">Finance</div>
+        <a href="/expenses" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-money-bill-wave w-5 text-center"></i> Expenses
+        </a>
+        <a href="/projects" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-project-diagram w-5 text-center"></i> Projects
+        </a>
+        <a href="/reports" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-chart-bar w-5 text-center"></i> Reports
+        </a>
+        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">AI Tools</div>
+        <a href="/agent" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
+            <i class="fas fa-robot w-5 text-center"></i> Support Agent
+        </a>
+        <hr class="my-4 border-gray-200">
+        <a href="/login" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-red-500 hover:bg-red-50 transition-all text-sm" id="logout-btn">
+            <i class="fas fa-sign-out-alt w-5 text-center"></i> Logout
+        </a>
+    </nav>
+</aside>
+<script>
+$(function() {
+    const path = window.location.pathname;
+    $('.nav-item').each(function() {
+        const href = $(this).attr('href');
+        if (href && href !== '#' && (path === href || path.startsWith(href + '/'))) {
+            $(this).addClass('sidebar-active');
+        }
+    });
+    $('#logout-btn').click(function(e) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    });
+});
+</script>

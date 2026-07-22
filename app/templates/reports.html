@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Reports - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">Reports & Analytics</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-file-invoice text-blue-600 text-xl"></i></div>
+                <h3 class="font-semibold text-gray-800 mb-2">Sales Report</h3>
+                <p class="text-sm text-gray-500 mb-4">View sales by client, product, and time period.</p>
+                <button onclick="alert('Coming soon!')" class="text-blue-600 text-sm font-medium hover:text-blue-800">View Report →</button>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-chart-line text-green-600 text-xl"></i></div>
+                <h3 class="font-semibold text-gray-800 mb-2">Revenue Analytics</h3>
+                <p class="text-sm text-gray-500 mb-4">Track revenue, receivables, and payment trends.</p>
+                <button onclick="alert('Coming soon!')" class="text-green-600 text-sm font-medium hover:text-green-800">View Report →</button>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-boxes text-amber-600 text-xl"></i></div>
+                <h3 class="font-semibold text-gray-800 mb-2">Inventory Report</h3>
+                <p class="text-sm text-gray-500 mb-4">Stock levels, low stock alerts, and movement history.</p>
+                <a href="/inventory" class="text-amber-600 text-sm font-medium hover:text-amber-800">View Inventory →</a>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-money-bill-wave text-red-600 text-xl"></i></div>
+                <h3 class="font-semibold text-gray-800 mb-2">Expense Report</h3>
+                <p class="text-sm text-gray-500 mb-4">Track expenses by category and time period.</p>
+                <a href="/expenses" class="text-red-600 text-sm font-medium hover:text-red-800">View Expenses →</a>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-file-alt text-purple-600 text-xl"></i></div>
+                <h3 class="font-semibold text-gray-800 mb-2">Tax Summary</h3>
+                <p class="text-sm text-gray-500 mb-4">GST, WHT, and FED summary for tax filing.</p>
+                <button onclick="alert('Coming soon!')" class="text-purple-600 text-sm font-medium hover:text-purple-800">View Report →</button>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-users text-cyan-600 text-xl"></i></div>
+                <h3 class="font-semibold text-gray-800 mb-2">Client Report</h3>
+                <p class="text-sm text-gray-500 mb-4">Client history, payments, and outstanding balances.</p>
+                <a href="/clients" class="text-cyan-600 text-sm font-medium hover:text-cyan-800">View Clients →</a>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

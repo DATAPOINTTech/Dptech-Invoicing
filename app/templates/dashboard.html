@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+                <p class="text-gray-500">Welcome back, <span id="user-name" class="font-semibold"></span></p>
+            </div>
+            <div class="flex gap-3">
+                <a href="/estimates/new" class="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:shadow-lg transition-all">
+                    <i class="fas fa-plus mr-2"></i>New Estimate
+                </a>
+                <a href="/invoices/new" class="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:shadow-lg transition-all">
+                    <i class="fas fa-file-invoice mr-2"></i>New Invoice
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="stats-cards">
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover transition-all"><div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm">Total Clients</p><h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-clients">0</h3></div><div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-users text-blue-600 text-xl"></i></div></div></div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover transition-all"><div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm">Active Projects</p><h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-projects">0</h3></div><div class="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center"><i class="fas fa-project-diagram text-cyan-600 text-xl"></i></div></div></div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover transition-all"><div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm">Pending Invoices</p><h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-pending">0</h3></div><div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center"><i class="fas fa-clock text-amber-600 text-xl"></i></div></div></div>
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover transition-all"><div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm">Receivables</p><h3 class="text-2xl font-bold text-gray-800 mt-1" id="stat-receivables">PKR 0</h3></div><div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><i class="fas fa-rupee-sign text-green-600 text-xl"></i></div></div></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-800"><i class="fas fa-users text-cyan-600 mr-2"></i>Recent Clients</h2>
+                    <a href="/clients" class="text-sm text-cyan-600 hover:text-cyan-800">View All</a>
+                </div>
+                <div class="p-6" id="recent-clients"><p class="text-gray-400 text-sm text-center py-4">Loading...</p></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-800"><i class="fas fa-file-invoice text-cyan-600 mr-2"></i>Recent Invoices</h2>
+                    <a href="/invoices" class="text-sm text-cyan-600 hover:text-cyan-800">View All</a>
+                </div>
+                <div class="p-6" id="recent-invoices"><p class="text-gray-400 text-sm text-center py-4">Loading...</p></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-800"><i class="fas fa-file-alt text-blue-600 mr-2"></i>Recent Estimates</h2>
+                    <a href="/estimates" class="text-sm text-cyan-600 hover:text-cyan-800">View All</a>
+                </div>
+                <div class="p-6" id="recent-estimates"><p class="text-gray-400 text-sm text-center py-4">Loading...</p></div>
+            </div>
+        </div>
+
+        <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 class="font-semibold text-gray-800 mb-4"><i class="fas fa-robot text-cyan-600 mr-2"></i>AI Support Agent</h2>
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white text-xl">
+                    <i class="fas fa-headset"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-gray-600 text-sm">Need help with billing, products, or quotations? Our AI support agent is available 24/7.</p>
+                </div>
+                <a href="/agent" class="bg-cyan-50 text-cyan-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-cyan-100 transition-all">
+                    Chat Now <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+<script>
+function getToken() { return localStorage.getItem('token'); }
+$(function() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    $('#user-name').text(user.name || 'User');
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+    $.ajax({url: '/api/dashboard', headers: {Authorization: 'Bearer ' + token}})
+    .done(function(d) {
+        $('#stat-clients').text(d.total_clients);
+        $('#stat-projects').text(d.active_projects);
+        $('#stat-pending').text(d.pending_invoices);
+        $('#stat-receivables').text('PKR ' + d.total_receivables.toLocaleString());
+        if (d.recent_clients && d.recent_clients.length) {
+            let html = d.recent_clients.map(c => `
+                <a href="/clients/new?id=${c.id}" class="flex justify-between items-center py-3 border-b border-gray-50 hover:bg-gray-50 px-2 rounded transition-all">
+                    <div><p class="font-medium text-gray-800">${c.name}</p><p class="text-xs text-gray-500">${c.company || '-'}</p></div>
+                    <div class="text-right text-xs text-gray-500">${c.phone || c.email || '-'}</div>
+                </a>`).join('');
+            $('#recent-clients').html(html);
+        } else { $('#recent-clients').html('<p class="text-gray-400 text-sm text-center py-4">No clients yet</p>'); }
+        if (d.recent_invoices.length) {
+            let html = d.recent_invoices.map(i => `
+                <a href="/invoices/${i.id}" class="flex justify-between items-center py-3 border-b border-gray-50 hover:bg-gray-50 px-2 rounded transition-all">
+                    <div><p class="font-medium text-gray-800">${i.no}</p><p class="text-xs text-gray-500">${i.client}</p></div>
+                    <div class="text-right"><p class="font-semibold text-gray-800">PKR ${i.total?.toLocaleString()}</p><span class="text-xs px-2 py-0.5 rounded-full ${i.status === 'paid' ? 'bg-green-100 text-green-700' : i.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">${i.status}</span></div>
+                </a>`).join('');
+            $('#recent-invoices').html(html);
+        } else { $('#recent-invoices').html('<p class="text-gray-400 text-sm text-center py-4">No invoices yet</p>'); }
+        if (d.recent_estimates.length) {
+            let html = d.recent_estimates.map(e => `
+                <a href="/estimates/${e.id}" class="flex justify-between items-center py-3 border-b border-gray-50 hover:bg-gray-50 px-2 rounded transition-all">
+                    <div><p class="font-medium text-gray-800">${e.no}</p><p class="text-xs text-gray-500">${e.client}</p></div>
+                    <div class="text-right"><p class="font-semibold text-gray-800">PKR ${e.total?.toLocaleString()}</p><span class="text-xs px-2 py-0.5 rounded-full ${e.status === 'approved' ? 'bg-green-100 text-green-700' : e.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">${e.status}</span></div>
+                </a>`).join('');
+            $('#recent-estimates').html(html);
+        } else { $('#recent-estimates').html('<p class="text-gray-400 text-sm text-center py-4">No estimates yet</p>'); }
+    }).fail(function() { window.location.href = '/login'; });
+});
+</script>
+{% endblock %}

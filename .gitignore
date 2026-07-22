@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+dptech.db
+*.db
+pdf_output/
+server.log
+server.err
+.venv/
+venv/
+env/
+*.pyc
+.DS_Store

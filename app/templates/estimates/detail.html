@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Estimate - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Estimate Detail</h1>
+            <div class="flex gap-2" id="action-buttons"></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800" id="est-no"></h2>
+                            <p class="text-gray-500 text-sm" id="est-dates"></p>
+                        </div>
+                        <span id="est-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold"></span>
+                    </div>
+                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <p class="font-semibold text-gray-800" id="client-name"></p>
+                        <p class="text-sm text-gray-500" id="client-info"></p>
+                    </div>
+                    <table class="w-full mb-6"><thead><tr class="bg-gray-50"><th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Description</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Qty</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Price</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Total</th></tr></thead><tbody id="items-body"></tbody></table>
+                    <div class="border-t pt-4 text-right space-y-1">
+                        <p class="text-sm text-gray-600">Subtotal: PKR <span id="est-subtotal"></span></p>
+                        <p class="text-sm text-gray-600">Discount: <span id="est-discount"></span></p>
+                        <p class="text-sm text-gray-600">GST (17%): PKR <span id="est-tax"></span></p>
+                        <p class="text-xl font-bold text-gray-800">Total: PKR <span id="est-total"></span></p>
+                    </div>
+                    <div class="mt-6 p-4 bg-gray-50 rounded-lg" id="terms-section"><h4 class="font-semibold text-sm text-gray-700">Terms</h4><p class="text-sm text-gray-600 mt-1" id="est-terms"></p></div>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <h3 class="font-semibold text-gray-800 mb-3">Actions</h3>
+                    <div class="space-y-2" id="action-group"></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <h3 class="font-semibold text-gray-800 mb-3">Send To Client</h3>
+                    <a href="/estimates/{{ estimate_id }}/pdf" class="block w-full bg-cyan-50 text-cyan-700 text-center py-2 rounded-lg text-sm font-medium hover:bg-cyan-100 mb-2"><i class="fas fa-file-pdf mr-2"></i>Download PDF</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+const eid={{ estimate_id }};
+$.ajax({url:'/api/estimates/'+eid,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(e){
+    $('#est-no').text(e.estimate_no);
+    $('#est-dates').text(`Date: ${e.estimate_date} | Valid Until: ${e.valid_until||'N/A'}`);
+    const statusColors={'draft':'bg-gray-100 text-gray-600','sent':'bg-blue-100 text-blue-700','approved':'bg-green-100 text-green-700','rejected':'bg-red-100 text-red-700','converted':'bg-purple-100 text-purple-700','expired':'bg-amber-100 text-amber-700'};
+    $('#est-status-badge').text(e.status).addClass(statusColors[e.status]||'bg-gray-100');
+    $('#client-name').text(e.client?.name||'');
+    $('#client-info').text(`${e.client?.company||''} ${e.client?.phone||''} ${e.client?.email||''}`.trim());
+    $('#items-body').html((e.items||[]).map(i=>`<tr class="border-b border-gray-50"><td class="px-4 py-3">${i.description}</td><td class="px-4 py-3 text-right">${i.quantity} ${i.unit}</td><td class="px-4 py-3 text-right">PKR ${i.unit_price?.toFixed(2)}</td><td class="px-4 py-3 text-right font-medium">PKR ${i.total_price?.toFixed(2)}</td></tr>`).join(''));
+    $('#est-subtotal').text(e.subtotal?.toFixed(2));
+    $('#est-discount').text(e.discount_percent?`${e.discount_percent}% (-PKR ${e.discount_amount?.toFixed(2)})`:'0%');
+    $('#est-tax').text(e.tax_amount?.toFixed(2));$('#est-total').text(e.total_amount?.toLocaleString());
+    $('#est-terms').text(e.terms_conditions||'Standard terms apply.');
+
+    let actions='';
+    if(e.can_approve){actions+=`<button onclick="approve(${eid})" class="w-full bg-green-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-green-600"><i class="fas fa-check mr-2"></i>Approve</button>`;}
+    if(e.can_convert){actions+=`<button onclick="convert(${eid})" class="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-600"><i class="fas fa-exchange-alt mr-2"></i>Convert to Invoice</button>`;}
+    if(!e.can_approve&&!e.can_convert){actions+=`<p class="text-sm text-gray-400 text-center py-2">${e.status==='converted'?'Already converted to invoice':e.status==='draft'?'Send to client for approval':'No actions available'}</p>`;}
+    $('#action-group').html(actions);
+});
+function approve(id){$.post({url:'/api/estimates/'+id+'/approve',headers:{Authorization:'Bearer '+token}}).done(function(){location.reload();}).fail(function(x){alert(x.responseJSON?.detail);});}
+function convert(id){$.post({url:'/api/estimates/'+id+'/convert',headers:{Authorization:'Bearer '+token}}).done(function(r){alert('Invoice created: '+r.invoice_no);window.location.href='/invoices/'+r.invoice_id;}).fail(function(x){alert(x.responseJSON?.detail);});}
+</script>
+{% endblock %}
