@@ -70,7 +70,11 @@ def purchases_page(request: Request):
 
 @app.get("/purchases/new", response_class=HTMLResponse)
 def purchase_new(request: Request):
-    return templates.TemplateResponse(request, "purchases/form.html", {"company": settings.COMPANY_NAME})
+    return templates.TemplateResponse(request, "purchases/form.html", {"company": settings.COMPANY_NAME, "purchase_id": None})
+
+@app.get("/purchases/{purchase_id}", response_class=HTMLResponse)
+def purchase_detail(request: Request, purchase_id: int):
+    return templates.TemplateResponse(request, "purchases/form.html", {"company": settings.COMPANY_NAME, "purchase_id": purchase_id})
 
 @app.get("/expenses", response_class=HTMLResponse)
 def expenses_page(request: Request):
@@ -78,7 +82,11 @@ def expenses_page(request: Request):
 
 @app.get("/expenses/new", response_class=HTMLResponse)
 def expense_new(request: Request):
-    return templates.TemplateResponse(request, "expenses/form.html", {"company": settings.COMPANY_NAME})
+    return templates.TemplateResponse(request, "expenses/form.html", {"company": settings.COMPANY_NAME, "expense_id": None})
+
+@app.get("/expenses/{expense_id}", response_class=HTMLResponse)
+def expense_detail(request: Request, expense_id: int):
+    return templates.TemplateResponse(request, "expenses/form.html", {"company": settings.COMPANY_NAME, "expense_id": expense_id})
 
 @app.get("/estimates", response_class=HTMLResponse)
 def estimates_page(request: Request):
@@ -86,7 +94,11 @@ def estimates_page(request: Request):
 
 @app.get("/estimates/new", response_class=HTMLResponse)
 def estimate_new(request: Request):
-    return templates.TemplateResponse(request, "estimates/form.html", {"company": settings.COMPANY_NAME})
+    return templates.TemplateResponse(request, "estimates/form.html", {"company": settings.COMPANY_NAME, "estimate_id": None})
+
+@app.get("/estimates/{estimate_id}/edit", response_class=HTMLResponse)
+def estimate_edit(request: Request, estimate_id: int):
+    return templates.TemplateResponse(request, "estimates/form.html", {"company": settings.COMPANY_NAME, "estimate_id": estimate_id})
 
 @app.get("/estimates/{estimate_id}", response_class=HTMLResponse)
 def estimate_detail(request: Request, estimate_id: int):
@@ -98,7 +110,11 @@ def invoices_page(request: Request):
 
 @app.get("/invoices/new", response_class=HTMLResponse)
 def invoice_new(request: Request):
-    return templates.TemplateResponse(request, "invoices/form.html", {"company": settings.COMPANY_NAME})
+    return templates.TemplateResponse(request, "invoices/form.html", {"company": settings.COMPANY_NAME, "invoice_id": None})
+
+@app.get("/invoices/{invoice_id}/edit", response_class=HTMLResponse)
+def invoice_edit(request: Request, invoice_id: int):
+    return templates.TemplateResponse(request, "invoices/form.html", {"company": settings.COMPANY_NAME, "invoice_id": invoice_id})
 
 @app.get("/invoices/{invoice_id}", response_class=HTMLResponse)
 def invoice_detail(request: Request, invoice_id: int):

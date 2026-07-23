@@ -5,6 +5,7 @@ from datetime import date, datetime
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.client import Client
+from app.models.supplier import Supplier
 from app.models.product import Product, ProductCategory
 from app.models.purchase import PurchaseInvoice, PurchaseItem, PurchaseStatus
 from app.models.inventory import Inventory, StockMovement, MovementType
@@ -139,6 +140,49 @@ def delete_client(client_id: int, db: Session = Depends(get_db), current_user: U
     db.commit()
     return {"message": "Client deactivated"}
 
+# --- Supplier Routes ---
+class SupplierCreate(BaseModel):
+    name: str
+    contact_person: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    mobile: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    ntn: Optional[str] = None
+    strn: Optional[str] = None
+
+@router.get("/suppliers")
+def list_suppliers(search: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(Supplier).filter(Supplier.is_active == True)
+    if search:
+        query = query.filter(Supplier.name.ilike(f"%{search}%"))
+    return query.order_by(Supplier.name).all()
+
+@router.post("/suppliers")
+def create_supplier(supplier: SupplierCreate, db: Session = Depends(get_db)):
+    db_supplier = Supplier(**supplier.model_dump())
+    db.add(db_supplier)
+    db.commit()
+    db.refresh(db_supplier)
+    return db_supplier
+
+def _resolve_or_create_supplier(db, supplier_name: str, supplier_ntn: str = None, supplier_address: str = None) -> int:
+    existing = db.query(Supplier).filter(
+        Supplier.name.ilike(supplier_name.strip())
+    ).first()
+    if existing:
+        return existing.id
+    new_supplier = Supplier(
+        name=supplier_name.strip(),
+        ntn=supplier_ntn,
+        address=supplier_address,
+        is_active=True
+    )
+    db.add(new_supplier)
+    db.flush()
+    return new_supplier.id
+
 # --- Product Routes ---
 class ProductCreate(BaseModel):
     name: str
@@ -212,6 +256,15 @@ def update_product(product_id: int, product: ProductCreate, db: Session = Depend
     db.refresh(db_product)
     return db_product
 
+@router.delete("/products/{product_id}")
+def delete_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_product = db.query(Product).filter(Product.id == product_id).first()
+    if not db_product:
+        raise HTTPException(404, "Product not found")
+    db_product.is_active = False
+    db.commit()
+    return {"message": "Product deactivated"}
+
 # --- Purchase Routes ---
 class PurchaseItemCreate(BaseModel):
     product_id: Optional[int] = None
@@ -266,8 +319,11 @@ def create_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db), cur
     tax_amount = sum(item.unit_price * item.quantity * (item.tax_rate / 100) for item in purchase.items)
     total = subtotal + tax_amount
 
+    supplier_id = _resolve_or_create_supplier(db, purchase.supplier_name, purchase.supplier_ntn, purchase.supplier_address)
+
     db_purchase = PurchaseInvoice(
         invoice_no=inv_no,
+        supplier_id=supplier_id,
         supplier_name=purchase.supplier_name,
         supplier_ntn=purchase.supplier_ntn,
         supplier_address=purchase.supplier_address,
@@ -319,8 +375,11 @@ def import_purchases(purchases: List[PurchaseCreate], db: Session = Depends(get_
         tax_amount = sum(item.unit_price * item.quantity * (item.tax_rate / 100) for item in purchase.items)
         total = subtotal + tax_amount
 
+        supplier_id = _resolve_or_create_supplier(db, purchase.supplier_name, purchase.supplier_ntn, purchase.supplier_address)
+
         db_purchase = PurchaseInvoice(
             invoice_no=inv_no,
+            supplier_id=supplier_id,
             supplier_name=purchase.supplier_name,
             supplier_ntn=purchase.supplier_ntn,
             supplier_address=purchase.supplier_address,
@@ -363,6 +422,123 @@ def import_purchases(purchases: List[PurchaseCreate], db: Session = Depends(get_
         db.refresh(db_purchase)
         created.append(db_purchase)
     return {"message": f"{len(created)} purchase(s) imported", "purchases": created}
+
+@router.get("/purchases/{purchase_id}")
+def get_purchase(purchase_id: int, db: Session = Depends(get_db)):
+    purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
+    if not purchase:
+        raise HTTPException(404, "Purchase not found")
+    items = db.query(PurchaseItem).filter(PurchaseItem.purchase_id == purchase_id).all()
+    return {
+        "id": purchase.id, "invoice_no": purchase.invoice_no,
+        "supplier_name": purchase.supplier_name,
+        "supplier_ntn": purchase.supplier_ntn,
+        "supplier_address": purchase.supplier_address,
+        "invoice_date": purchase.invoice_date,
+        "received_date": purchase.received_date,
+        "status": purchase.status.value,
+        "subtotal": purchase.subtotal,
+        "tax_amount": purchase.tax_amount,
+        "tax_rate": purchase.tax_rate,
+        "total_amount": purchase.total_amount,
+        "notes": purchase.notes,
+        "items": [{
+            "id": i.id, "product_id": i.product_id,
+            "product_name": i.product_name,
+            "description": i.description,
+            "quantity": i.quantity,
+            "unit": i.unit,
+            "unit_price": i.unit_price,
+            "tax_rate": i.tax_rate,
+            "tax_amount": i.tax_amount,
+            "total_price": i.total_price
+        } for i in items]
+    }
+
+@router.delete("/purchases/{purchase_id}")
+def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
+    if not db_purchase:
+        raise HTTPException(404, "Purchase not found")
+    for old_item in db_purchase.items:
+        if old_item.product_id:
+            inv = get_or_create_inventory(db, old_item.product_id)
+            inv.quantity -= old_item.quantity
+            movement = StockMovement(
+                product_id=old_item.product_id, quantity=-old_item.quantity,
+                movement_type=MovementType.ADJUSTMENT,
+                reference_type="purchase_delete", reference_id=db_purchase.id,
+                notes=f"Reversal for deleted purchase {db_purchase.invoice_no}",
+                created_by=current_user.id
+            )
+            db.add(movement)
+    db_purchase.status = PurchaseStatus.CANCELLED
+    db.commit()
+    return {"message": "Purchase cancelled"}
+
+@router.put("/purchases/{purchase_id}")
+def update_purchase(purchase_id: int, purchase: PurchaseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
+    if not db_purchase:
+        raise HTTPException(404, "Purchase not found")
+
+    for old_item in db_purchase.items:
+        if old_item.product_id:
+            inv = get_or_create_inventory(db, old_item.product_id)
+            inv.quantity -= old_item.quantity
+            movement = StockMovement(
+                product_id=old_item.product_id,
+                quantity=-old_item.quantity,
+                movement_type=MovementType.ADJUSTMENT,
+                reference_type="purchase_edit",
+                reference_id=db_purchase.id,
+                notes=f"Reversal for edited purchase {db_purchase.invoice_no}",
+                created_by=current_user.id
+            )
+            db.add(movement)
+
+    db.query(PurchaseItem).filter(PurchaseItem.purchase_id == purchase_id).delete()
+
+    supplier_id = _resolve_or_create_supplier(db, purchase.supplier_name, purchase.supplier_ntn, purchase.supplier_address)
+    db_purchase.supplier_id = supplier_id
+    db_purchase.supplier_name = purchase.supplier_name
+    db_purchase.supplier_ntn = purchase.supplier_ntn
+    db_purchase.supplier_address = purchase.supplier_address
+    db_purchase.invoice_date = purchase.invoice_date
+    db_purchase.received_date = purchase.received_date
+    db_purchase.notes = purchase.notes
+
+    subtotal = sum(item.unit_price * item.quantity for item in purchase.items)
+    tax_amount = sum(item.unit_price * item.quantity * (item.tax_rate / 100) for item in purchase.items)
+    total = subtotal + tax_amount
+    db_purchase.subtotal = round(subtotal, 2)
+    db_purchase.tax_amount = round(tax_amount, 2)
+    db_purchase.total_amount = round(total, 2)
+
+    for item in purchase.items:
+        product_id = _resolve_or_create_product(db, item)
+        item_total = item.unit_price * item.quantity
+        item_tax = item_total * (item.tax_rate / 100)
+        db_item = PurchaseItem(
+            purchase_id=db_purchase.id,
+            product_id=product_id,
+            product_name=item.product_name,
+            description=item.description,
+            quantity=item.quantity,
+            unit=item.unit,
+            unit_price=item.unit_price,
+            tax_rate=item.tax_rate,
+            tax_amount=round(item_tax, 2),
+            total_price=round(item_total + item_tax, 2)
+        )
+        db.add(db_item)
+
+        update_stock(db, product_id, item.quantity, MovementType.PURCHASE_IN,
+                    "purchase", db_purchase.id, f"Purchase {db_purchase.invoice_no}", current_user.id)
+
+    db.commit()
+    db.refresh(db_purchase)
+    return db_purchase
 
 # --- Inventory Routes ---
 @router.get("/inventory")
@@ -453,6 +629,36 @@ def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), curren
     db.refresh(db_expense)
     return db_expense
 
+@router.get("/expenses/{expense_id}")
+def get_expense(expense_id: int, db: Session = Depends(get_db)):
+    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if not expense:
+        raise HTTPException(404, "Expense not found")
+    return expense
+
+@router.put("/expenses/{expense_id}")
+def update_expense(expense_id: int, expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if not db_expense:
+        raise HTTPException(404, "Expense not found")
+    for key, value in expense.model_dump(exclude_unset=True).items():
+        setattr(db_expense, key, value)
+    db_expense.total_amount = round(db_expense.amount + db_expense.tax_amount, 2)
+    if expense.category:
+        db_expense.category = ExpenseCategory(expense.category) if expense.category in [e.value for e in ExpenseCategory] else ExpenseCategory.OTHER
+    db.commit()
+    db.refresh(db_expense)
+    return db_expense
+
+@router.delete("/expenses/{expense_id}")
+def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if not db_expense:
+        raise HTTPException(404, "Expense not found")
+    db.delete(db_expense)
+    db.commit()
+    return {"message": "Expense deleted"}
+
 @router.get("/expenses/summary")
 def expense_summary(from_date: Optional[date] = None, to_date: Optional[date] = None, db: Session = Depends(get_db)):
     query = db.query(Expense)
@@ -481,6 +687,33 @@ class ProjectCreate(BaseModel):
 @router.get("/projects")
 def list_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Project).order_by(Project.created_at.desc()).all()
+
+@router.get("/projects/{project_id}")
+def get_project(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+    return project
+
+@router.put("/projects/{project_id}")
+def update_project(project_id: int, project: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_project = db.query(Project).filter(Project.id == project_id).first()
+    if not db_project:
+        raise HTTPException(404, "Project not found")
+    for key, value in project.model_dump(exclude_unset=True).items():
+        setattr(db_project, key, value)
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+@router.delete("/projects/{project_id}")
+def delete_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_project = db.query(Project).filter(Project.id == project_id).first()
+    if not db_project:
+        raise HTTPException(404, "Project not found")
+    db_project.status = ProjectStatus.CANCELLED
+    db.commit()
+    return {"message": "Project cancelled"}
 
 @router.post("/projects")
 def create_project(project: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -528,6 +761,57 @@ def list_estimates(status: Optional[str] = None, db: Session = Depends(get_db), 
             "total_amount": e.total_amount, "items_count": len(e.items)
         })
     return result
+
+@router.put("/estimates/{estimate_id}")
+def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
+    if not db_estimate:
+        raise HTTPException(404, "Estimate not found")
+    if db_estimate.status in [EstimateStatus.APPROVED, EstimateStatus.CONVERTED, EstimateStatus.REJECTED]:
+        raise HTTPException(400, f"Cannot edit estimate with status {db_estimate.status.value}")
+
+    db.query(EstimateItem).filter(EstimateItem.estimate_id == estimate_id).delete()
+
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, it.tax_rate) for it in estimate.items]
+    totals = calculate_invoice_tax(calculated_items, estimate.discount_percent)
+
+    db_estimate.client_id = estimate.client_id
+    db_estimate.project_id = estimate.project_id
+    db_estimate.title = estimate.title
+    db_estimate.estimate_date = estimate.estimate_date
+    db_estimate.valid_until = estimate.valid_until
+    db_estimate.subtotal = totals["subtotal"]
+    db_estimate.discount_percent = estimate.discount_percent
+    db_estimate.discount_amount = totals["discount_amount"]
+    db_estimate.tax_rate = totals["tax_rate"]
+    db_estimate.tax_amount = totals["tax_amount"]
+    db_estimate.total_amount = totals["total_amount"]
+    db_estimate.terms_conditions = estimate.terms_conditions
+    db_estimate.notes = estimate.notes
+
+    for i, item in enumerate(estimate.items):
+        calc = calculated_items[i]
+        db_item = EstimateItem(
+            estimate_id=db_estimate.id, product_id=item.product_id,
+            description=item.description, quantity=item.quantity,
+            unit=item.unit, unit_price=item.unit_price,
+            tax_rate=item.tax_rate, tax_amount=calc["tax_amount"],
+            total_price=calc["total"]
+        )
+        db.add(db_item)
+
+    db.commit()
+    db.refresh(db_estimate)
+    return db_estimate
+
+@router.delete("/estimates/{estimate_id}")
+def delete_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
+    if not db_estimate:
+        raise HTTPException(404, "Estimate not found")
+    db_estimate.status = EstimateStatus.REJECTED
+    db.commit()
+    return {"message": "Estimate rejected"}
 
 @router.post("/estimates")
 def create_estimate(estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -629,6 +913,13 @@ def convert_estimate_to_invoice(estimate_id: int, db: Session = Depends(get_db),
             total_price=item.total_price
         )
         db.add(db_item)
+        if item.product_id:
+            try:
+                update_stock(db, item.product_id, item.quantity, MovementType.SALE_OUT,
+                            "invoice", db_invoice.id, f"Invoice {inv_no}", current_user.id)
+            except ValueError as e:
+                db.rollback()
+                raise HTTPException(400, f"Insufficient stock for '{item.description}': {e}")
 
     estimate.status = EstimateStatus.CONVERTED
     db.commit()
@@ -733,9 +1024,109 @@ def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db), curren
         )
         db.add(db_item)
 
+    for item in invoice.items:
+        if item.product_id:
+            try:
+                update_stock(db, item.product_id, item.quantity, MovementType.SALE_OUT,
+                            "invoice", db_invoice.id, f"Invoice {inv_no}", current_user.id)
+            except ValueError as e:
+                db.rollback()
+                raise HTTPException(400, f"Insufficient stock for '{item.description}': {e}")
+
     db.commit()
     db.refresh(db_invoice)
     return db_invoice
+
+@router.put("/invoices/{invoice_id}")
+def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not db_invoice:
+        raise HTTPException(404, "Invoice not found")
+    if db_invoice.status in [InvoiceStatus.PAID, InvoiceStatus.CANCELLED]:
+        raise HTTPException(400, f"Cannot edit invoice with status {db_invoice.status.value}")
+
+    for old_item in db_invoice.items:
+        if old_item.product_id:
+            inv = get_or_create_inventory(db, old_item.product_id)
+            inv.quantity += old_item.quantity
+            movement = StockMovement(
+                product_id=old_item.product_id, quantity=old_item.quantity,
+                movement_type=MovementType.ADJUSTMENT,
+                reference_type="invoice_edit", reference_id=db_invoice.id,
+                notes=f"Reversal for edited invoice {db_invoice.invoice_no}",
+                created_by=current_user.id
+            )
+            db.add(movement)
+
+    db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).delete()
+
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, it.tax_rate) for it in invoice.items]
+    totals = calculate_invoice_tax(calculated_items, invoice.discount_percent,
+                                  apply_wht=invoice.apply_wht, apply_fed=invoice.apply_fed)
+    due = invoice.due_date or invoice.invoice_date
+
+    db_invoice.client_id = invoice.client_id
+    db_invoice.estimate_id = invoice.estimate_id
+    db_invoice.project_id = invoice.project_id
+    db_invoice.invoice_date = invoice.invoice_date
+    db_invoice.due_date = due
+    db_invoice.subtotal = totals["subtotal"]
+    db_invoice.discount_percent = invoice.discount_percent
+    db_invoice.discount_amount = totals["discount_amount"]
+    db_invoice.tax_rate = totals["tax_rate"]
+    db_invoice.tax_amount = totals["tax_amount"]
+    db_invoice.withholding_tax_rate = totals["wht_rate"]
+    db_invoice.withholding_tax_amount = totals["wht_amount"]
+    db_invoice.fed_rate = totals["fed_rate"]
+    db_invoice.fed_amount = totals["fed_amount"]
+    db_invoice.total_amount = totals["total_amount"]
+    db_invoice.balance_due = totals["total_amount"] - db_invoice.amount_paid
+    db_invoice.payment_terms = invoice.payment_terms
+    db_invoice.notes = invoice.notes
+    db_invoice.terms_conditions = invoice.terms_conditions
+
+    for i, item in enumerate(invoice.items):
+        calc = calculated_items[i]
+        db_item = InvoiceItem(
+            invoice_id=db_invoice.id, product_id=item.product_id,
+            description=item.description, quantity=item.quantity,
+            unit=item.unit, unit_price=item.unit_price,
+            tax_rate=item.tax_rate, tax_amount=calc["tax_amount"],
+            total_price=calc["total"]
+        )
+        db.add(db_item)
+        if item.product_id:
+            try:
+                update_stock(db, item.product_id, item.quantity, MovementType.SALE_OUT,
+                            "invoice", db_invoice.id, f"Invoice {db_invoice.invoice_no}", current_user.id)
+            except ValueError as e:
+                db.rollback()
+                raise HTTPException(400, f"Insufficient stock for '{item.description}': {e}")
+
+    db.commit()
+    db.refresh(db_invoice)
+    return db_invoice
+
+@router.delete("/invoices/{invoice_id}")
+def delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not db_invoice:
+        raise HTTPException(404, "Invoice not found")
+    for old_item in db_invoice.items:
+        if old_item.product_id:
+            inv = get_or_create_inventory(db, old_item.product_id)
+            inv.quantity += old_item.quantity
+            movement = StockMovement(
+                product_id=old_item.product_id, quantity=old_item.quantity,
+                movement_type=MovementType.ADJUSTMENT,
+                reference_type="invoice_delete", reference_id=db_invoice.id,
+                notes=f"Restock for deleted invoice {db_invoice.invoice_no}",
+                created_by=current_user.id
+            )
+            db.add(movement)
+    db_invoice.status = InvoiceStatus.CANCELLED
+    db.commit()
+    return {"message": "Invoice cancelled"}
 
 @router.get("/invoices/{invoice_id}")
 def get_invoice(invoice_id: int, db: Session = Depends(get_db)):

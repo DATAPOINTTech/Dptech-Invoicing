@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}New Estimate - {{ company }}{% endblock %}
+{% block title %}{% if estimate_id %}Edit Estimate{% else %}New Estimate{% endif %} - {{ company }}{% endblock %}
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
     <main class="flex-1 ml-64 p-8">
-        <h1 class="text-2xl font-bold text-gray-800 mb-6">New Estimate / Quotation</h1>
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">{% if estimate_id %}Edit Estimate / Quotation{% else %}New Estimate / Quotation{% endif %}</h1>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <form id="estimate-form" class="space-y-4">
                 <div class="grid grid-cols-3 gap-4">
@@ -36,7 +36,7 @@
                     <div><label class="block text-sm font-medium text-gray-700">Notes</label><textarea id="notes" rows="3" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></textarea></div>
                 </div>
                 <div class="flex gap-3 pt-4">
-                    <button type="submit" class="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:shadow-lg"><i class="fas fa-save mr-2"></i>Create Estimate</button>
+                    <button type="submit" class="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:shadow-lg"><i class="fas fa-save mr-2"></i>{% if estimate_id %}Update Estimate{% else %}Create Estimate{% endif %}</button>
                     <a href="/estimates" class="bg-gray-100 text-gray-700 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200">Cancel</a>
                 </div>
             </form>
@@ -46,13 +46,14 @@
 <script>
 const token=localStorage.getItem('token');if(!token)window.location.href='/login';
 let itemCount=0;
-function addItem(){
-    const idx=itemCount++;
+const estimateId = {{ estimate_id|default('null') }};
+
+function addItem(data){
     const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-6 gap-2 items-end">
-        <div class="col-span-2"><label class="text-xs text-gray-500">Description</label><input type="text" name="desc" class="w-full px-2 py-1.5 border rounded text-sm" placeholder="Item description"></div>
-        <div><label class="text-xs text-gray-500">Qty</label><input type="number" name="qty" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm qty-input" value="1"></div>
-        <div><label class="text-xs text-gray-500">Unit</label><select name="unit" class="w-full px-2 py-1.5 border rounded text-sm"><option value="pcs">pcs</option><option value="hour">hour</option><option value="day">day</option><option value="service">service</option></select></div>
-        <div><label class="text-xs text-gray-500">Unit Price</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm price-input" value="0"></div>
+        <div class="col-span-2"><label class="text-xs text-gray-500">Description</label><input type="text" name="desc" class="w-full px-2 py-1.5 border rounded text-sm" placeholder="Item description" value="${data?.description||''}"></div>
+        <div><label class="text-xs text-gray-500">Qty</label><input type="number" name="qty" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm qty-input" value="${data?.quantity||1}"></div>
+        <div><label class="text-xs text-gray-500">Unit</label><select name="unit" class="w-full px-2 py-1.5 border rounded text-sm"><option value="pcs" ${data?.unit==='pcs'?'selected':''}>pcs</option><option value="hour" ${data?.unit==='hour'?'selected':''}>hour</option><option value="day" ${data?.unit==='day'?'selected':''}>day</option><option value="service" ${data?.unit==='service'?'selected':''}>service</option></select></div>
+        <div><label class="text-xs text-gray-500">Unit Price</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm price-input" value="${data?.unit_price||0}"></div>
         <div><button type="button" onclick="this.closest('.item-row').remove();calcTotal();" class="text-red-500 text-sm"><i class="fas fa-times"></i></button></div>
     </div>`;
     $('#items-container').append(html);
@@ -63,15 +64,48 @@ function calcTotal(){
     $('#display-subtotal').text(subtotal.toFixed(2));$('#display-tax').text(tax.toFixed(2));$('#display-total').text(total.toFixed(2));
 }
 $(function(){
-    $('#estimate_date').val(new Date().toISOString().split('T')[0]);
-    const future=new Date();future.setDate(future.getDate()+15);$('#valid_until').val(future.toISOString().split('T')[0]);
-    $.ajax({url:'/api/clients',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(clients){clients.forEach(c=>{$('#client_id').append(`<option value="${c.id}">${c.name}${c.company?' ('+c.company+')':''}</option>`);});});
-    addItem();
+    if (!estimateId) {
+        $('#estimate_date').val(new Date().toISOString().split('T')[0]);
+        const future=new Date();future.setDate(future.getDate()+15);$('#valid_until').val(future.toISOString().split('T')[0]);
+    }
+    function loadClients(cb){
+        $.ajax({url:'/api/clients',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(clients){
+            if(clients&&clients.length){
+                clients.forEach(c=>{$('#client_id').append(`<option value="${c.id}">${c.name}${c.company?' ('+c.company+')':''}</option>`);});
+            } else {
+                $('#client_id').append('<option value="">No clients found</option>');
+            }
+            if(cb)cb();
+        }).fail(function(){
+            $('#client_id').append('<option value="">Error loading clients</option>');
+            if(cb)cb();
+        });
+    }
+    if (estimateId) {
+        loadClients(function(){
+            $.ajax({url:'/api/estimates/'+estimateId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(est){
+                $('#client_id').val(est.client?.id||est.client_id);
+                $('#estimate_date').val(est.estimate_date);
+                $('#valid_until').val(est.valid_until||'');
+                $('#title').val(est.title||'');
+                $('#discount').val(est.discount_percent);
+                $('#terms').val(est.terms_conditions||'');
+                $('#notes').val(est.notes||'');
+                (est.items||[]).forEach(function(item){addItem(item);});
+                calcTotal();
+            }).fail(function(){alert('Failed to load estimate');window.location.href='/estimates';});
+        });
+    } else {
+        loadClients();
+        addItem();
+    }
     $(document).on('input','.qty-input,.price-input,#discount',calcTotal);
     $('#estimate-form').submit(function(e){e.preventDefault();
         const items=[];$('.item-row').each(function(){items.push({description:$(this).find('[name=desc]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:17});});
         const data={client_id:parseInt($('#client_id').val()),title:$('#title').val(),estimate_date:$('#estimate_date').val(),valid_until:$('#valid_until').val()||null,discount_percent:parseFloat($('#discount').val())||0,terms_conditions:$('#terms').val(),notes:$('#notes').val(),items};
-        $.ajax({url:'/api/estimates',method:'POST',contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(){window.location.href='/estimates';}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+        const url = estimateId ? '/api/estimates/'+estimateId : '/api/estimates';
+        const method = estimateId ? 'PUT' : 'POST';
+        $.ajax({url:url,method:method,contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(){window.location.href='/estimates';}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
     });
 });
 </script>

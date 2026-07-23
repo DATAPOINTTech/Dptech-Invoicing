@@ -1,5 +1,6 @@
 from .user import User, UserRole
 from .client import Client
+from .supplier import Supplier
 from .product import Product, ProductCategory
 from .purchase import PurchaseInvoice, PurchaseItem
 from .inventory import Inventory, StockMovement

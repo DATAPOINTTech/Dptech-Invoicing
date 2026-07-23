@@ -14,6 +14,7 @@ class PurchaseInvoice(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     invoice_no = Column(String(50), unique=True, index=True, nullable=False)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"))
     supplier_name = Column(String(200), nullable=False)
     supplier_ntn = Column(String(50))
     supplier_address = Column(Text)

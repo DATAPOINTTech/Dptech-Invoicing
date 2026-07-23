@@ -32,10 +32,20 @@ function load(search='', cat='') {
             <td class="px-6 py-4"><span class="text-xs px-2 py-1 rounded-full bg-cyan-50 text-cyan-700">${p.category || 'other'}</span></td>
             <td class="px-6 py-4 text-right font-medium">PKR ${p.unit_price?.toLocaleString()}</td>
             <td class="px-6 py-4 text-right"><span class="font-medium ${p.stock_qty <= p.min_stock_level ? 'text-red-600' : 'text-green-600'}">${p.stock_qty}</span> <span class="text-gray-400 text-xs">${p.unit}</span></td>
-            <td class="px-6 py-4 text-center"><a href="/products/new?id=${p.id}" class="text-cyan-600 hover:text-cyan-800"><i class="fas fa-edit"></i></a></td>
+            <td class="px-6 py-4 text-center flex gap-2 justify-center">
+                <a href="/products/new?id=${p.id}" class="text-amber-600 hover:text-amber-800" title="Edit"><i class="fas fa-edit"></i></a>
+                <button class="text-red-600 hover:text-red-800 bg-transparent border-0 cursor-pointer delete-product" data-id="${p.id}" data-name="${p.name}" title="Delete"><i class="fas fa-trash"></i></button>
+            </td>
         </tr>`).join('');
     });
 }
+$(document).on('click', '.delete-product', function(e){
+    e.preventDefault();
+    const id=$(this).data('id'), name=$(this).data('name');
+    if(confirm('Deactivate product '+name+'?')){
+        $.ajax({url:'/api/products/'+id,method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){load($('#search').val(),$('#cat-filter').val());}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+    }
+});
 $(function(){load();$('#search').on('keyup',function(){load($(this).val(),$('#cat-filter').val());});$('#cat-filter').on('change',function(){load($('#search').val(),$(this).val());});});
 </script>
 {% endblock %}
