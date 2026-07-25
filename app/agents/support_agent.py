@@ -7,7 +7,7 @@ class SupportAgent:
         self.context = {
             "company": "DATAPOINT Technologies",
             "address": "G 32 Shayas Residence Jamshoro Road, Hyderabad Sindh",
-            "phone": "+92-XXX-XXXXXXX",
+            "phone": "+92-316-7788990",
             "email": "info@datapointtechnology.com",
             "website": "http://datapointtechnology.com",
             "services": [
@@ -21,7 +21,7 @@ class SupportAgent:
             "billing_info": {
                 "payment_terms": "Net 30 days",
                 "accepted_payment": ["Bank Transfer", "Cheque", "Cash", "JazzCash", "Easypaisa"],
-                "tax_rate": "17% GST/Sales Tax as per Pakistan tax law",
+                "tax_rate": "18% GST/Sales Tax as per Pakistan tax law",
                 "late_payment_fee": "2% per month on overdue amounts"
             }
         }
@@ -35,7 +35,7 @@ class SupportAgent:
             },
             "tax_query": {
                 "keywords": ["tax", "gst", "sales tax", "ntn", "strn", "withholding"],
-                "response": "All invoices include 17% General Sales Tax (GST) as per Pakistan Sales Tax Act 1990. Our NTN and STRN are printed on all tax invoices. Withholding tax (WHT) is applied where applicable as per FBR rules."
+                "response": "All invoices include 18% General Sales Tax (GST) as per Pakistan Sales Tax Act 1990. Our NTN and STRN are printed on all tax invoices. Withholding tax (WHT) is applied where applicable as per FBR rules."
             },
             "invoice_query": {
                 "keywords": ["invoice", "bill", "receipt", "statement"],

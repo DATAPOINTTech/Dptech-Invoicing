@@ -3,7 +3,7 @@
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
-    <main class="flex-1 ml-64 p-8">
+    <main class="flex-1 ml-64 p-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-6">{% if invoice_id %}Edit Sales Invoice{% else %}New Sales Invoice{% endif %}</h1>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <form id="invoice-form" class="space-y-4">
@@ -14,6 +14,7 @@
                     <div><label class="block text-sm font-medium text-gray-700">Due Date</label><input type="date" id="due_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
                 </div>
                 <div class="flex gap-4 items-center">
+                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="apply_tax" checked class="rounded"> Apply Tax (18%)</label>
                     <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="apply_wht" class="rounded"> Apply WHT (4%)</label>
                     <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="apply_fed" class="rounded"> Apply FED (5%)</label>
                     <div class="ml-auto"><label class="text-sm text-gray-600">Discount %</label><input type="number" step="0.01" id="discount" value="0" class="w-20 px-2 py-1.5 border rounded text-sm"></div>
@@ -25,7 +26,7 @@
                 </div>
                 <div class="border-t pt-4 text-right space-y-1">
                     <p class="text-sm text-gray-600">Subtotal: PKR <span id="display-subtotal">0.00</span></p>
-                    <p class="text-sm text-gray-600">GST (17%): PKR <span id="display-tax">0.00</span></p>
+                    <p id="display-tax-row" class="text-sm text-gray-600">GST (18%): PKR <span id="display-tax">0.00</span></p>
                     <p id="display-wht" class="text-sm text-gray-600 hidden">WHT: -PKR <span>0.00</span></p>
                     <p class="text-xl font-bold text-gray-800">Total: PKR <span id="display-total">0.00</span></p>
                 </div>
@@ -44,7 +45,7 @@
 <script>
 const token=localStorage.getItem('token');if(!token)window.location.href='/login';
 let itemCount=0;
-const invoiceId = {{ invoice_id|default('null') }};
+const invoiceId = {{ invoice_id|tojson }};
 
 function addItem(data){
     const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-6 gap-2 items-end">
@@ -58,12 +59,14 @@ function addItem(data){
 }
 function calcTotal(){
     let subtotal=0;$('.item-row').each(function(){const qty=parseFloat($(this).find('[name=qty]').val())||0,price=parseFloat($(this).find('[name=price]').val())||0;subtotal+=qty*price;});
-    const disc=parseFloat($('#discount').val())||0;const afterDisc=subtotal*(1-disc/100);const tax=afterDisc*0.17;
+    const disc=parseFloat($('#discount').val())||0;const afterDisc=subtotal*(1-disc/100);
+    const applyTax=$('#apply_tax').is(':checked');const tax=applyTax?afterDisc*0.17:0;
     let wht=0,fed=0;if($('#apply_wht').is(':checked')){wht=afterDisc*0.04;$('#display-wht').removeClass('hidden');}else{$('#display-wht').addClass('hidden');}
     if($('#apply_fed').is(':checked')){fed=afterDisc*0.05;}
     const total=afterDisc+tax+fed-wht;
     $('#display-subtotal').text(subtotal.toFixed(2));$('#display-tax').text(tax.toFixed(2));$('#display-total').text(total.toFixed(2));
     if($('#apply_wht').is(':checked')){$('#display-wht span').text(wht.toFixed(2));}
+    if(applyTax){$('#display-tax').parent().removeClass('hidden');}else{$('#display-tax').parent().addClass('hidden');}
 }
 $(function(){
     if (!invoiceId) {
@@ -92,6 +95,7 @@ $(function(){
                 $('#discount').val(inv.discount_percent);
                 $('#payment_terms').val(inv.payment_terms||'');
                 $('#notes').val(inv.notes||'');
+                if(inv.tax_rate>0) $('#apply_tax').prop('checked',true);
                 if(inv.wht_rate>0) $('#apply_wht').prop('checked',true);
                 if(inv.fed_rate>0) $('#apply_fed').prop('checked',true);
                 (inv.items||[]).forEach(function(item){addItem(item);});
@@ -103,10 +107,11 @@ $(function(){
         addItem();
     }
     $(document).on('input','.qty-input,.price-input,#discount',calcTotal);
-    $('#apply_wht,#apply_fed').on('change',calcTotal);
+    $('#apply_tax,#apply_wht,#apply_fed').on('change',calcTotal);
     $('#invoice-form').submit(function(e){e.preventDefault();
-        const items=[];$('.item-row').each(function(){items.push({description:$(this).find('[name=desc]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:17});});
-        const data={client_id:parseInt($('#client_id').val()),invoice_date:$('#invoice_date').val(),due_date:$('#due_date').val()||null,discount_percent:parseFloat($('#discount').val())||0,apply_wht:$('#apply_wht').is(':checked'),apply_fed:$('#apply_fed').is(':checked'),payment_terms:$('#payment_terms').val(),notes:$('#notes').val(),items};
+        const applyTax=$('#apply_tax').is(':checked');const tr=applyTax?17:0;
+        const items=[];$('.item-row').each(function(){items.push({description:$(this).find('[name=desc]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:tr});});
+        const data={client_id:parseInt($('#client_id').val()),invoice_date:$('#invoice_date').val(),due_date:$('#due_date').val()||null,discount_percent:parseFloat($('#discount').val())||0,apply_tax:applyTax,apply_wht:$('#apply_wht').is(':checked'),apply_fed:$('#apply_fed').is(':checked'),payment_terms:$('#payment_terms').val(),notes:$('#notes').val(),items};
         const url = invoiceId ? '/api/invoices/'+invoiceId : '/api/invoices';
         const method = invoiceId ? 'PUT' : 'POST';
         $.ajax({url:url,method:method,contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(r){window.location.href='/invoices/'+r.id;}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});

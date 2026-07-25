@@ -90,7 +90,7 @@ psql -h <writer-endpoint> -U postgres -d dptech_db -W
 ```
 
 ```sql
-CREATE USER dptech WITH PASSWORD 'StrongP@ss123';
+CREATE USER dptech WITH PASSWORD '<your-db-password>';
 GRANT ALL PRIVILEGES ON DATABASE dptech_db TO dptech;
 GRANT ALL ON SCHEMA public TO dptech;
 \q
@@ -98,7 +98,7 @@ GRANT ALL ON SCHEMA public TO dptech;
 
 Connection string for `.env`:
 ```
-DATABASE_URL=postgresql://dptech:StrongP@ss123@<writer-endpoint>:5432/dptech_db
+DATABASE_URL=postgresql://dptech:<your-db-password>@<writer-endpoint>:5432/dptech_db
 ```
 
 </details>
@@ -113,7 +113,7 @@ sudo systemctl start postgresql
 sudo systemctl enable postgresql
 
 # Create database and user
-sudo -u postgres psql -c "CREATE USER dptech WITH PASSWORD 'StrongP@ss123';"
+sudo -u postgres psql -c "CREATE USER dptech WITH PASSWORD '<your-db-password>';"
 sudo -u postgres psql -c "CREATE DATABASE dptech_db OWNER dptech;"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE dptech_db TO dptech;"
 ```
@@ -146,8 +146,8 @@ SALES_TAX_RATE=18.0
 ```
 
 > **Database connection string:**
-> - **Aurora RDS:** `postgresql://dptech:StrongP@ss123@<writer-endpoint>:5432/dptech_db`
-> - **Local on EC2:** `postgresql://dptech:StrongP@ss123@localhost:5432/dptech_db`
+> - **Aurora RDS:** `postgresql://dptech:<your-db-password>@<writer-endpoint>:5432/dptech_db`
+> - **Local on EC2:** `postgresql://dptech:<your-db-password>@localhost:5432/dptech_db`
 
 > Generate a strong `SECRET_KEY`:
 > ```bash
@@ -271,7 +271,7 @@ sudo tail -f /var/log/nginx/access.log
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | No | `sqlite:///./dptech.db` | Use PostgreSQL in production |
-| `SECRET_KEY` | No | dev-only key | JWT signing key (change in production) |
+| `SECRET_KEY` | **Yes** | none | JWT signing key — must be set in production |
 | `PORT` | No | `8000` | Server port (set automatically by cloud) |
 | `COMPANY_NAME` | No | DATAPOINT Technologies | Company name on invoices |
 | `EMAIL_HOST` | No | - | SMTP server for email sending |

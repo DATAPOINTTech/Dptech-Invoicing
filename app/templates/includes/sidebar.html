@@ -1,67 +1,98 @@
-<aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30 shadow-lg" id="sidebar">
-    <div class="flex items-center gap-3 px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-cyan-600 to-blue-600">
-        <div class="w-10 h-10 flex items-center justify-center">
-            <img src="/static/img/logo.png" alt="Logo" class="w-full h-full object-contain">
+<aside class="fixed inset-y-0 left-0 w-64 z-30 flex flex-col" id="sidebar" style="background:#0f172a">
+    <!-- Logo -->
+    <div class="flex items-center gap-3 px-5 py-5 border-b border-slate-700/50">
+        <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow">
+            <img src="/static/img/logo.png" alt="Logo" class="w-7 h-7 object-contain">
         </div>
-        <div class="text-white">
-            <h2 class="font-bold text-sm">{{ company }}</h2>
-            <p class="text-xs text-white/70">Management System</p>
+        <div>
+            <p class="text-white font-bold text-sm leading-tight">DATAPOINT</p>
+            <p class="text-slate-400 text-xs">Invoicing System</p>
         </div>
     </div>
-    <nav class="mt-4 px-3 space-y-1 overflow-y-auto" style="height: calc(100vh - 80px);">
-        <a href="/dashboard" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-chart-pie w-5 text-center"></i> Dashboard
+
+    <!-- Nav -->
+    <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+        <a href="/dashboard" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-gauge-high w-4 text-center text-slate-400"></i> Dashboard
         </a>
-        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">Sales</div>
-        <a href="/estimates" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-file-alt w-5 text-center"></i> Estimates
+
+        <p class="nav-section-label">Sales</p>
+        <a href="/estimates" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-file-lines w-4 text-center text-slate-400"></i> Estimates
         </a>
-        <a href="/invoices" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-file-invoice w-5 text-center"></i> Invoices
+        <a href="/invoices" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-file-invoice-dollar w-4 text-center text-slate-400"></i> Invoices
         </a>
-        <a href="/clients" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-users w-5 text-center"></i> Clients
+        <a href="/clients" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-users w-4 text-center text-slate-400"></i> Clients
         </a>
-        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">Inventory</div>
-        <a href="/products" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-box w-5 text-center"></i> Products
+
+        <p class="nav-section-label">Inventory</p>
+        <a href="/products" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-box w-4 text-center text-slate-400"></i> Products
         </a>
-        <a href="/inventory" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-warehouse w-5 text-center"></i> Stock
+        <a href="/inventory" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-warehouse w-4 text-center text-slate-400"></i> Stock
         </a>
-        <a href="/purchases" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-truck-loading w-5 text-center"></i> Purchases
+        <a href="/purchases" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-cart-flatbed w-4 text-center text-slate-400"></i> Purchases
         </a>
-        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">Finance</div>
-        <a href="/expenses" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-money-bill-wave w-5 text-center"></i> Expenses
+
+        <p class="nav-section-label">Finance</p>
+        <a href="/expenses" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-money-bill-wave w-4 text-center text-slate-400"></i> Expenses
         </a>
-        <a href="/projects" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-project-diagram w-5 text-center"></i> Projects
+        <a href="/projects" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-diagram-project w-4 text-center text-slate-400"></i> Projects
         </a>
-        <a href="/reports" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-chart-bar w-5 text-center"></i> Reports
+        <a href="/reports" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-chart-bar w-4 text-center text-slate-400"></i> Reports
         </a>
-        <div class="text-xs text-gray-400 uppercase tracking-wider px-4 mt-4 mb-2 font-semibold">AI Tools</div>
-        <a href="/agent" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 hover:bg-cyan-50 hover:text-cyan-700 transition-all text-sm">
-            <i class="fas fa-robot w-5 text-center"></i> Support Agent
+
+        <p class="nav-section-label">Tools</p>
+        <a href="/agent" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-robot w-4 text-center text-slate-400"></i> AI Agent
         </a>
-        <hr class="my-4 border-gray-200">
-        <a href="/login" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-lg text-red-500 hover:bg-red-50 transition-all text-sm" id="logout-btn">
-            <i class="fas fa-sign-out-alt w-5 text-center"></i> Logout
+        <a href="/users" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg" id="nav-users" style="display:none">
+            <i class="fas fa-user-gear w-4 text-center text-slate-400"></i> Users
         </a>
     </nav>
+
+    <!-- User footer -->
+    <div class="border-t border-slate-700/50 px-3 py-3">
+        <div class="flex items-center gap-3 px-3 py-2 rounded-lg mb-1">
+            <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0" id="sidebar-avatar">U</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-slate-200 text-sm font-medium truncate" id="sidebar-username">User</p>
+                <p class="text-slate-500 text-xs truncate" id="sidebar-role">Staff</p>
+            </div>
+        </div>
+        <a href="/login" id="logout-btn" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300">
+            <i class="fas fa-arrow-right-from-bracket w-4 text-center"></i> Logout
+        </a>
+    </div>
 </aside>
+
 <script>
 $(function() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.role === 'admin') $('#nav-users').show();
+    if (user.name) {
+        $('#sidebar-username').text(user.name);
+        $('#sidebar-avatar').text(user.name.charAt(0).toUpperCase());
+    }
+    if (user.role) $('#sidebar-role').text(user.role.charAt(0).toUpperCase() + user.role.slice(1));
+
     const path = window.location.pathname;
     $('.nav-item').each(function() {
         const href = $(this).attr('href');
-        if (href && href !== '#' && (path === href || path.startsWith(href + '/'))) {
+        if (href && href !== '#' && href !== '/login' && (path === href || path.startsWith(href + '/'))) {
             $(this).addClass('sidebar-active');
+            $(this).find('i').css('color', '#fff');
         }
     });
-    $('#logout-btn').click(function(e) {
+
+    $('#logout-btn').click(function() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
     });

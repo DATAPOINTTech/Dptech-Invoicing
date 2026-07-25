@@ -3,11 +3,12 @@
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
-    <main class="flex-1 ml-64 p-8">
+    <main class="flex-1 ml-64 p-6">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-gray-800">Invoice Detail</h1>
-            <div class="flex gap-2">
+            <div class="flex gap-2" id="action-buttons">
                 <a href="/api/invoices/{{ invoice_id }}/pdf" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100"><i class="fas fa-file-pdf mr-2"></i>PDF</a>
+                <a href="/invoices/{{ invoice_id }}/edit" id="edit-btn" class="bg-amber-50 text-amber-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-100 hidden"><i class="fas fa-edit mr-2"></i>Edit</a>
             </div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -20,15 +21,15 @@
                         </div>
                         <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold"></span>
                     </div>
-                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <div class="mb-6 p-4 bg-dptech-50 rounded-lg">
                         <p class="font-semibold text-gray-800" id="client-name"></p>
                         <p class="text-sm text-gray-500" id="client-info"></p>
                     </div>
-                    <table class="w-full mb-6"><thead><tr class="bg-gray-50"><th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Description</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Qty</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Price</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Tax</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Total</th></tr></thead><tbody id="items-body"></tbody></table>
+                    <table class="w-full mb-6"><thead><tr class="bg-dptech-50"><th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Description</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Qty</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Price</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Tax</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Total</th></tr></thead><tbody id="items-body"></tbody></table>
                     <div class="border-t pt-4 text-right space-y-1">
                         <p class="text-sm text-gray-600">Subtotal: PKR <span id="inv-subtotal"></span></p>
                         <p class="text-sm text-gray-600" id="inv-discount-row">Discount: <span id="inv-discount"></span></p>
-                        <p class="text-sm text-gray-600">GST (17%): PKR <span id="inv-tax"></span></p>
+                        <p class="text-sm text-gray-600">GST (18%): PKR <span id="inv-tax"></span></p>
                         <p class="text-sm text-gray-600" id="inv-wht-row" style="display:none">WHT: -PKR <span id="inv-wht"></span></p>
                         <p class="text-sm text-gray-600" id="inv-fed-row" style="display:none">FED: PKR <span id="inv-fed"></span></p>
                         <p class="text-xl font-bold text-gray-800">Total: PKR <span id="inv-total"></span></p>
@@ -68,6 +69,7 @@ function loadInvoice(){
         $('#inv-dates').text(`Date: ${inv.invoice_date} | Due: ${inv.due_date||'N/A'}`);
         const sc={'paid':'bg-green-100 text-green-700','sent':'bg-blue-100 text-blue-700','overdue':'bg-red-100 text-red-700','partially_paid':'bg-amber-100 text-amber-700','draft':'bg-gray-100 text-gray-600','cancelled':'bg-red-100 text-red-700'};
         $('#inv-status-badge').text(inv.status.replace('_',' ')).addClass(sc[inv.status]||'bg-gray-100');
+        if(!['paid','cancelled'].includes(inv.status)){$('#edit-btn').removeClass('hidden');}
         $('#client-name').text(inv.client?.name||'');
         $('#client-info').text(`${inv.client?.company||''} | NTN: ${inv.client?.ntn||'N/A'} | ${inv.client?.phone||''}`.trim());
         $('#items-body').html((inv.items||[]).map(i=>`<tr class="border-b border-gray-50"><td class="px-4 py-3">${i.description}</td><td class="px-4 py-3 text-right">${i.quantity} ${i.unit}</td><td class="px-4 py-3 text-right">PKR ${i.unit_price?.toFixed(2)}</td><td class="px-4 py-3 text-right">${i.tax_rate}%</td><td class="px-4 py-3 text-right font-medium">PKR ${i.total_price?.toFixed(2)}</td></tr>`).join(''));
@@ -89,7 +91,7 @@ $(function(){
         const data={};const email=$('#send-email').val();const wa=$('#send-whatsapp').val();const msg=$('#send-msg').val()||null;
         if(email)data.email=email;if(wa)data.whatsapp=wa;if(msg)data.message=msg;
         if(!email&&!wa){alert('Enter email or WhatsApp number');return;}
-        $.ajax({url:'/api/invoices/'+iid+'/send',method:'POST',contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(r){let m=[];if(r.email_sent)m.push('Email sent');if(r.whatsapp_sent)m.push('WhatsApp sent');alert(m.join(' & ')||'Send failed');loadInvoice();}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+        $.ajax({url:'/api/invoices/'+iid+'/send',method:'POST',contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(r){let m=[];if(r.email_sent)m.push('Email sent');if(r.whatsapp_sent)m.push('WhatsApp sent');if(r.whatsapp_error)m.push('WhatsApp failed: '+r.whatsapp_error);alert(m.join('\n')||'Send failed');loadInvoice();}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
     });
 });
 </script>

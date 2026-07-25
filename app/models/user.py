@@ -20,4 +20,4 @@ class User(Base):
     role = Column(SAEnum(UserRole), default=UserRole.STAFF)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

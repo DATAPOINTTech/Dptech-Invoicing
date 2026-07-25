@@ -3,37 +3,44 @@
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
-    <main class="flex-1 ml-64 p-8">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Sales Invoices</h1>
-            <a href="/invoices/new" class="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg"><i class="fas fa-plus mr-2"></i>New Invoice</a>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="p-4 border-b border-gray-100 flex gap-2">
-                <select id="status-filter" class="px-4 py-2 border rounded-lg text-sm"><option value="">All Status</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="partially_paid">Partially Paid</option><option value="overdue">Overdue</option></select>
+    <main class="flex-1 ml-64 p-6">
+        <div class="flex justify-between items-center mb-5">
+            <div>
+                <h1 class="page-title">Sales Invoices</h1>
             </div>
-            <table class="w-full"><thead class="bg-gray-50"><tr><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Invoice #</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Client</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Balance</th><th class="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th></tr></thead><tbody id="invoices-body"></tbody></table>
+            <a href="/invoices/new" class="btn btn-success"><i class="fas fa-plus"></i> New Invoice</a>
+        </div>
+        <div class="card overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 flex gap-3 items-center">
+                <select id="status-filter" class="px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"><option value="">All Status</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="partially_paid">Partially Paid</option><option value="overdue">Overdue</option></select>
+            </div>
+            <div class="table-container">
+            <table class="data-table"><thead><tr><th>Invoice #</th><th>Client</th><th>Date</th><th class="text-right">Total</th><th class="text-right">Balance</th><th class="text-center">Status</th><th class="text-right">Actions</th></tr></thead><tbody id="invoices-body"></tbody></table>
+            </div>
         </div>
     </main>
 </div>
 <script>
 const token=localStorage.getItem('token');if(!token)window.location.href='/login';
 function load(){const s=$('#status-filter').val();$.ajax({url:'/api/invoices'+(s?'?status='+s:''),method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(invs){
-    if(!invs.length){$('#invoices-body').html('<tr><td colspan="7" class="text-center py-8 text-gray-400">No invoices</td></tr>');return;}
-    $('#invoices-body').html(invs.map(i=>`<tr class="border-b border-gray-50 hover:bg-gray-50">
-        <td class="px-6 py-4 font-medium text-gray-800">${i.invoice_no}</td>
-        <td class="px-6 py-4">${i.client_name}</td>
-        <td class="px-6 py-4 text-sm text-gray-500">${i.invoice_date}</td>
-        <td class="px-6 py-4 text-right font-medium">PKR ${i.total_amount?.toLocaleString()}</td>
-        <td class="px-6 py-4 text-right ${i.balance_due>0?'text-red-600 font-semibold':'text-green-600'}">PKR ${i.balance_due?.toLocaleString()}</td>
-        <td class="px-6 py-4 text-center"><span class="text-xs px-2 py-1 rounded-full ${i.status==='paid'?'bg-green-100 text-green-700':i.status==='sent'?'bg-blue-100 text-blue-700':i.status==='overdue'?'bg-red-100 text-red-700':i.status==='partially_paid'?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-600'}">${i.status.replace('_',' ')}</span></td>
-        <td class="px-6 py-4 text-right flex gap-2 justify-end">
-            <a href="/invoices/${i.id}" class="text-cyan-600 hover:text-cyan-800 text-sm" title="View"><i class="fas fa-eye"></i></a>
-            <a href="/invoices/${i.id}/edit" class="text-amber-600 hover:text-amber-800 text-sm" title="Edit"><i class="fas fa-edit"></i></a>
-            <button class="text-red-600 hover:text-red-800 text-sm bg-transparent border-0 cursor-pointer cancel-invoice" data-id="${i.id}" data-no="${i.invoice_no}" title="Cancel"><i class="fas fa-times"></i></button>
+    const statusBadge=s=>{const m={paid:'badge-green',sent:'badge-blue',overdue:'badge-red',partially_paid:'badge-amber',draft:'badge-gray',cancelled:'badge-red'};return `<span class="badge ${m[s]||'badge-gray'}">${s.replace('_',' ')}</span>`;};
+    if(!invs.length){$('#invoices-body').html('<tr><td colspan="7" class="text-center py-8 text-slate-400">No invoices found</td></tr>');return;}
+    $('#invoices-body').html(invs.map(i=>`<tr>
+        <td class="font-medium text-slate-800">${i.invoice_no}</td>
+        <td>${i.client_name}</td>
+        <td class="text-slate-500">${i.invoice_date}</td>
+        <td class="text-right font-medium">PKR ${i.total_amount?.toLocaleString()}</td>
+        <td class="text-right ${i.balance_due>0?'text-red-600 font-semibold':'text-green-600'}">PKR ${i.balance_due?.toLocaleString()}</td>
+        <td class="text-center">${statusBadge(i.status)}</td>
+        <td class="text-right">
+            <div class="flex gap-2 justify-end">
+            <a href="/invoices/${i.id}" class="btn btn-ghost btn-sm" title="View"><i class="fas fa-eye"></i></a>
+            <a href="/invoices/${i.id}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
+            <button class="btn btn-ghost btn-sm text-red-500 cancel-invoice" data-id="${i.id}" data-no="${i.invoice_no}" title="Cancel"><i class="fas fa-times"></i></button>
+            </div>
         </td>
-    </tr>`).join('');
-});}
+    </tr>`).join(''));
+}).fail(function(x){if(x.status===401){localStorage.removeItem('token');window.location.href='/login';}$('#invoices-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Error: '+(x.responseJSON?.detail||'Failed to load invoices')+'</td></tr>');});}
 $(document).on('click', '.cancel-invoice', function(e){
     e.preventDefault();
     const id=$(this).data('id'), no=$(this).data('no');

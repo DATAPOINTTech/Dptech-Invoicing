@@ -1,0 +1,24 @@
+[Unit]
+Description=DATAPOINT Invoicing System
+After=network.target
+
+[Service]
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/home/ec2-user/dptech-invoicing
+Environment="PATH=/home/ec2-user/venv/bin"
+EnvironmentFile=/home/ec2-user/dptech-invoicing/.env
+ExecStart=/home/ec2-user/venv/bin/gunicorn app.main:app \
+    -k uvicorn.workers.UvicornWorker \
+    --workers 2 \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --access-logfile /var/log/dptech/access.log \
+    --error-logfile /var/log/dptech/error.log
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

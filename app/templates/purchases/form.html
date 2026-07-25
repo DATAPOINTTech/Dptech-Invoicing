@@ -3,7 +3,7 @@
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
-    <main class="flex-1 ml-64 p-8">
+    <main class="flex-1 ml-64 p-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-6">{% if purchase_id %}Edit Purchase Invoice{% else %}New Purchase Invoice{% endif %}</h1>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <form id="purchase-form" class="space-y-4">
@@ -43,7 +43,7 @@
 <script>
 const token=localStorage.getItem('token');if(!token)window.location.href='/login';
 let itemCount=0, productCache=[], supplierCache=[];
-const purchaseId = {{ purchase_id|default('null') }};
+const purchaseId = {{ purchase_id|tojson }};
 
 $.ajax({url:'/api/products',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ps){productCache=ps;});
 $.ajax({url:'/api/suppliers',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ss){supplierCache=ss;});

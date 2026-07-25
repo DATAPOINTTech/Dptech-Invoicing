@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from app.database import init_db
@@ -25,12 +25,47 @@ if os.path.exists(static_dir):
 
 app.include_router(api_router)
 
+@app.get("/health", include_in_schema=False)
+def health_check():
+    return {"status": "ok"}
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(os.path.join(static_dir, "img", "favicon.svg"), media_type="image/svg+xml")
+
 @app.on_event("startup")
 def on_startup():
     init_db()
     pdf_dir = settings.PDF_OUTPUT_DIR
     if not os.path.exists(pdf_dir):
         os.makedirs(pdf_dir)
+    _seed_admin()
+
+def _seed_admin():
+    """Create a default admin account if no users exist."""
+    from app.database import SessionLocal
+    from app.models.user import User, UserRole
+    from app.services.auth import get_password_hash
+    db = SessionLocal()
+    try:
+        if db.query(User).count() == 0:
+            admin = User(
+                username="admin",
+                email="admin@dptech.local",
+                hashed_password=get_password_hash("admin123"),
+                full_name="Administrator",
+                role=UserRole.ADMIN,
+                is_active=True,
+            )
+            db.add(admin)
+            db.commit()
+            import logging
+            logging.getLogger(__name__).warning(
+                "Default admin created — username: admin  password: admin123  "
+                "CHANGE THIS PASSWORD IMMEDIATELY after first login."
+            )
+    finally:
+        db.close()
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
@@ -131,3 +166,7 @@ def projects_page(request: Request):
 @app.get("/reports", response_class=HTMLResponse)
 def reports_page(request: Request):
     return templates.TemplateResponse(request, "reports.html", {"company": settings.COMPANY_NAME})
+
+@app.get("/users", response_class=HTMLResponse)
+def users_page(request: Request):
+    return templates.TemplateResponse(request, "users/list.html", {"company": settings.COMPANY_NAME})

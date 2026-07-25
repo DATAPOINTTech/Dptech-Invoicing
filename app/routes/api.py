@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date, datetime
@@ -13,7 +14,7 @@ from app.models.expense import Expense, ExpenseCategory
 from app.models.estimate import Estimate, EstimateItem, EstimateStatus
 from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus
 from app.models.project import Project, ProjectStatus
-from app.services.auth import get_current_user, get_password_hash, authenticate_user, create_access_token
+from app.services.auth import get_current_user, get_password_hash, authenticate_user, create_access_token, require_role
 from app.services.taxation import calculate_item_tax, calculate_invoice_tax, generate_invoice_number, generate_estimate_number, generate_purchase_number, generate_expense_number
 from app.services.inventory_service import update_stock, get_stock_level, get_low_stock_products, get_or_create_inventory
 from app.services.pdf_service import generate_invoice_pdf, generate_estimate_pdf
@@ -58,30 +59,112 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Account is deactivated")
     token = create_access_token({"sub": user.username, "role": user.role.value})
     return {"access_token": token, "token_type": "bearer", "user": {"id": user.id, "name": user.full_name, "role": user.role.value}}
+
+# --- User Management Routes (Admin Only) ---
+@router.get("/users")
+def list_users(db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return [{
+        "id": u.id, "username": u.username, "email": u.email,
+        "full_name": u.full_name, "phone": u.phone,
+        "role": u.role.value, "is_active": u.is_active,
+        "created_at": u.created_at
+    } for u in users]
+
+@router.get("/users/{user_id}")
+def get_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    return {
+        "id": user.id, "username": user.username, "email": user.email,
+        "full_name": user.full_name, "phone": user.phone,
+        "role": user.role.value, "is_active": user.is_active,
+        "created_at": user.created_at
+    }
+
+@router.put("/users/{user_id}")
+def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(404, "User not found")
+    db_user.username = user.username
+    db_user.email = user.email
+    db_user.full_name = user.full_name
+    db_user.phone = user.phone
+    db_user.role = UserRole(user.role) if user.role in [e.value for e in UserRole] else UserRole.STAFF
+    if user.password:
+        db_user.hashed_password = get_password_hash(user.password)
+    db.commit()
+    db.refresh(db_user)
+    return {"message": "User updated"}
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
+@router.put("/users/{user_id}/status")
+def toggle_user_status(user_id: int, status: UserStatusUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+    if user_id == current_user.id:
+        raise HTTPException(400, "Cannot deactivate yourself")
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(404, "User not found")
+    db_user.is_active = status.is_active
+    db.commit()
+    return {"message": "User status updated"}
 
 # --- Dashboard ---
 @router.get("/dashboard")
 def get_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     total_clients = db.query(Client).count()
-    active_projects = db.query(Project).filter(Project.status == ProjectStatus.IN_PROGRESS).count()
+    active_projects_count = db.query(Project).filter(Project.status.in_([ProjectStatus.PLANNING, ProjectStatus.IN_PROGRESS, ProjectStatus.ON_HOLD])).count()
     pending_invoices = db.query(Invoice).filter(Invoice.status.in_([InvoiceStatus.DRAFT, InvoiceStatus.SENT])).count()
     total_receivables = db.query(Invoice).filter(Invoice.status.in_([InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID])).with_entities(Invoice.balance_due).all()
     total_due = sum(r[0] for r in total_receivables if r[0]) if total_receivables else 0
     low_stock = get_low_stock_products(db)
     recent_invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).limit(5).all()
     recent_estimates = db.query(Estimate).order_by(Estimate.created_at.desc()).limit(5).all()
+
+    now = datetime.now()
+    month_start = date(now.year, now.month, 1)
+    if now.month == 1:
+        last_month_start = date(now.year - 1, 12, 1)
+        last_month_end = date(now.year, 1, 1)
+    else:
+        last_month_start = date(now.year, now.month - 1, 1)
+        last_month_end = month_start
+
+    month_expenses = db.query(func.coalesce(func.sum(Expense.total_amount), 0)).filter(Expense.expense_date >= month_start).scalar()
+    last_month_expenses = db.query(func.coalesce(func.sum(Expense.total_amount), 0)).filter(Expense.expense_date >= last_month_start, Expense.expense_date < last_month_end).scalar()
+    total_expenses = db.query(func.coalesce(func.sum(Expense.total_amount), 0)).scalar()
+    expense_count = db.query(Expense).count()
+
+    expense_categories = db.query(Expense.category, func.coalesce(func.sum(Expense.total_amount), 0)).group_by(Expense.category).all()
+    total_cat = sum(c[1] for c in expense_categories) or 1
+    expenses_by_category = [{"category": cat.value if hasattr(cat, 'value') else cat, "amount": round(amt, 2), "percentage": round(amt / total_cat * 100, 1)} for cat, amt in expense_categories]
+
+    recent_expenses = db.query(Expense).order_by(Expense.expense_date.desc()).limit(5).all()
+
     return {
         "total_clients": total_clients,
         "recent_clients": [{"id": c.id, "name": c.name, "company": c.company, "phone": c.phone, "email": c.email} for c in db.query(Client).filter(Client.is_active == True).order_by(Client.created_at.desc()).limit(5).all()],
-        "active_projects": active_projects,
+        "active_projects": active_projects_count,
         "pending_invoices": pending_invoices,
         "total_receivables": round(total_due, 2),
         "low_stock_count": len(low_stock),
         "low_stock_items": [{"id": p.id, "name": p.name} for p in low_stock],
         "recent_invoices": [{"id": i.id, "no": i.invoice_no, "client": i.client.name if i.client else "", "status": i.status.value, "total": i.total_amount} for i in recent_invoices],
-        "recent_estimates": [{"id": e.id, "no": e.estimate_no, "client": e.client.name if e.client else "", "status": e.status.value, "total": e.total_amount} for e in recent_estimates]
+        "recent_estimates": [{"id": e.id, "no": e.estimate_no, "client": e.client.name if e.client else "", "status": e.status.value, "total": e.total_amount} for e in recent_estimates],
+        "total_expenses": round(total_expenses, 2),
+        "expense_count": expense_count,
+        "month_expenses": round(month_expenses, 2),
+        "last_month_expenses": round(last_month_expenses, 2),
+        "expenses_by_category": expenses_by_category,
+        "recent_expenses": [{"id": e.id, "no": e.expense_no, "description": e.description, "category": e.category.value if e.category else "other", "amount": e.total_amount, "date": str(e.expense_date)} for e in recent_expenses]
     }
 
 # --- Client Routes ---
@@ -106,7 +189,7 @@ def list_clients(search: Optional[str] = None, db: Session = Depends(get_db), cu
     return query.order_by(Client.name).all()
 
 @router.post("/clients")
-def create_client(client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_client(client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     db_client = Client(**client.model_dump())
     db.add(db_client)
     db.commit()
@@ -121,7 +204,7 @@ def get_client(client_id: int, db: Session = Depends(get_db), current_user: User
     return client
 
 @router.put("/clients/{client_id}")
-def update_client(client_id: int, client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_client(client_id: int, client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     db_client = db.query(Client).filter(Client.id == client_id).first()
     if not db_client:
         raise HTTPException(404, "Client not found")
@@ -132,7 +215,7 @@ def update_client(client_id: int, client: ClientCreate, db: Session = Depends(ge
     return db_client
 
 @router.delete("/clients/{client_id}")
-def delete_client(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_client(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
     db_client = db.query(Client).filter(Client.id == client_id).first()
     if not db_client:
         raise HTTPException(404, "Client not found")
@@ -223,7 +306,6 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), curren
     db_product = Product(**product.model_dump())
     db.add(db_product)
     db.flush()
-    from app.services.inventory_service import get_or_create_inventory
     get_or_create_inventory(db, db_product.id)
     db.commit()
     db.refresh(db_product)
@@ -257,7 +339,7 @@ def update_product(product_id: int, product: ProductCreate, db: Session = Depend
     return db_product
 
 @router.delete("/products/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(404, "Product not found")
@@ -455,11 +537,13 @@ def get_purchase(purchase_id: int, db: Session = Depends(get_db)):
         } for i in items]
     }
 
-@router.delete("/purchases/{purchase_id}")
-def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.post("/purchases/{purchase_id}/cancel")
+def cancel_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     db_purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
     if not db_purchase:
         raise HTTPException(404, "Purchase not found")
+    if db_purchase.status == PurchaseStatus.CANCELLED:
+        raise HTTPException(400, "Purchase is already cancelled")
     for old_item in db_purchase.items:
         if old_item.product_id:
             inv = get_or_create_inventory(db, old_item.product_id)
@@ -467,14 +551,26 @@ def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_use
             movement = StockMovement(
                 product_id=old_item.product_id, quantity=-old_item.quantity,
                 movement_type=MovementType.ADJUSTMENT,
-                reference_type="purchase_delete", reference_id=db_purchase.id,
-                notes=f"Reversal for deleted purchase {db_purchase.invoice_no}",
+                reference_type="purchase_cancel", reference_id=db_purchase.id,
+                notes=f"Reversal for cancelled purchase {db_purchase.invoice_no}",
                 created_by=current_user.id
             )
             db.add(movement)
     db_purchase.status = PurchaseStatus.CANCELLED
     db.commit()
     return {"message": "Purchase cancelled"}
+
+@router.delete("/purchases/{purchase_id}")
+def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+    db_purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
+    if not db_purchase:
+        raise HTTPException(404, "Purchase not found")
+    if db_purchase.status != PurchaseStatus.CANCELLED:
+        raise HTTPException(400, "Only cancelled purchases can be deleted")
+    db.query(PurchaseItem).filter(PurchaseItem.purchase_id == purchase_id).delete()
+    db.delete(db_purchase)
+    db.commit()
+    return {"message": "Purchase deleted"}
 
 @router.put("/purchases/{purchase_id}")
 def update_purchase(purchase_id: int, purchase: PurchaseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -571,7 +667,7 @@ class StockIssueRequest(BaseModel):
     notes: Optional[str] = None
 
 @router.post("/inventory/issue")
-def issue_stock(issue: StockIssueRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def issue_stock(issue: StockIssueRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     try:
         inv = update_stock(db, issue.product_id, issue.quantity, MovementType.SALE_OUT,
                           "manual_issue", None, issue.notes, current_user.id)
@@ -629,6 +725,21 @@ def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), curren
     db.refresh(db_expense)
     return db_expense
 
+@router.get("/expenses/summary")
+def expense_summary(from_date: Optional[date] = None, to_date: Optional[date] = None, db: Session = Depends(get_db)):
+    query = db.query(Expense)
+    if from_date:
+        query = query.filter(Expense.expense_date >= from_date)
+    if to_date:
+        query = query.filter(Expense.expense_date <= to_date)
+    expenses = query.all()
+    total = sum(e.total_amount for e in expenses)
+    by_category = {}
+    for e in expenses:
+        cat = e.category.value if e.category else "other"
+        by_category[cat] = by_category.get(cat, 0) + e.total_amount
+    return {"total_expenses": round(total, 2), "count": len(expenses), "by_category": by_category}
+
 @router.get("/expenses/{expense_id}")
 def get_expense(expense_id: int, db: Session = Depends(get_db)):
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
@@ -651,28 +762,13 @@ def update_expense(expense_id: int, expense: ExpenseCreate, db: Session = Depend
     return db_expense
 
 @router.delete("/expenses/{expense_id}")
-def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     db_expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not db_expense:
         raise HTTPException(404, "Expense not found")
     db.delete(db_expense)
     db.commit()
     return {"message": "Expense deleted"}
-
-@router.get("/expenses/summary")
-def expense_summary(from_date: Optional[date] = None, to_date: Optional[date] = None, db: Session = Depends(get_db)):
-    query = db.query(Expense)
-    if from_date:
-        query = query.filter(Expense.expense_date >= from_date)
-    if to_date:
-        query = query.filter(Expense.expense_date <= to_date)
-    expenses = query.all()
-    total = sum(e.total_amount for e in expenses)
-    by_category = {}
-    for e in expenses:
-        cat = e.category.value if e.category else "other"
-        by_category[cat] = by_category.get(cat, 0) + e.total_amount
-    return {"total_expenses": round(total, 2), "count": len(expenses), "by_category": by_category}
 
 # --- Project Routes ---
 class ProjectCreate(BaseModel):
@@ -739,6 +835,7 @@ class EstimateCreate(BaseModel):
     estimate_date: date
     valid_until: Optional[date] = None
     discount_percent: float = 0
+    apply_tax: bool = True
     terms_conditions: Optional[str] = None
     notes: Optional[str] = None
     items: List[EstimateItemCreate]
@@ -772,8 +869,9 @@ def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = De
 
     db.query(EstimateItem).filter(EstimateItem.estimate_id == estimate_id).delete()
 
-    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, it.tax_rate) for it in estimate.items]
-    totals = calculate_invoice_tax(calculated_items, estimate.discount_percent)
+    tr = 17 if estimate.apply_tax else 0
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr, tax_inclusive=False) for it in estimate.items]
+    totals = calculate_invoice_tax(calculated_items, estimate.discount_percent, tax_rate=tr)
 
     db_estimate.client_id = estimate.client_id
     db_estimate.project_id = estimate.project_id
@@ -804,20 +902,34 @@ def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = De
     db.refresh(db_estimate)
     return db_estimate
 
+@router.post("/estimates/{estimate_id}/reject")
+def reject_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+    estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
+    if not estimate:
+        raise HTTPException(404, "Estimate not found")
+    if estimate.status in [EstimateStatus.CONVERTED]:
+        raise HTTPException(400, "Cannot reject a converted estimate")
+    estimate.status = EstimateStatus.REJECTED
+    db.commit()
+    return {"message": "Estimate rejected"}
+
 @router.delete("/estimates/{estimate_id}")
-def delete_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     db_estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not db_estimate:
         raise HTTPException(404, "Estimate not found")
-    db_estimate.status = EstimateStatus.REJECTED
+    if db_estimate.status != EstimateStatus.REJECTED:
+        raise HTTPException(400, "Only rejected estimates can be deleted")
+    db.delete(db_estimate)
     db.commit()
-    return {"message": "Estimate rejected"}
+    return {"message": "Estimate deleted"}
 
 @router.post("/estimates")
 def create_estimate(estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     est_no = generate_estimate_number(db)
-    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, it.tax_rate) for it in estimate.items]
-    totals = calculate_invoice_tax(calculated_items, estimate.discount_percent)
+    tr = 17 if estimate.apply_tax else 0
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr, tax_inclusive=False) for it in estimate.items]
+    totals = calculate_invoice_tax(calculated_items, estimate.discount_percent, tax_rate=tr)
 
     db_estimate = Estimate(
         estimate_no=est_no, client_id=estimate.client_id,
@@ -869,7 +981,7 @@ def get_estimate(estimate_id: int, db: Session = Depends(get_db)):
     }
 
 @router.post("/estimates/{estimate_id}/approve")
-def approve_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def approve_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not estimate:
         raise HTTPException(404, "Estimate not found")
@@ -880,7 +992,7 @@ def approve_estimate(estimate_id: int, db: Session = Depends(get_db), current_us
     return {"message": "Estimate approved", "estimate_no": estimate.estimate_no}
 
 @router.post("/estimates/{estimate_id}/convert")
-def convert_estimate_to_invoice(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def convert_estimate_to_invoice(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not estimate:
         raise HTTPException(404, "Estimate not found")
@@ -943,9 +1055,12 @@ def download_estimate_pdf(estimate_id: int, db: Session = Depends(get_db)):
         "estimate_date": str(estimate.estimate_date),
         "valid_until": str(estimate.valid_until) if estimate.valid_until else "",
         "client_name": estimate.client.name if estimate.client else "",
+        "client_address": estimate.client.address if estimate.client and estimate.client.address else "",
+        "client_ntn": estimate.client.ntn if estimate.client else "",
         "items": items_data,
         "subtotal": estimate.subtotal, "discount_amount": estimate.discount_amount,
-        "tax_amount": estimate.tax_amount, "total_amount": estimate.total_amount,
+        "tax_amount": estimate.tax_amount, "tax_rate": estimate.tax_rate,
+        "total_amount": estimate.total_amount,
         "terms": estimate.terms_conditions or ""
     }
     pdf_buf = generate_estimate_pdf(estimate_data)
@@ -960,6 +1075,7 @@ class InvoiceCreate(BaseModel):
     invoice_date: date
     due_date: Optional[date] = None
     discount_percent: float = 0
+    apply_tax: bool = True
     apply_wht: bool = False
     apply_fed: bool = False
     payment_terms: Optional[str] = None
@@ -992,8 +1108,9 @@ def list_invoices(status: Optional[str] = None, client_id: Optional[int] = None,
 @router.post("/invoices")
 def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     inv_no = generate_invoice_number(db)
-    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, it.tax_rate) for it in invoice.items]
-    totals = calculate_invoice_tax(calculated_items, invoice.discount_percent,
+    tr = 17 if invoice.apply_tax else 0
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr) for it in invoice.items]
+    totals = calculate_invoice_tax(calculated_items, invoice.discount_percent, tax_rate=tr,
                                   apply_wht=invoice.apply_wht, apply_fed=invoice.apply_fed)
     due = invoice.due_date or invoice.invoice_date
 
@@ -1060,8 +1177,9 @@ def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depend
 
     db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).delete()
 
-    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, it.tax_rate) for it in invoice.items]
-    totals = calculate_invoice_tax(calculated_items, invoice.discount_percent,
+    tr = 17 if invoice.apply_tax else 0
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr) for it in invoice.items]
+    totals = calculate_invoice_tax(calculated_items, invoice.discount_percent, tax_rate=tr,
                                   apply_wht=invoice.apply_wht, apply_fed=invoice.apply_fed)
     due = invoice.due_date or invoice.invoice_date
 
@@ -1108,7 +1226,7 @@ def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depend
     return db_invoice
 
 @router.delete("/invoices/{invoice_id}")
-def delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not db_invoice:
         raise HTTPException(404, "Invoice not found")
@@ -1188,7 +1306,8 @@ def download_invoice_pdf(invoice_id: int, db: Session = Depends(get_db)):
         "client_ntn": invoice.client.ntn if invoice.client else "",
         "items": items_data,
         "subtotal": invoice.subtotal, "discount_amount": invoice.discount_amount,
-        "tax_amount": invoice.tax_amount, "wht_amount": invoice.withholding_tax_amount,
+        "tax_amount": invoice.tax_amount, "tax_rate": invoice.tax_rate,
+        "wht_amount": invoice.withholding_tax_amount,
         "fed_amount": invoice.fed_amount, "total_amount": invoice.total_amount,
         "terms": invoice.terms_conditions or "", "notes": invoice.notes or ""
     }
@@ -1202,7 +1321,7 @@ class SendInvoiceRequest(BaseModel):
     message: Optional[str] = None
 
 @router.post("/invoices/{invoice_id}/send")
-async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Session = Depends(get_db)):
+async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(404, "Invoice not found")
@@ -1222,7 +1341,8 @@ async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Sessio
         "client_ntn": invoice.client.ntn if invoice.client else "",
         "items": items_data,
         "subtotal": invoice.subtotal, "discount_amount": invoice.discount_amount,
-        "tax_amount": invoice.tax_amount, "wht_amount": invoice.withholding_tax_amount,
+        "tax_amount": invoice.tax_amount, "tax_rate": invoice.tax_rate,
+        "wht_amount": invoice.withholding_tax_amount,
         "fed_amount": invoice.fed_amount, "total_amount": invoice.total_amount,
         "terms": invoice.terms_conditions or "", "notes": invoice.notes or ""
     }
@@ -1234,9 +1354,15 @@ async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Sessio
         email_ok = await send_email_pdf(send_req.email, subject, body, pdf_buf.getvalue(), f"invoice_{invoice.invoice_no}.pdf")
         results["email_sent"] = email_ok
     if send_req.whatsapp:
-        msg = send_req.message or f"Dear {invoice.client.name if invoice.client else 'Client'}, your invoice #{invoice.invoice_no} for PKR {invoice.total_amount:,.2f} is ready. Please check your email for PDF. - DATAPOINT Technologies"
-        wa_ok = await send_whatsapp_message(send_req.whatsapp, msg)
-        results["whatsapp_sent"] = wa_ok
+        msg = send_req.message or f"Dear {invoice.client.name if invoice.client else 'Client'}, your invoice #{invoice.invoice_no} for PKR {invoice.total_amount:,.2f} is attached. - DATAPOINT Technologies"
+        wa_res = await send_whatsapp_message(
+            send_req.whatsapp, msg,
+            pdf_bytes=pdf_buf.getvalue(),
+            pdf_filename=f"invoice_{invoice.invoice_no}.pdf"
+        )
+        results["whatsapp_sent"] = wa_res["success"]
+        if wa_res.get("error"):
+            results["whatsapp_error"] = wa_res["error"]
     if results.get("email_sent") or results.get("whatsapp_sent"):
         invoice.status = InvoiceStatus.SENT
         db.commit()
