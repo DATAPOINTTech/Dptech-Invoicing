@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date, datetime
 from app.database import get_db
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, DEFAULT_PERMISSIONS
 from app.models.client import Client
 from app.models.supplier import Supplier
 from app.models.product import Product, ProductCategory
@@ -14,7 +14,7 @@ from app.models.expense import Expense, ExpenseCategory
 from app.models.estimate import Estimate, EstimateItem, EstimateStatus
 from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus
 from app.models.project import Project, ProjectStatus
-from app.services.auth import get_current_user, get_password_hash, authenticate_user, create_access_token, require_role
+from app.services.auth import get_current_user, get_password_hash, authenticate_user, create_access_token, require_role, require_permission
 from app.services.taxation import calculate_item_tax, calculate_invoice_tax, generate_invoice_number, generate_estimate_number, generate_purchase_number, generate_expense_number
 from app.services.inventory_service import update_stock, get_stock_level, get_low_stock_products, get_or_create_inventory
 from app.services.pdf_service import generate_invoice_pdf, generate_estimate_pdf
@@ -106,6 +106,36 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db), c
 class UserStatusUpdate(BaseModel):
     is_active: bool
 
+class UserPermissionsUpdate(BaseModel):
+    permissions: dict
+
+@router.get("/users/{user_id}/permissions")
+def get_user_permissions(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    return {"user_id": user_id, "role": user.role.value, "permissions": user.get_permissions()}
+
+@router.put("/users/{user_id}/permissions")
+def update_user_permissions(user_id: int, body: UserPermissionsUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.role == UserRole.ADMIN:
+        raise HTTPException(400, "Cannot override permissions for admin users")
+    valid_actions = {"view", "create", "edit", "delete"}
+    merged = {mod: dict(DEFAULT_PERMISSIONS[mod]) for mod in DEFAULT_PERMISSIONS}
+    for module, actions in body.permissions.items():
+        if module not in merged:
+            raise HTTPException(400, f"Unknown module: {module}")
+        for action, val in actions.items():
+            if action not in valid_actions:
+                raise HTTPException(400, f"Unknown action: {action}")
+            merged[module][action] = bool(val)
+    user.permissions = merged
+    db.commit()
+    return {"message": "Permissions updated", "permissions": merged}
+
 @router.put("/users/{user_id}/status")
 def toggle_user_status(user_id: int, status: UserStatusUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
     if user_id == current_user.id:
@@ -189,7 +219,7 @@ def list_clients(search: Optional[str] = None, db: Session = Depends(get_db), cu
     return query.order_by(Client.name).all()
 
 @router.post("/clients")
-def create_client(client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def create_client(client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("clients", "create"))):
     db_client = Client(**client.model_dump())
     db.add(db_client)
     db.commit()
@@ -204,7 +234,7 @@ def get_client(client_id: int, db: Session = Depends(get_db), current_user: User
     return client
 
 @router.put("/clients/{client_id}")
-def update_client(client_id: int, client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def update_client(client_id: int, client: ClientCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("clients", "edit"))):
     db_client = db.query(Client).filter(Client.id == client_id).first()
     if not db_client:
         raise HTTPException(404, "Client not found")
@@ -215,7 +245,7 @@ def update_client(client_id: int, client: ClientCreate, db: Session = Depends(ge
     return db_client
 
 @router.delete("/clients/{client_id}")
-def delete_client(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+def delete_client(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("clients", "delete"))):
     db_client = db.query(Client).filter(Client.id == client_id).first()
     if not db_client:
         raise HTTPException(404, "Client not found")
@@ -302,7 +332,7 @@ def list_products(search: Optional[str] = None, category: Optional[str] = None, 
     return result
 
 @router.post("/products")
-def create_product(product: ProductCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_product(product: ProductCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "create"))):
     db_product = Product(**product.model_dump())
     db.add(db_product)
     db.flush()
@@ -328,7 +358,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     }
 
 @router.put("/products/{product_id}")
-def update_product(product_id: int, product: ProductCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_product(product_id: int, product: ProductCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "edit"))):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(404, "Product not found")
@@ -339,7 +369,7 @@ def update_product(product_id: int, product: ProductCreate, db: Session = Depend
     return db_product
 
 @router.delete("/products/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
+def delete_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "delete"))):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(404, "Product not found")
@@ -395,7 +425,7 @@ def _resolve_or_create_product(db, item) -> int:
     return new_prod.id
 
 @router.post("/purchases")
-def create_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("purchases", "create"))):
     inv_no = generate_purchase_number(db)
     subtotal = sum(item.unit_price * item.quantity for item in purchase.items)
     tax_amount = sum(item.unit_price * item.quantity * (item.tax_rate / 100) for item in purchase.items)
@@ -573,7 +603,7 @@ def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_use
     return {"message": "Purchase deleted"}
 
 @router.put("/purchases/{purchase_id}")
-def update_purchase(purchase_id: int, purchase: PurchaseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_purchase(purchase_id: int, purchase: PurchaseCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("purchases", "edit"))):
     db_purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
     if not db_purchase:
         raise HTTPException(404, "Purchase not found")
@@ -702,7 +732,7 @@ def list_expenses(category: Optional[str] = None, from_date: Optional[date] = No
     return query.all()
 
 @router.post("/expenses")
-def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("expenses", "create"))):
     exp_no = generate_expense_number(db)
     total = expense.amount + expense.tax_amount
     db_expense = Expense(
@@ -748,7 +778,7 @@ def get_expense(expense_id: int, db: Session = Depends(get_db)):
     return expense
 
 @router.put("/expenses/{expense_id}")
-def update_expense(expense_id: int, expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_expense(expense_id: int, expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("expenses", "edit"))):
     db_expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not db_expense:
         raise HTTPException(404, "Expense not found")
@@ -762,7 +792,7 @@ def update_expense(expense_id: int, expense: ExpenseCreate, db: Session = Depend
     return db_expense
 
 @router.delete("/expenses/{expense_id}")
-def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("expenses", "delete"))):
     db_expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not db_expense:
         raise HTTPException(404, "Expense not found")
@@ -835,7 +865,7 @@ class EstimateCreate(BaseModel):
     estimate_date: date
     valid_until: Optional[date] = None
     discount_percent: float = 0
-    apply_tax: bool = True
+    tax_rate: float = 18.0
     terms_conditions: Optional[str] = None
     notes: Optional[str] = None
     items: List[EstimateItemCreate]
@@ -860,7 +890,7 @@ def list_estimates(status: Optional[str] = None, db: Session = Depends(get_db), 
     return result
 
 @router.put("/estimates/{estimate_id}")
-def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("estimates", "edit"))):
     db_estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not db_estimate:
         raise HTTPException(404, "Estimate not found")
@@ -869,7 +899,7 @@ def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = De
 
     db.query(EstimateItem).filter(EstimateItem.estimate_id == estimate_id).delete()
 
-    tr = 17 if estimate.apply_tax else 0
+    tr = estimate.tax_rate
     calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr, tax_inclusive=False) for it in estimate.items]
     totals = calculate_invoice_tax(calculated_items, estimate.discount_percent, tax_rate=tr)
 
@@ -903,7 +933,7 @@ def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = De
     return db_estimate
 
 @router.post("/estimates/{estimate_id}/reject")
-def reject_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def reject_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("estimates", "edit"))):
     estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not estimate:
         raise HTTPException(404, "Estimate not found")
@@ -914,7 +944,7 @@ def reject_estimate(estimate_id: int, db: Session = Depends(get_db), current_use
     return {"message": "Estimate rejected"}
 
 @router.delete("/estimates/{estimate_id}")
-def delete_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def delete_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("estimates", "delete"))):
     db_estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not db_estimate:
         raise HTTPException(404, "Estimate not found")
@@ -925,9 +955,9 @@ def delete_estimate(estimate_id: int, db: Session = Depends(get_db), current_use
     return {"message": "Estimate deleted"}
 
 @router.post("/estimates")
-def create_estimate(estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_estimate(estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("estimates", "create"))):
     est_no = generate_estimate_number(db)
-    tr = 17 if estimate.apply_tax else 0
+    tr = estimate.tax_rate
     calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr, tax_inclusive=False) for it in estimate.items]
     totals = calculate_invoice_tax(calculated_items, estimate.discount_percent, tax_rate=tr)
 
@@ -981,7 +1011,7 @@ def get_estimate(estimate_id: int, db: Session = Depends(get_db)):
     }
 
 @router.post("/estimates/{estimate_id}/approve")
-def approve_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def approve_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("estimates", "edit"))):
     estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not estimate:
         raise HTTPException(404, "Estimate not found")
@@ -992,7 +1022,7 @@ def approve_estimate(estimate_id: int, db: Session = Depends(get_db), current_us
     return {"message": "Estimate approved", "estimate_no": estimate.estimate_no}
 
 @router.post("/estimates/{estimate_id}/convert")
-def convert_estimate_to_invoice(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def convert_estimate_to_invoice(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "create"))):
     estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not estimate:
         raise HTTPException(404, "Estimate not found")
@@ -1075,7 +1105,7 @@ class InvoiceCreate(BaseModel):
     invoice_date: date
     due_date: Optional[date] = None
     discount_percent: float = 0
-    apply_tax: bool = True
+    tax_rate: float = 18.0
     apply_wht: bool = False
     apply_fed: bool = False
     payment_terms: Optional[str] = None
@@ -1106,9 +1136,9 @@ def list_invoices(status: Optional[str] = None, client_id: Optional[int] = None,
     return result
 
 @router.post("/invoices")
-def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "create"))):
     inv_no = generate_invoice_number(db)
-    tr = 17 if invoice.apply_tax else 0
+    tr = invoice.tax_rate
     calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr) for it in invoice.items]
     totals = calculate_invoice_tax(calculated_items, invoice.discount_percent, tax_rate=tr,
                                   apply_wht=invoice.apply_wht, apply_fed=invoice.apply_fed)
@@ -1155,7 +1185,7 @@ def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db), curren
     return db_invoice
 
 @router.put("/invoices/{invoice_id}")
-def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "edit"))):
     db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not db_invoice:
         raise HTTPException(404, "Invoice not found")
@@ -1177,7 +1207,7 @@ def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depend
 
     db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).delete()
 
-    tr = 17 if invoice.apply_tax else 0
+    tr = invoice.tax_rate
     calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr) for it in invoice.items]
     totals = calculate_invoice_tax(calculated_items, invoice.discount_percent, tax_rate=tr,
                                   apply_wht=invoice.apply_wht, apply_fed=invoice.apply_fed)
@@ -1226,7 +1256,7 @@ def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depend
     return db_invoice
 
 @router.delete("/invoices/{invoice_id}")
-def delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+def delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "delete"))):
     db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not db_invoice:
         raise HTTPException(404, "Invoice not found")
@@ -1321,7 +1351,7 @@ class SendInvoiceRequest(BaseModel):
     message: Optional[str] = None
 
 @router.post("/invoices/{invoice_id}/send")
-async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "edit"))):
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(404, "Invoice not found")
@@ -1367,6 +1397,106 @@ async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Sessio
         invoice.status = InvoiceStatus.SENT
         db.commit()
     return results
+
+# --- Reports Routes ---
+@router.get("/reports")
+def get_reports(
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from sqlalchemy import extract
+    fd = from_date or date(date.today().year, 1, 1)
+    td = to_date or date.today()
+
+    # Revenue by month
+    invoices_in_range = db.query(Invoice).filter(
+        Invoice.invoice_date >= fd,
+        Invoice.invoice_date <= td,
+        Invoice.status != InvoiceStatus.CANCELLED
+    ).all()
+
+    monthly = {}
+    for inv in invoices_in_range:
+        key = inv.invoice_date.strftime("%Y-%m")
+        if key not in monthly:
+            monthly[key] = {"month": inv.invoice_date.strftime("%b %Y"), "revenue": 0, "tax": 0, "invoices": 0}
+        monthly[key]["revenue"] += inv.total_amount or 0
+        monthly[key]["tax"] += inv.tax_amount or 0
+        monthly[key]["invoices"] += 1
+    revenue_by_month = [monthly[k] for k in sorted(monthly.keys())]
+
+    # Invoice status breakdown
+    status_counts = {}
+    for inv in invoices_in_range:
+        s = inv.status.value
+        status_counts[s] = status_counts.get(s, 0) + 1
+
+    # Top clients by revenue
+    client_revenue = {}
+    for inv in invoices_in_range:
+        name = inv.client.name if inv.client else "Unknown"
+        client_revenue[name] = client_revenue.get(name, 0) + (inv.total_amount or 0)
+    top_clients = sorted([{"name": k, "revenue": round(v, 2)} for k, v in client_revenue.items()], key=lambda x: -x["revenue"])[:10]
+
+    # Expenses by category in range
+    expenses_in_range = db.query(Expense).filter(
+        Expense.expense_date >= fd,
+        Expense.expense_date <= td
+    ).all()
+    exp_by_cat = {}
+    for e in expenses_in_range:
+        cat = e.category.value if e.category else "other"
+        exp_by_cat[cat] = exp_by_cat.get(cat, 0) + (e.total_amount or 0)
+    expenses_by_category = [{"category": k, "amount": round(v, 2)} for k, v in sorted(exp_by_cat.items(), key=lambda x: -x[1])]
+
+    # Tax summary
+    total_gst = sum(inv.tax_amount or 0 for inv in invoices_in_range)
+    total_wht = sum(inv.withholding_tax_amount or 0 for inv in invoices_in_range)
+    total_fed = sum(inv.fed_amount or 0 for inv in invoices_in_range)
+
+    # Receivables aging
+    today = date.today()
+    aging = {"current": 0, "1_30": 0, "31_60": 0, "61_90": 0, "over_90": 0}
+    unpaid = db.query(Invoice).filter(
+        Invoice.status.in_([InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID])
+    ).all()
+    for inv in unpaid:
+        if not inv.due_date:
+            aging["current"] += inv.balance_due or 0
+            continue
+        days = (today - inv.due_date).days
+        if days <= 0: aging["current"] += inv.balance_due or 0
+        elif days <= 30: aging["1_30"] += inv.balance_due or 0
+        elif days <= 60: aging["31_60"] += inv.balance_due or 0
+        elif days <= 90: aging["61_90"] += inv.balance_due or 0
+        else: aging["over_90"] += inv.balance_due or 0
+    aging = {k: round(v, 2) for k, v in aging.items()}
+
+    # Summary KPIs
+    total_revenue = sum(inv.total_amount or 0 for inv in invoices_in_range)
+    total_paid = sum(inv.amount_paid or 0 for inv in invoices_in_range)
+    total_outstanding = sum(inv.balance_due or 0 for inv in invoices_in_range)
+    total_expenses = sum(e.total_amount or 0 for e in expenses_in_range)
+
+    return {
+        "period": {"from": str(fd), "to": str(td)},
+        "kpis": {
+            "total_revenue": round(total_revenue, 2),
+            "total_paid": round(total_paid, 2),
+            "total_outstanding": round(total_outstanding, 2),
+            "total_expenses": round(total_expenses, 2),
+            "net_profit": round(total_revenue - total_expenses, 2),
+            "invoice_count": len(invoices_in_range),
+        },
+        "revenue_by_month": revenue_by_month,
+        "invoice_status": status_counts,
+        "top_clients": top_clients,
+        "expenses_by_category": expenses_by_category,
+        "tax_summary": {"gst": round(total_gst, 2), "wht": round(total_wht, 2), "fed": round(total_fed, 2)},
+        "receivables_aging": aging,
+    }
 
 # --- Agent Routes ---
 class AgentQuery(BaseModel):

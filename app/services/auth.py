@@ -57,3 +57,16 @@ def require_role(roles: List[UserRole]):
             )
         return current_user
     return role_checker
+
+def require_permission(module: str, action: str):
+    """Hybrid: ADMIN/MANAGER always pass; STAFF checked against granular permissions."""
+    def checker(current_user: User = Depends(get_current_user)):
+        if current_user.role in (UserRole.ADMIN, UserRole.MANAGER):
+            return current_user
+        if not current_user.get_permissions().get(module, {}).get(action, False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission denied: {module}.{action}"
+            )
+        return current_user
+    return checker
