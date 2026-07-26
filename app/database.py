@@ -43,14 +43,17 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-    # one-time migration guard for legacy SQLite installs
+    # one-time migration guards for legacy SQLite installs
     if "sqlite" in settings.DATABASE_URL:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text(
-                    "ALTER TABLE purchase_invoices ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id)"
-                ))
-                conn.commit()
-        except Exception:
-            pass
+        migrations = [
+            "ALTER TABLE purchase_invoices ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id)",
+            "ALTER TABLE users ADD COLUMN permissions JSON",
+        ]
+        with engine.connect() as conn:
+            for sql in migrations:
+                try:
+                    conn.execute(text(sql))
+                    conn.commit()
+                except Exception:
+                    pass
     logger.info("Database initialised: %s", settings.DATABASE_URL.split("@")[-1])
