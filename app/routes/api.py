@@ -8,12 +8,13 @@ from app.models.user import User, UserRole, DEFAULT_PERMISSIONS
 from app.models.client import Client
 from app.models.supplier import Supplier
 from app.models.product import Product, ProductCategory
-from app.models.purchase import PurchaseInvoice, PurchaseItem, PurchaseStatus
+from app.models.purchase import PurchaseInvoice, PurchaseItem, PurchasePayment, PurchaseStatus
 from app.models.inventory import Inventory, StockMovement, MovementType
 from app.models.expense import Expense, ExpenseCategory
 from app.models.estimate import Estimate, EstimateItem, EstimateStatus
 from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus
 from app.models.project import Project, ProjectStatus
+from app.models.pricelist import PriceList
 from app.services.auth import get_current_user, get_password_hash, authenticate_user, create_access_token, require_role, require_permission
 from app.services.taxation import calculate_item_tax, calculate_invoice_tax, generate_invoice_number, generate_estimate_number, generate_purchase_number, generate_expense_number
 from app.services.inventory_service import update_stock, get_stock_level, get_low_stock_products, get_or_create_inventory
@@ -309,6 +310,7 @@ class ProductCreate(BaseModel):
     tax_inclusive: bool = True
     hs_code: Optional[str] = None
     min_stock_level: float = 0
+    max_stock_level: float = 0
 
 @router.get("/products")
 def list_products(search: Optional[str] = None, category: Optional[str] = None, db: Session = Depends(get_db)):
@@ -327,6 +329,7 @@ def list_products(search: Optional[str] = None, category: Optional[str] = None, 
             "unit_price": p.unit_price, "cost_price": p.cost_price, "unit": p.unit,
             "tax_rate": p.tax_rate, "tax_inclusive": p.tax_inclusive,
             "hs_code": p.hs_code, "min_stock_level": p.min_stock_level,
+            "max_stock_level": p.max_stock_level,
             "stock_qty": inv.quantity if inv else 0
         })
     return result
@@ -354,6 +357,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
         "unit": product.unit, "tax_rate": product.tax_rate,
         "tax_inclusive": product.tax_inclusive, "hs_code": product.hs_code,
         "min_stock_level": product.min_stock_level,
+        "max_stock_level": product.max_stock_level,
         "stock_qty": inv.quantity if inv else 0
     }
 
@@ -398,7 +402,33 @@ class PurchaseCreate(BaseModel):
 
 @router.get("/purchases")
 def list_purchases(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(PurchaseInvoice).order_by(PurchaseInvoice.created_at.desc()).all()
+    purchases = db.query(PurchaseInvoice).order_by(PurchaseInvoice.created_at.desc()).all()
+    result = []
+    for p in purchases:
+        items = db.query(PurchaseItem).filter(PurchaseItem.purchase_id == p.id).all()
+        result.append({
+            "id": p.id, "invoice_no": p.invoice_no,
+            "supplier_name": p.supplier_name,
+            "supplier_ntn": p.supplier_ntn,
+            "invoice_date": p.invoice_date,
+            "received_date": p.received_date,
+            "status": p.status.value,
+            "subtotal": p.subtotal,
+            "tax_amount": p.tax_amount,
+            "total_amount": p.total_amount,
+            "amount_paid": p.amount_paid,
+            "balance_due": p.balance_due,
+            "notes": p.notes,
+            "created_at": p.created_at,
+            "items": [{
+                "product_name": i.product_name,
+                "quantity": i.quantity,
+                "unit": i.unit,
+                "unit_price": i.unit_price,
+                "total_price": i.total_price
+            } for i in items]
+        })
+    return result
 
 def _resolve_or_create_product(db, item) -> int:
     if item.product_id:
@@ -433,6 +463,7 @@ def create_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db), cur
 
     supplier_id = _resolve_or_create_supplier(db, purchase.supplier_name, purchase.supplier_ntn, purchase.supplier_address)
 
+    total_rounded = round(total, 2)
     db_purchase = PurchaseInvoice(
         invoice_no=inv_no,
         supplier_id=supplier_id,
@@ -443,7 +474,9 @@ def create_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db), cur
         received_date=purchase.received_date,
         subtotal=round(subtotal, 2),
         tax_amount=round(tax_amount, 2),
-        total_amount=round(total, 2),
+        total_amount=total_rounded,
+        amount_paid=0,
+        balance_due=total_rounded,
         notes=purchase.notes,
         created_by=current_user.id,
         status=PurchaseStatus.RECEIVED
@@ -489,6 +522,7 @@ def import_purchases(purchases: List[PurchaseCreate], db: Session = Depends(get_
 
         supplier_id = _resolve_or_create_supplier(db, purchase.supplier_name, purchase.supplier_ntn, purchase.supplier_address)
 
+        total_rounded = round(total, 2)
         db_purchase = PurchaseInvoice(
             invoice_no=inv_no,
             supplier_id=supplier_id,
@@ -499,7 +533,9 @@ def import_purchases(purchases: List[PurchaseCreate], db: Session = Depends(get_
             received_date=purchase.received_date,
             subtotal=round(subtotal, 2),
             tax_amount=round(tax_amount, 2),
-            total_amount=round(total, 2),
+            total_amount=total_rounded,
+            amount_paid=0,
+            balance_due=total_rounded,
             notes=purchase.notes,
             created_by=current_user.id,
             status=PurchaseStatus.RECEIVED
@@ -553,6 +589,8 @@ def get_purchase(purchase_id: int, db: Session = Depends(get_db)):
         "tax_amount": purchase.tax_amount,
         "tax_rate": purchase.tax_rate,
         "total_amount": purchase.total_amount,
+        "amount_paid": purchase.amount_paid,
+        "balance_due": purchase.balance_due,
         "notes": purchase.notes,
         "items": [{
             "id": i.id, "product_id": i.product_id,
@@ -566,6 +604,49 @@ def get_purchase(purchase_id: int, db: Session = Depends(get_db)):
             "total_price": i.total_price
         } for i in items]
     }
+
+@router.post("/purchases/{purchase_id}/pay")
+def record_purchase_payment(purchase_id: int, amount: float = Query(...), payment_date: date = Query(default=None), payment_method: str = Query(default="cash"), reference_no: str = Query(default=None), notes: str = Query(default=None), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
+    if not purchase:
+        raise HTTPException(404, "Purchase not found")
+    if purchase.status == PurchaseStatus.CANCELLED:
+        raise HTTPException(400, "Cannot pay a cancelled purchase")
+    if amount <= 0:
+        raise HTTPException(400, "Payment amount must be positive")
+    pay_date = payment_date or date.today()
+    payment = PurchasePayment(
+        purchase_id=purchase_id, amount=amount,
+        payment_date=pay_date, payment_method=payment_method,
+        reference_no=reference_no, notes=notes,
+        created_by=current_user.id
+    )
+    db.add(payment)
+    purchase.amount_paid = (purchase.amount_paid or 0) + amount
+    purchase.balance_due = max(0, purchase.total_amount - purchase.amount_paid)
+    if purchase.balance_due <= 0:
+        purchase.status = PurchaseStatus.PAID
+        purchase.balance_due = 0
+    else:
+        purchase.status = PurchaseStatus.PARTIALLY_PAID
+    db.commit()
+    db.refresh(purchase)
+    return {"message": "Payment recorded", "amount_paid": purchase.amount_paid, "balance_due": purchase.balance_due}
+
+@router.get("/purchases/{purchase_id}/payments")
+def list_purchase_payments(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
+    if not purchase:
+        raise HTTPException(404, "Purchase not found")
+    payments = db.query(PurchasePayment).filter(PurchasePayment.purchase_id == purchase_id).order_by(PurchasePayment.payment_date.desc()).all()
+    return [{
+        "id": pm.id, "amount": pm.amount,
+        "payment_date": pm.payment_date,
+        "payment_method": pm.payment_method,
+        "reference_no": pm.reference_no,
+        "notes": pm.notes,
+        "created_at": pm.created_at
+    } for pm in payments]
 
 @router.post("/purchases/{purchase_id}/cancel")
 def cancel_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
@@ -640,6 +721,7 @@ def update_purchase(purchase_id: int, purchase: PurchaseCreate, db: Session = De
     db_purchase.subtotal = round(subtotal, 2)
     db_purchase.tax_amount = round(tax_amount, 2)
     db_purchase.total_amount = round(total, 2)
+    db_purchase.balance_due = max(0, round(total, 2) - (db_purchase.amount_paid or 0))
 
     for item in purchase.items:
         product_id = _resolve_or_create_product(db, item)
@@ -668,8 +750,10 @@ def update_purchase(purchase_id: int, purchase: PurchaseCreate, db: Session = De
 
 # --- Inventory Routes ---
 @router.get("/inventory")
-def list_inventory(low_stock: bool = False, db: Session = Depends(get_db)):
+def list_inventory(low_stock: bool = False, show_all: bool = False, db: Session = Depends(get_db)):
     query = db.query(Inventory, Product).join(Product)
+    if not show_all:
+        query = query.filter(Inventory.quantity > 0)
     if low_stock:
         query = query.filter(Inventory.quantity <= Product.min_stock_level)
     results = []
@@ -679,17 +763,82 @@ def list_inventory(low_stock: bool = False, db: Session = Depends(get_db)):
             "category": prod.category.value if prod.category else None,
             "unit": prod.unit, "quantity": inv.quantity,
             "unit_price": prod.unit_price, "min_stock": prod.min_stock_level,
+            "max_stock": prod.max_stock_level,
             "low_stock": inv.quantity <= prod.min_stock_level if prod.min_stock_level else False,
             "warehouse": inv.warehouse
         })
     return results
 
 @router.get("/inventory/movements")
-def list_movements(product_id: Optional[int] = None, limit: int = 50, db: Session = Depends(get_db)):
+def list_movements(product_id: Optional[int] = None, limit: int = 100, db: Session = Depends(get_db)):
     query = db.query(StockMovement).order_by(StockMovement.created_at.desc())
     if product_id:
         query = query.filter(StockMovement.product_id == product_id)
-    return query.limit(limit).all()
+    movements = query.limit(limit).all()
+    result = []
+    for m in movements:
+        p = db.query(Product).filter(Product.id == m.product_id).first()
+        result.append({
+            "id": m.id, "product_id": m.product_id,
+            "product_name": p.name if p else "Deleted",
+            "quantity": m.quantity,
+            "movement_type": m.movement_type.value if hasattr(m.movement_type, 'value') else m.movement_type,
+            "reference_type": m.reference_type,
+            "reference_id": m.reference_id,
+            "notes": m.notes,
+            "created_by": m.created_by,
+            "created_at": m.created_at
+        })
+    return result
+
+class StockMovementUpdate(BaseModel):
+    quantity: Optional[float] = None
+    movement_type: Optional[str] = None
+    notes: Optional[str] = None
+
+@router.put("/inventory/movements/{movement_id}")
+def update_movement(movement_id: int, update: StockMovementUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+    movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
+    if not movement:
+        raise HTTPException(404, "Movement not found")
+
+    old_qty = movement.quantity
+    old_type = movement.movement_type
+
+    if update.quantity is not None:
+        movement.quantity = update.quantity
+    if update.movement_type is not None:
+        movement.movement_type = MovementType(update.movement_type)
+    if update.notes is not None:
+        movement.notes = update.notes
+
+    inv = get_or_create_inventory(db, movement.product_id)
+    old_effect = old_qty if old_type in (MovementType.PURCHASE_IN, MovementType.ADJUSTMENT, MovementType.RETURN_IN) else -abs(old_qty)
+    new_qty = movement.quantity
+    new_type = movement.movement_type
+    new_effect = new_qty if new_type in (MovementType.PURCHASE_IN, MovementType.ADJUSTMENT, MovementType.RETURN_IN) else -abs(new_qty)
+    delta = new_effect - old_effect
+    inv.quantity += delta
+
+    db.commit()
+    db.refresh(movement)
+    return {"message": "Movement updated", "id": movement.id}
+
+@router.delete("/inventory/movements/{movement_id}")
+def delete_movement(movement_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER]))):
+    movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
+    if not movement:
+        raise HTTPException(404, "Movement not found")
+
+    inv = get_or_create_inventory(db, movement.product_id)
+    if movement.movement_type in (MovementType.SALE_OUT, MovementType.RETURN_OUT, MovementType.TRANSFER):
+        inv.quantity += abs(movement.quantity)
+    else:
+        inv.quantity -= abs(movement.quantity)
+
+    db.delete(movement)
+    db.commit()
+    return {"message": "Movement deleted"}
 
 class StockIssueRequest(BaseModel):
     product_id: int
@@ -1398,6 +1547,161 @@ async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Sessio
         db.commit()
     return results
 
+# --- Price List Routes ---
+import csv, io, requests as http_requests
+
+class PriceItemCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: str = "general"
+    unit: str = "pcs"
+    unit_price: float
+    currency: str = "PKR"
+    effective_date: date
+    source: Optional[str] = None
+    image_url: Optional[str] = None
+
+@router.get("/prices")
+def list_prices(
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    effective_date: Optional[date] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    q = db.query(PriceList).filter(PriceList.is_active == True)
+    if search:
+        q = q.filter(PriceList.name.ilike(f"%{search}%"))
+    if category:
+        q = q.filter(PriceList.category.ilike(category))
+    if effective_date:
+        q = q.filter(PriceList.effective_date == effective_date)
+    return q.order_by(PriceList.effective_date.desc(), PriceList.name).all()
+
+@router.post("/prices")
+def create_price(item: PriceItemCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "create"))):
+    db_item = PriceList(**item.model_dump())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+@router.put("/prices/{price_id}")
+def update_price(price_id: int, item: PriceItemCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "edit"))):
+    db_item = db.query(PriceList).filter(PriceList.id == price_id).first()
+    if not db_item:
+        raise HTTPException(404, "Price item not found")
+    for k, v in item.model_dump(exclude_unset=True).items():
+        setattr(db_item, k, v)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+class PriceItemUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    unit: Optional[str] = None
+    unit_price: Optional[float] = None
+    currency: Optional[str] = None
+    effective_date: Optional[date] = None
+    source: Optional[str] = None
+
+@router.patch("/prices/{price_id}")
+def patch_price(price_id: int, item: PriceItemUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "edit"))):
+    db_item = db.query(PriceList).filter(PriceList.id == price_id).first()
+    if not db_item:
+        raise HTTPException(404, "Price item not found")
+    for k, v in item.model_dump(exclude_unset=True).items():
+        setattr(db_item, k, v)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+@router.delete("/prices/{price_id}")
+def delete_price(price_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "delete"))):
+    db_item = db.query(PriceList).filter(PriceList.id == price_id).first()
+    if not db_item:
+        raise HTTPException(404, "Price item not found")
+    db_item.is_active = False
+    db.commit()
+    return {"message": "Price item removed"}
+
+@router.get("/prices/categories")
+def list_price_categories(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    rows = db.query(PriceList.category).filter(PriceList.is_active == True).distinct().all()
+    return sorted([r[0] for r in rows if r[0]])
+
+class PriceImportURL(BaseModel):
+    url: str
+    effective_date: date
+    source_name: Optional[str] = None
+
+def _parse_csv_rows(text: str, effective_date: date, source: str, db: Session) -> dict:
+    reader = csv.DictReader(io.StringIO(text.strip()))
+    # normalize headers: lowercase + strip
+    rows = [{k.strip().lower(): v.strip() for k, v in row.items()} for row in reader]
+    if not rows:
+        raise HTTPException(400, "CSV is empty or has no valid rows")
+    # detect required columns flexibly
+    sample = rows[0]
+    name_col = next((k for k in sample if k in ("name", "item", "product", "description", "title")), None)
+    price_col = next((k for k in sample if k in ("price", "unit_price", "rate", "amount", "cost")), None)
+    if not name_col or not price_col:
+        raise HTTPException(400, f"CSV must have name and price columns. Found: {list(sample.keys())}")
+    unit_col = next((k for k in sample if k in ("unit", "uom")), None)
+    cat_col = next((k for k in sample if k in ("category", "cat", "type")), None)
+    desc_col = next((k for k in sample if k in ("description", "desc", "details") and k != name_col), None)
+
+    created = 0
+    for row in rows:
+        name = row.get(name_col, "").strip()
+        try:
+            price = float(row.get(price_col, 0) or 0)
+        except ValueError:
+            continue
+        if not name or price <= 0:
+            continue
+        db_item = PriceList(
+            name=name,
+            description=row.get(desc_col, "") if desc_col else "",
+            category=row.get(cat_col, "general") if cat_col else "general",
+            unit=row.get(unit_col, "pcs") if unit_col else "pcs",
+            unit_price=price,
+            effective_date=effective_date,
+            source=source,
+        )
+        db.add(db_item)
+        created += 1
+    db.commit()
+    return {"message": f"{created} price items imported", "count": created}
+
+@router.post("/prices/import/url")
+def import_prices_from_url(body: PriceImportURL, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "create"))):
+    try:
+        resp = http_requests.get(body.url, timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        raise HTTPException(400, f"Failed to fetch URL: {e}")
+    source = body.source_name or body.url
+    return _parse_csv_rows(resp.text, body.effective_date, source, db)
+
+from fastapi import UploadFile, File
+
+@router.post("/prices/import/csv")
+async def import_prices_from_csv(
+    file: UploadFile = File(...),
+    effective_date: date = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("products", "create"))
+):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(400, "Only .csv files are supported")
+    content = await file.read()
+    text = content.decode("utf-8-sig")  # handle BOM
+    ed = effective_date or date.today()
+    return _parse_csv_rows(text, ed, f"csv:{file.filename}", db)
+
 # --- Reports Routes ---
 @router.get("/reports")
 def get_reports(
@@ -1503,8 +1807,8 @@ class AgentQuery(BaseModel):
     message: str
 
 @router.post("/agent/chat")
-def agent_chat(query: AgentQuery):
-    response = support_agent.get_response(query.message)
+def agent_chat(query: AgentQuery, db: Session = Depends(get_db)):
+    response = support_agent.get_response(query.message, db=db)
     return {"response": response, "agent": "DATAPOINT Support"}
 
 class AudioInput(BaseModel):

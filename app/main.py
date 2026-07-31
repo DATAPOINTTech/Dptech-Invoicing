@@ -7,6 +7,7 @@ import os
 from app.database import init_db
 from app.routes.api import router as api_router
 from app.config import settings
+import app.models.pricelist  # register PriceList with Base
 
 app = FastAPI(title=f"{settings.COMPANY_NAME} - Business Management System")
 
@@ -99,6 +100,10 @@ def product_new(request: Request):
 def inventory_page(request: Request):
     return templates.TemplateResponse(request, "inventory/list.html", {"company": settings.COMPANY_NAME})
 
+@app.get("/inventory/movements", response_class=HTMLResponse)
+def movements_page(request: Request):
+    return templates.TemplateResponse(request, "inventory/movements.html", {"company": settings.COMPANY_NAME})
+
 @app.get("/purchases", response_class=HTMLResponse)
 def purchases_page(request: Request):
     return templates.TemplateResponse(request, "purchases/list.html", {"company": settings.COMPANY_NAME})
@@ -109,6 +114,10 @@ def purchase_new(request: Request):
 
 @app.get("/purchases/{purchase_id}", response_class=HTMLResponse)
 def purchase_detail(request: Request, purchase_id: int):
+    return templates.TemplateResponse(request, "purchases/detail.html", {"company": settings.COMPANY_NAME, "purchase_id": purchase_id})
+
+@app.get("/purchases/{purchase_id}/edit", response_class=HTMLResponse)
+def purchase_edit(request: Request, purchase_id: int):
     return templates.TemplateResponse(request, "purchases/form.html", {"company": settings.COMPANY_NAME, "purchase_id": purchase_id})
 
 @app.get("/expenses", response_class=HTMLResponse)
@@ -166,6 +175,10 @@ def projects_page(request: Request):
 @app.get("/reports", response_class=HTMLResponse)
 def reports_page(request: Request):
     return templates.TemplateResponse(request, "reports.html", {"company": settings.COMPANY_NAME})
+
+@app.get("/prices", response_class=HTMLResponse)
+def prices_page(request: Request):
+    return templates.TemplateResponse(request, "prices.html", {"company": settings.COMPANY_NAME})
 
 @app.get("/users", response_class=HTMLResponse)
 def users_page(request: Request):

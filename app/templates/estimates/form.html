@@ -53,13 +53,34 @@
 <script>
 const token=localStorage.getItem('token');if(!token)window.location.href='/login';
 let itemCount=0;
+let productList=[];
 const estimateId = {{ estimate_id|tojson }};
 
+function productOptions(selectedOpt){
+    let opts='<option value="">-- Select Product --</option>';
+    [...productList].sort((a,b)=>(b.stock_qty||0)-(a.stock_qty||0)).forEach(p=>{
+        opts+=`<option value="${p.id}" ${selectedOpt===String(p.id)?'selected':''}>${p.name}${p.sku?' ('+p.sku+')':''} [Stock: ${p.stock_qty||0} ${p.unit||'pcs'}]</option>`;
+    });
+    opts+=`<option value="custom" ${selectedOpt==='custom'?'selected':''}>-- Custom Item --</option>`;
+    return opts;
+}
+
 function addItem(data){
+    const pid = data?.product_id || '';
+    const isProd = !!pid && productList.some(p=>p.id==pid);
+    const prod = isProd ? productList.find(p=>p.id==pid) : null;
+    const selectedOpt = isProd ? String(pid) : (data ? 'custom' : '');
+    const unit = prod ? prod.unit : (data?.unit || 'pcs');
+    const commonUnits=['pcs','hour','day','service'];
+    let unitOpts=(commonUnits.includes(unit)?commonUnits:[unit,...commonUnits]).map(u=>`<option value="${u}" ${u===unit?'selected':''}>${u}</option>`).join('');
     const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-6 gap-2 items-end">
-        <div class="col-span-2"><label class="text-xs text-gray-500">Description</label><input type="text" name="desc" class="w-full px-2 py-1.5 border rounded text-sm" placeholder="Item description" value="${data?.description||''}"></div>
+        <div class="col-span-2">
+            <label class="text-xs text-gray-500">Item / Product</label>
+            <select name="product" class="w-full px-2 py-1.5 border rounded text-sm product-select">${productOptions(selectedOpt)}</select>
+            <input type="text" name="desc" class="w-full px-2 py-1.5 border rounded text-sm mt-1 desc-input" placeholder="Item description" value="${data?.description||''}" ${isProd?'readonly':''}>
+        </div>
         <div><label class="text-xs text-gray-500">Qty</label><input type="number" name="qty" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm qty-input" value="${data?.quantity||1}"></div>
-        <div><label class="text-xs text-gray-500">Unit</label><select name="unit" class="w-full px-2 py-1.5 border rounded text-sm"><option value="pcs" ${data?.unit==='pcs'?'selected':''}>pcs</option><option value="hour" ${data?.unit==='hour'?'selected':''}>hour</option><option value="day" ${data?.unit==='day'?'selected':''}>day</option><option value="service" ${data?.unit==='service'?'selected':''}>service</option></select></div>
+        <div><label class="text-xs text-gray-500">Unit</label><select name="unit" class="w-full px-2 py-1.5 border rounded text-sm">${unitOpts}</select></div>
         <div><label class="text-xs text-gray-500">Unit Price</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm price-input" value="${data?.unit_price||0}"></div>
         <div><button type="button" onclick="this.closest('.item-row').remove();calcTotal();" class="text-red-500 text-sm"><i class="fas fa-times"></i></button></div>
     </div>`;
@@ -90,29 +111,56 @@ $(function(){
             if(cb)cb();
         });
     }
-    if (estimateId) {
-        loadClients(function(){
-            $.ajax({url:'/api/estimates/'+estimateId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(est){
-                $('#client_id').val(est.client?.id||est.client_id);
-                $('#estimate_date').val(est.estimate_date);
-                $('#valid_until').val(est.valid_until||'');
-                $('#title').val(est.title||'');
-                $('#discount').val(est.discount_percent);
-                $('#terms').val(est.terms_conditions||'');
-                $('#notes').val(est.notes||'');
-                if(est.tax_rate>=0) $('#tax_rate').val(est.tax_rate);
-                (est.items||[]).forEach(function(item){addItem(item);});
-                calcTotal();
-            }).fail(function(){alert('Failed to load estimate');window.location.href='/estimates';});
-        });
-    } else {
-        loadClients();
-        addItem();
+    function loadProducts(cb){
+        $.ajax({url:'/api/products',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(prods){productList=prods||[];if(cb)cb();}).fail(function(){productList=[];if(cb)cb();});
     }
+    loadProducts(function(){
+        if (estimateId) {
+            loadClients(function(){
+                $.ajax({url:'/api/estimates/'+estimateId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(est){
+                    $('#client_id').val(est.client?.id||est.client_id);
+                    $('#estimate_date').val(est.estimate_date);
+                    $('#valid_until').val(est.valid_until||'');
+                    $('#title').val(est.title||'');
+                    $('#discount').val(est.discount_percent);
+                    $('#terms').val(est.terms_conditions||'');
+                    $('#notes').val(est.notes||'');
+                    if(est.tax_rate>=0) $('#tax_rate').val(est.tax_rate);
+                    (est.items||[]).forEach(function(item){addItem(item);});
+                    calcTotal();
+                }).fail(function(){alert('Failed to load estimate');window.location.href='/estimates';});
+            });
+        } else {
+            loadClients();
+            addItem();
+        }
+    });
     $(document).on('input','.qty-input,.price-input,#discount,#tax_rate',calcTotal);
+    $(document).on('change','.product-select',function(){
+        const row=$(this).closest('.item-row');
+        const pid=$(this).val();
+        const p = pid && pid!=='custom' ? productList.find(x=>x.id==pid) : null;
+        if(p){
+            row.find('[name=desc]').val(p.name).prop('readonly',true);
+            const us=row.find('[name=unit]');
+            if(!us.find('option[value="'+p.unit+'"]').length) us.append(`<option value="${p.unit}">${p.unit}</option>`);
+            us.val(p.unit);
+            row.find('[name=price]').val(p.unit_price);
+        }else{
+            row.find('[name=desc]').prop('readonly',false);
+        }
+        calcTotal();
+    });
     $('#estimate-form').submit(function(e){e.preventDefault();
         const tr=parseFloat($('#tax_rate').val())||0;
-        const items=[];$('.item-row').each(function(){items.push({description:$(this).find('[name=desc]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:tr});});
+        const items=[];let valid=true;
+        $('.item-row').each(function(){
+            const pv=$(this).find('[name=product]').val();
+            const desc=$(this).find('[name=desc]').val();
+            if(!desc){valid=false;return;}
+            items.push({product_id:(pv&&pv!=='custom')?parseInt(pv):null,description:desc,quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:tr});
+        });
+        if(!valid){alert('Please provide an item description or select a product for each item.');return;}
         const data={client_id:parseInt($('#client_id').val()),title:$('#title').val(),estimate_date:$('#estimate_date').val(),valid_until:$('#valid_until').val()||null,discount_percent:parseFloat($('#discount').val())||0,tax_rate:tr,terms_conditions:$('#terms').val(),notes:$('#notes').val(),items};
         const url = estimateId ? '/api/estimates/'+estimateId : '/api/estimates';
         const method = estimateId ? 'PUT' : 'POST';

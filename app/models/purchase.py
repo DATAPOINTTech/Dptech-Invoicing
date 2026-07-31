@@ -7,6 +7,8 @@ import enum
 class PurchaseStatus(str, enum.Enum):
     DRAFT = "draft"
     RECEIVED = "received"
+    PAID = "paid"
+    PARTIALLY_PAID = "partially_paid"
     CANCELLED = "cancelled"
 
 class PurchaseInvoice(Base):
@@ -25,12 +27,31 @@ class PurchaseInvoice(Base):
     tax_amount = Column(Float, default=0.0)
     tax_rate = Column(Float, default=0.0)
     total_amount = Column(Float, default=0.0)
+    amount_paid = Column(Float, default=0.0)
+    balance_due = Column(Float, default=0.0)
     notes = Column(Text)
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     items = relationship("PurchaseItem", back_populates="purchase", cascade="all, delete-orphan")
+    payments = relationship("PurchasePayment", back_populates="purchase", cascade="all, delete-orphan", order_by="PurchasePayment.payment_date")
+
+
+class PurchasePayment(Base):
+    __tablename__ = "purchase_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    purchase_id = Column(Integer, ForeignKey("purchase_invoices.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    payment_date = Column(Date, nullable=False)
+    payment_method = Column(String(50), default="cash")
+    reference_no = Column(String(100))
+    notes = Column(Text)
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    purchase = relationship("PurchaseInvoice", back_populates="payments")
 
 class PurchaseItem(Base):
     __tablename__ = "purchase_items"

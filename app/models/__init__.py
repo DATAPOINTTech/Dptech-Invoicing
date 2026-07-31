@@ -7,3 +7,4 @@ from .inventory import Inventory, StockMovement
 from .expense import Expense, ExpenseCategory
 from .estimate import Estimate, EstimateItem, EstimateStatus
 from .invoice import Invoice, InvoiceItem, InvoiceStatus
+from .pricelist import PriceList

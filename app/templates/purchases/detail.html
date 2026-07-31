@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Purchase Details - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6">
+        <div class="flex justify-between items-center mb-5">
+            <div>
+                <a href="/purchases" class="text-sm text-cyan-600 hover:text-cyan-700 mb-1 inline-block"><i class="fas fa-arrow-left mr-1"></i>Back to Purchases</a>
+                <h1 class="text-2xl font-bold text-gray-800">Purchase #<span id="p-invoice-no"></span></h1>
+            </div>
+            <div class="flex gap-2">
+                <a id="edit-link" href="#" class="btn btn-primary"><i class="fas fa-pen mr-2"></i>Edit</a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="font-semibold text-gray-800 mb-4">Purchase Details</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><span class="text-gray-500">Supplier:</span><span class="ml-2 font-medium" id="d-supplier"></span></div>
+                        <div><span class="text-gray-500">Supplier NTN:</span><span class="ml-2" id="d-ntn"></span></div>
+                        <div><span class="text-gray-500">Invoice Date:</span><span class="ml-2" id="d-invoice-date"></span></div>
+                        <div><span class="text-gray-500">Received Date:</span><span class="ml-2" id="d-received-date"></span></div>
+                        <div><span class="text-gray-500">Status:</span><span class="ml-2" id="d-status"></span></div>
+                        <div><span class="text-gray-500">Address:</span><span class="ml-2" id="d-address"></span></div>
+                    </div>
+                    <div class="mt-4 text-sm" id="d-notes-wrapper" style="display:none"><span class="text-gray-500">Notes:</span><p class="mt-1 text-gray-700" id="d-notes"></p></div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+                    <h3 class="font-semibold text-gray-800 mb-4">Items</h3>
+                    <table class="w-full text-sm">
+                        <thead><tr class="border-b text-left text-gray-500"><th class="pb-2">Product</th><th class="pb-2 text-right">Qty</th><th class="pb-2 text-right">Unit Price</th><th class="pb-2 text-right">Tax</th><th class="pb-2 text-right">Total</th></tr></thead>
+                        <tbody id="items-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="font-semibold text-gray-800 mb-4">Payment Summary</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">Total Amount</span><span class="font-semibold">PKR <span id="p-total">0</span></span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Amount Paid</span><span class="font-semibold text-green-600">PKR <span id="p-paid">0</span></span></div>
+                        <div class="border-t pt-3 flex justify-between"><span class="text-gray-700 font-medium">Balance Due</span><span class="font-semibold text-red-600 text-base" id="p-balance">PKR 0</span></div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h4 class="font-medium text-gray-800 mb-3">Record Payment</h4>
+                    <form id="pay-form" class="space-y-3">
+                        <div><label class="text-xs text-gray-500">Amount *</label><input type="number" id="pay-amount" step="0.01" min="0.01" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                        <div><label class="text-xs text-gray-500">Payment Date</label><input type="date" id="pay-date" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                        <div><label class="text-xs text-gray-500">Method</label>
+                            <select id="pay-method" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none">
+                                <option value="cash">Cash</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="credit_card">Credit Card</option>
+                            </select>
+                        </div>
+                        <div><label class="text-xs text-gray-500">Reference #</label><input type="text" id="pay-ref" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                        <div><label class="text-xs text-gray-500">Notes</label><input type="text" id="pay-notes" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                        <button type="submit" class="w-full bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-700"><i class="fas fa-check mr-2"></i>Record Payment</button>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+                    <h3 class="font-semibold text-gray-800 mb-4">Payment History</h3>
+                    <div id="payments-list">
+                        <p class="text-sm text-gray-400 text-center py-4">No payments recorded</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+const purchaseId = {{ purchase_id }};
+let purchaseStatus = '';
+
+function statusBadge(s){
+    const m={paid:'badge-green',partially_paid:'badge-amber',cancelled:'badge-red',received:'badge-blue',draft:'badge-gray'};
+    return `<span class="badge ${m[s]||'badge-gray'}">${s.replace('_',' ')}</span>`;
+}
+
+function loadPurchase(){
+    $.ajax({url:'/api/purchases/'+purchaseId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(p){
+        purchaseStatus = p.status;
+        $('#p-invoice-no').text(p.invoice_no);
+        $('#edit-link').attr('href','/purchases/'+purchaseId+'/edit');
+        $('#d-supplier').text(p.supplier_name);
+        $('#d-ntn').text(p.supplier_ntn||'-');
+        $('#d-invoice-date').text(p.invoice_date);
+        $('#d-received-date').text(p.received_date||'-');
+        $('#d-status').html(statusBadge(p.status));
+        $('#d-address').text(p.supplier_address||'-');
+        if(p.notes){$('#d-notes').text(p.notes);$('#d-notes-wrapper').show();}
+        $('#p-total').text(p.total_amount?.toLocaleString()||'0');
+        $('#p-paid').text(p.amount_paid?.toLocaleString()||'0');
+        $('#p-balance').text('PKR '+(p.balance_due?.toLocaleString()||'0'));
+        $('#items-body').html((p.items||[]).map(i=>`<tr class="border-b">
+            <td class="py-2">${i.product_name}</td>
+            <td class="py-2 text-right">${i.quantity} ${i.unit}</td>
+            <td class="py-2 text-right">PKR ${i.unit_price?.toLocaleString()}</td>
+            <td class="py-2 text-right">${i.tax_rate}%</td>
+            <td class="py-2 text-right font-medium">PKR ${i.total_price?.toLocaleString()}</td>
+        </tr>`).join(''));
+        $('#pay-form').toggle(p.status !== 'cancelled' && p.status !== 'paid');
+    }).fail(function(x){
+        $('#purchase-details-error').remove();
+        $('.lg\\:col-span-2').first().before('<div id="purchase-details-error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">Failed to load purchase: '+(x.responseJSON?.detail||'Unknown error')+'</div>');
+    });
+}
+
+function loadPayments(){
+    $.ajax({url:'/api/purchases/'+purchaseId+'/payments',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(pms){
+        if(!pms||!pms.length){
+            $('#payments-list').html('<p class="text-sm text-gray-400 text-center py-4">No payments recorded</p>');
+            return;
+        }
+        $('#payments-list').html(`<table class="w-full text-sm"><thead><tr class="border-b text-gray-500"><th class="pb-2 text-left">Date</th><th class="pb-2 text-right">Amount</th><th class="pb-2 text-left">Method</th><th class="pb-2 text-left">Ref</th></tr></thead><tbody>${pms.map(pm=>`<tr class="border-b"><td class="py-2">${pm.payment_date}</td><td class="py-2 text-right font-medium text-green-600">PKR ${pm.amount?.toLocaleString()}</td><td class="py-2">${pm.payment_method}</td><td class="py-2 text-gray-500">${pm.reference_no||'-'}</td></tr>`).join('')}</tbody></table>`);
+    }).fail(function(x){
+        $('#payments-list').html('<p class="text-sm text-red-500 text-center py-4">Failed to load payments: '+(x.responseJSON?.detail||'Unknown error')+'</p>');
+    });
+}
+
+$('#pay-form').submit(function(e){
+    e.preventDefault();
+    const amt = parseFloat($('#pay-amount').val());
+    if(!amt||amt<=0){alert('Enter a valid amount');return;}
+    const params = {amount: amt};
+    const dt = $('#pay-date').val();
+    if(dt) params.payment_date = dt;
+    const method = $('#pay-method').val();
+    if(method) params.payment_method = method;
+    const ref = $('#pay-ref').val();
+    if(ref) params.reference_no = ref;
+    const notes = $('#pay-notes').val();
+    if(notes) params.notes = notes;
+    $('button[type=submit]').prop('disabled',true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Recording...');
+    $.ajax({url:'/api/purchases/'+purchaseId+'/pay',method:'POST',data:params,headers:{Authorization:'Bearer '+token}}).done(function(){
+        $('#pay-amount').val('');$('#pay-ref').val('');$('#pay-notes').val('');
+        loadPayments();
+        loadPurchase();
+    }).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));}).always(function(){$('button[type=submit]').prop('disabled',false).html('<i class="fas fa-check mr-2"></i>Record Payment');});
+});
+
+$(function(){
+    $('#pay-date').val(new Date().toISOString().split('T')[0]);
+    loadPurchase();
+    loadPayments();
+});
+</script>
+{% endblock %}

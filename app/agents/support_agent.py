@@ -1,4 +1,6 @@
 from typing import List, Dict, Optional
+from datetime import date
+from sqlalchemy.orm import Session
 
 
 class SupportAgent:
@@ -10,336 +12,255 @@ class SupportAgent:
             "email": "info@datapointtechnology.com",
             "sales_email": "sales@datapointtechnology.com",
             "website": "http://datapointtechnology.com",
-            "hours": "Monday–Saturday, 9:00 AM – 7:00 PM",
+            "hours": "Monday\u2013Saturday, 9:00 AM \u2013 7:00 PM",
         }
         self.knowledge_base = self._load_knowledge_base()
+        self._db_cache = None
 
     def _load_knowledge_base(self) -> Dict:
         return {
             "greeting": {
                 "keywords": ["hi", "hello", "hey", "salam", "assalam", "good morning", "good afternoon", "good evening", "start", "help"],
                 "response": (
-                    "👋 Assalam-o-Alaikum! Welcome to DATAPOINT Technologies Support.\n\n"
+                    "\U0001f44b Assalam-o-Alaikum! Welcome to DATAPOINT Technologies Support.\n\n"
                     "I can help you with:\n"
-                    "• 🖥️ Products & Pricing (Laptops, Desktops, Networking, CCTV, Accessories)\n"
-                    "• 🛠️ Services (Software Dev, Networking, Web Development, IT Support)\n"
-                    "• 📄 Invoices, Estimates & Quotations\n"
-                    "• 💳 Payments & Tax Information\n"
-                    "• 🚚 Delivery & Warranty Policies\n"
-                    "• 📞 Contact & Support\n\n"
+                    "\u2022 \U0001f5a5\ufe0f Products & Pricing (Laptops, Desktops, Networking, CCTV, Accessories)\n"
+                    "\u2022 \U0001f6e0\ufe0f Services (Software Dev, Networking, Web Development, IT Support)\n"
+                    "\u2022 \U0001f4c4 Invoices, Estimates & Quotations\n"
+                    "\u2022 \U0001f4b3 Payments & Tax Information\n"
+                    "\u2022 \U0001f69a Delivery & Warranty Policies\n"
+                    "\u2022 \U0001f4de Contact & Support\n\n"
                     "Just type your question and I'll guide you!"
-                )
-            },
-
-            "laptops": {
-                "keywords": ["laptop", "laptops", "notebook", "portable computer", "dell laptop", "hp laptop", "lenovo laptop", "macbook"],
-                "response": (
-                    "💻 **Laptops — Available Brands & Categories:**\n\n"
-                    "🔹 **Dell** — Inspiron, Latitude, XPS series\n"
-                    "   • Core i3 (Basic): PKR 55,000–75,000\n"
-                    "   • Core i5 (Mid-range): PKR 80,000–120,000\n"
-                    "   • Core i7 (High-end): PKR 130,000–200,000+\n\n"
-                    "🔹 **HP** — 15s, ProBook, EliteBook series\n"
-                    "   • Core i3: PKR 52,000–70,000\n"
-                    "   • Core i5: PKR 78,000–115,000\n"
-                    "   • Core i7: PKR 125,000–190,000+\n\n"
-                    "🔹 **Lenovo** — IdeaPad, ThinkPad series\n"
-                    "   • Core i3: PKR 50,000–68,000\n"
-                    "   • Core i5: PKR 75,000–110,000\n"
-                    "   • Core i7: PKR 120,000–185,000+\n\n"
-                    "✅ All laptops include manufacturer warranty.\n"
-                    "📦 Delivery: 2–5 working days.\n"
-                    "📞 For exact pricing & availability, contact: +92-316-7788990"
-                )
-            },
-
-            "desktops": {
-                "keywords": ["desktop", "pc", "computer", "tower", "workstation", "all in one", "aio"],
-                "response": (
-                    "🖥️ **Desktop Computers & Workstations:**\n\n"
-                    "🔹 **Assembled PCs (Custom Build)**\n"
-                    "   • Basic Office PC (Core i3, 8GB RAM, 256GB SSD): PKR 45,000–55,000\n"
-                    "   • Mid-range PC (Core i5, 16GB RAM, 512GB SSD): PKR 65,000–85,000\n"
-                    "   • High-end Workstation (Core i7/i9, 32GB RAM, 1TB SSD): PKR 110,000–180,000\n\n"
-                    "🔹 **Branded Desktops**\n"
-                    "   • Dell OptiPlex / HP ProDesk: PKR 70,000–130,000\n"
-                    "   • All-in-One PCs: PKR 85,000–150,000\n\n"
-                    "✅ Custom builds available as per your requirements.\n"
-                    "📞 Contact sales for bulk orders & corporate pricing."
-                )
-            },
-
-            "networking": {
-                "keywords": ["network", "networking", "router", "switch", "wifi", "wireless", "access point", "firewall", "mikrotik", "cisco", "tp-link", "ubiquiti", "lan", "wan", "internet"],
-                "response": (
-                    "🌐 **Networking Solutions & Equipment:**\n\n"
-                    "🔹 **Routers & Firewalls**\n"
-                    "   • TP-Link Home/Office Routers: PKR 3,500–15,000\n"
-                    "   • MikroTik Routers (RB series): PKR 8,000–45,000\n"
-                    "   • Cisco Routers: PKR 25,000–150,000+\n\n"
-                    "🔹 **Switches**\n"
-                    "   • Unmanaged Switches (8/16/24 port): PKR 4,000–18,000\n"
-                    "   • Managed Switches: PKR 15,000–80,000\n\n"
-                    "🔹 **Wireless Access Points**\n"
-                    "   • TP-Link EAP series: PKR 8,000–25,000\n"
-                    "   • Ubiquiti UniFi: PKR 18,000–55,000\n\n"
-                    "🔹 **Network Services**\n"
-                    "   • Network design & installation\n"
-                    "   • Structured cabling (CAT6/Fiber)\n"
-                    "   • VPN setup & configuration\n"
-                    "   • Network troubleshooting & maintenance\n\n"
-                    "📞 For site survey & custom network design: +92-316-7788990"
-                )
-            },
-
-            "cctv": {
-                "keywords": ["cctv", "camera", "security camera", "surveillance", "dvr", "nvr", "hikvision", "dahua", "ip camera", "security system"],
-                "response": (
-                    "📷 **CCTV & Security Systems:**\n\n"
-                    "🔹 **Camera Types**\n"
-                    "   • Analog HD Cameras (2MP/5MP): PKR 3,500–8,000 each\n"
-                    "   • IP Network Cameras (4MP/8MP): PKR 8,000–20,000 each\n"
-                    "   • PTZ Cameras: PKR 25,000–80,000 each\n\n"
-                    "🔹 **Recorders**\n"
-                    "   • DVR (4/8/16 channel): PKR 12,000–35,000\n"
-                    "   • NVR (4/8/16 channel): PKR 15,000–45,000\n\n"
-                    "🔹 **Complete Packages**\n"
-                    "   • 4-Camera Home Package: PKR 35,000–55,000\n"
-                    "   • 8-Camera Office Package: PKR 65,000–95,000\n"
-                    "   • 16-Camera Enterprise Package: PKR 120,000–200,000\n\n"
-                    "✅ Brands: Hikvision, Dahua, CP Plus\n"
-                    "✅ Includes installation, configuration & training\n"
-                    "📞 Free site survey available — call +92-316-7788990"
-                )
-            },
-
-            "accessories": {
-                "keywords": ["accessories", "keyboard", "mouse", "monitor", "headset", "printer", "scanner", "ups", "hard drive", "ssd", "ram", "pendrive", "usb", "cable", "webcam"],
-                "response": (
-                    "🖱️ **IT Accessories & Peripherals:**\n\n"
-                    "🔹 **Input Devices**\n"
-                    "   • Keyboards: PKR 800–5,000\n"
-                    "   • Mouse: PKR 500–4,000\n"
-                    "   • Webcams: PKR 3,000–12,000\n\n"
-                    "🔹 **Displays**\n"
-                    "   • Monitors 19\"–24\" (FHD): PKR 18,000–40,000\n"
-                    "   • Monitors 27\"+ (QHD/4K): PKR 45,000–90,000\n\n"
-                    "🔹 **Storage**\n"
-                    "   • SSD (256GB–1TB): PKR 5,000–18,000\n"
-                    "   • HDD (1TB–4TB): PKR 8,000–22,000\n"
-                    "   • USB Flash Drives: PKR 500–3,000\n\n"
-                    "🔹 **Power**\n"
-                    "   • UPS (600VA–2000VA): PKR 8,000–25,000\n\n"
-                    "🔹 **Printers & Scanners**\n"
-                    "   • Inkjet Printers: PKR 12,000–35,000\n"
-                    "   • Laser Printers: PKR 25,000–70,000\n\n"
-                    "📞 Contact us for bulk pricing & availability."
-                )
-            },
-
-            "software_services": {
-                "keywords": ["software", "development", "app", "application", "website", "web", "system", "erp", "crm", "custom", "mobile app", "android", "ios"],
-                "response": (
-                    "💻 **Software Development Services:**\n\n"
-                    "🔹 **Web Development**\n"
-                    "   • Business websites: PKR 25,000–80,000\n"
-                    "   • E-commerce stores: PKR 50,000–150,000\n"
-                    "   • Web applications & portals: PKR 80,000–500,000+\n\n"
-                    "🔹 **Custom Software**\n"
-                    "   • Invoicing & Accounting systems\n"
-                    "   • Inventory management systems\n"
-                    "   • ERP & CRM solutions\n"
-                    "   • POS systems\n\n"
-                    "🔹 **Mobile Applications**\n"
-                    "   • Android & iOS apps: PKR 80,000–300,000+\n\n"
-                    "🔹 **Technology Stack**\n"
-                    "   • Python, FastAPI, Django, React, Flutter\n\n"
-                    "✅ Free consultation & requirement analysis\n"
-                    "✅ Post-delivery support & maintenance available\n"
-                    "📧 Share your requirements: sales@datapointtechnology.com"
-                )
-            },
-
-            "it_support": {
-                "keywords": ["support", "repair", "maintenance", "troubleshoot", "fix", "broken", "not working", "slow", "virus", "format", "install", "windows", "amc"],
-                "response": (
-                    "🛠️ **IT Support & Maintenance Services:**\n\n"
-                    "🔹 **On-site Support**\n"
-                    "   • Hardware repair & replacement\n"
-                    "   • OS installation & configuration (Windows/Linux)\n"
-                    "   • Software installation & troubleshooting\n"
-                    "   • Virus removal & system cleanup\n\n"
-                    "🔹 **Remote Support**\n"
-                    "   • Remote desktop assistance\n"
-                    "   • Software configuration\n"
-                    "   • Network troubleshooting\n\n"
-                    "🔹 **AMC (Annual Maintenance Contract)**\n"
-                    "   • Scheduled preventive maintenance\n"
-                    "   • Priority support response\n"
-                    "   • Discounted repair rates\n"
-                    "   • Monthly system health reports\n\n"
-                    "📞 For urgent support: +92-316-7788990\n"
-                    "📧 Log a support ticket: info@datapointtechnology.com"
                 )
             },
 
             "payment_methods": {
                 "keywords": ["payment", "pay", "bank", "transfer", "jazzcash", "easypaisa", "cheque", "cash", "how to pay", "payment method"],
                 "response": (
-                    "💳 **Payment Methods:**\n\n"
+                    "\U0001f4b3 **Payment Methods:**\n\n"
                     "We accept the following:\n"
-                    "1. 🏦 Bank Transfer (preferred for large orders)\n"
-                    "2. 📝 Crossed Cheque (payable to DATAPOINT Technologies)\n"
-                    "3. 💵 Cash (in-office payments)\n"
-                    "4. 📱 JazzCash\n"
-                    "5. 📱 Easypaisa\n\n"
-                    "📌 Bank details are printed on every invoice.\n"
-                    "📌 Always use your Invoice # as payment reference.\n"
-                    "📌 Payment terms: Net 30 days (corporate clients).\n"
-                    "📌 Late payment fee: 2% per month on overdue amounts."
+                    "1. \U0001f3e6 Bank Transfer (preferred for large orders)\n"
+                    "2. \U0001f4dd Crossed Cheque (payable to DATAPOINT Technologies)\n"
+                    "3. \U0001f4b5 Cash (in-office payments)\n"
+                    "4. \U0001f4f1 JazzCash\n"
+                    "5. \U0001f4f1 Easypaisa\n\n"
+                    "\U0001f4cc Bank details are printed on every invoice.\n"
+                    "\U0001f4cc Always use your Invoice # as payment reference.\n"
+                    "\U0001f4cc Payment terms: Net 30 days (corporate clients).\n"
+                    "\U0001f4cc Late payment fee: 2% per month on overdue amounts."
                 )
             },
 
             "tax_query": {
                 "keywords": ["tax", "gst", "sales tax", "ntn", "strn", "withholding", "wht", "fed", "fbr", "tax invoice"],
                 "response": (
-                    "🧾 **Tax Information:**\n\n"
-                    "• All invoices include **17% General Sales Tax (GST)** as per Pakistan Sales Tax Act 1990.\n"
-                    "• Our **NTN** and **STRN** are printed on all tax invoices.\n"
-                    "• **Withholding Tax (WHT)** at 4% is applied where applicable as per FBR rules.\n"
-                    "• **FED (Federal Excise Duty)** at 5% applied on applicable services.\n"
-                    "• Tax invoices are issued for all registered business clients.\n\n"
-                    "📌 For tax exemption certificates or special tax treatment, contact our accounts team."
+                    "\U0001f9fe **Tax Information:**\n\n"
+                    "\u2022 All invoices include **17% General Sales Tax (GST)** as per Pakistan Sales Tax Act 1990.\n"
+                    "\u2022 Our **NTN** and **STRN** are printed on all tax invoices.\n"
+                    "\u2022 **Withholding Tax (WHT)** at 4% is applied where applicable as per FBR rules.\n"
+                    "\u2022 **FED (Federal Excise Duty)** at 5% applied on applicable services.\n"
+                    "\u2022 Tax invoices are issued for all registered business clients.\n\n"
+                    "\U0001f4cc For tax exemption certificates or special tax treatment, contact our accounts team."
                 )
             },
 
             "invoice_query": {
                 "keywords": ["invoice", "bill", "receipt", "statement", "invoice status", "invoice copy"],
                 "response": (
-                    "📄 **Invoice Information:**\n\n"
-                    "• Invoices are generated after approval of estimates/quotations.\n"
-                    "• You will receive your invoice via **email** and **WhatsApp**.\n"
-                    "• PDF copies are always available on request.\n"
-                    "• Invoice statuses: Draft → Sent → Partially Paid → Paid\n\n"
-                    "📌 To check your invoice status, provide your Invoice # to our accounts team.\n"
-                    "📌 For duplicate invoice copies: sales@datapointtechnology.com\n"
-                    "📌 Payment due date is printed on every invoice."
+                    "\U0001f4c4 **Invoice Information:**\n\n"
+                    "\u2022 Invoices are generated after approval of estimates/quotations.\n"
+                    "\u2022 You will receive your invoice via **email** and **WhatsApp**.\n"
+                    "\u2022 PDF copies are always available on request.\n"
+                    "\u2022 Invoice statuses: Draft \u2192 Sent \u2192 Partially Paid \u2192 Paid\n\n"
+                    "\U0001f4cc To check your invoice status, provide your Invoice # to our accounts team.\n"
+                    "\U0001f4cc For duplicate invoice copies: sales@datapointtechnology.com\n"
+                    "\U0001f4cc Payment due date is printed on every invoice."
                 )
             },
 
             "estimate_query": {
-                "keywords": ["estimate", "quotation", "quote", "proposal", "price list", "how much", "cost", "rate"],
+                "keywords": ["estimate", "quotation", "quote", "proposal", "how much", "cost", "rate"],
                 "response": (
-                    "📋 **Estimates & Quotations:**\n\n"
-                    "• We provide **free estimates** for all products and services.\n"
-                    "• Estimates are valid for **15 days** from issue date.\n"
-                    "• Once approved by client, estimates are converted to sales invoices.\n"
-                    "• Estimates include itemized pricing with GST breakdown.\n\n"
-                    "📌 To request a quotation:\n"
+                    "\U0001f4cb **Estimates & Quotations:**\n\n"
+                    "\u2022 We provide **free estimates** for all products and services.\n"
+                    "\u2022 Estimates are valid for **15 days** from issue date.\n"
+                    "\u2022 Once approved by client, estimates are converted to sales invoices.\n"
+                    "\u2022 Estimates include itemized pricing with GST breakdown.\n\n"
+                    "\U0001f4cc To request a quotation:\n"
                     "   1. Tell us what products/services you need\n"
                     "   2. Specify quantities\n"
                     "   3. We'll prepare and send the estimate within 24 hours\n\n"
-                    "📧 Email: sales@datapointtechnology.com\n"
-                    "📞 Call: +92-316-7788990"
+                    "\U0001f4e7 Email: sales@datapointtechnology.com\n"
+                    "\U0001f4de Call: +92-316-7788990"
                 )
             },
 
             "delivery_query": {
                 "keywords": ["delivery", "shipping", "dispatch", "when", "how long", "timeline", "days"],
                 "response": (
-                    "🚚 **Delivery Information:**\n\n"
-                    "🔹 **Hardware & Products**\n"
-                    "   • In-stock items: 1–3 working days\n"
-                    "   • Import/order items: 7–14 working days\n"
-                    "   • Bulk orders: Timeline discussed at order time\n\n"
-                    "🔹 **Services**\n"
-                    "   • IT Support (on-site): Same day or next day\n"
-                    "   • Network installation: 1–5 days depending on scope\n"
-                    "   • CCTV installation: 1–3 days\n"
-                    "   • Software projects: As per agreed project timeline\n\n"
-                    "📌 You will be notified via SMS/WhatsApp once your order is dispatched.\n"
-                    "📌 Delivery charges may apply outside Hyderabad."
+                    "\U0001f69a **Delivery Information:**\n\n"
+                    "\u25aa Hardware & Products\n"
+                    "   \u2022 In-stock items: 1\u20133 working days\n"
+                    "   \u2022 Import/order items: 7\u201314 working days\n"
+                    "   \u2022 Bulk orders: Timeline discussed at order time\n\n"
+                    "\u25aa Services\n"
+                    "   \u2022 IT Support (on-site): Same day or next day\n"
+                    "   \u2022 Network installation: 1\u20135 days depending on scope\n"
+                    "   \u2022 CCTV installation: 1\u20133 days\n"
+                    "   \u2022 Software projects: As per agreed project timeline\n\n"
+                    "\U0001f4cc You will be notified via SMS/WhatsApp once your order is dispatched.\n"
+                    "\U0001f4cc Delivery charges may apply outside Hyderabad."
                 )
             },
 
             "warranty_return": {
                 "keywords": ["warranty", "return", "refund", "replace", "replacement", "defective", "damaged", "broken", "guarantee"],
                 "response": (
-                    "🔄 **Warranty & Return Policy:**\n\n"
-                    "🔹 **Hardware Products**\n"
-                    "   • Dead on arrival (DOA): Replacement within 48 hours\n"
-                    "   • Defective items: 7-day return/replacement policy\n"
-                    "   • Manufacturer warranty: As per brand (1–3 years)\n\n"
-                    "🔹 **Assembled PCs & Custom Builds**\n"
-                    "   • 6-month local warranty on assembly & components\n\n"
-                    "🔹 **Software & Services**\n"
-                    "   • Non-refundable once delivered\n"
-                    "   • Bug fixes & support included post-delivery\n\n"
-                    "🔹 **CCTV & Networking Equipment**\n"
-                    "   • 1-year warranty on equipment\n"
-                    "   • Installation warranty: 3 months\n\n"
-                    "📌 To initiate a return, contact us with your Invoice # and issue description.\n"
-                    "📞 +92-316-7788990"
+                    "\U0001f504 **Warranty & Return Policy:**\n\n"
+                    "\u25aa Hardware Products\n"
+                    "   \u2022 Dead on arrival (DOA): Replacement within 48 hours\n"
+                    "   \u2022 Defective items: 7-day return/replacement policy\n"
+                    "   \u2022 Manufacturer warranty: As per brand (1\u20133 years)\n\n"
+                    "\u25aa Assembled PCs & Custom Builds\n"
+                    "   \u2022 6-month local warranty on assembly & components\n\n"
+                    "\u25aa Software & Services\n"
+                    "   \u2022 Non-refundable once delivered\n"
+                    "   \u2022 Bug fixes & support included post-delivery\n\n"
+                    "\u25aa CCTV & Networking Equipment\n"
+                    "   \u2022 1-year warranty on equipment\n"
+                    "   \u2022 Installation warranty: 3 months\n\n"
+                    "\U0001f4cc To initiate a return, contact us with your Invoice # and issue description.\n"
+                    "\U0001f4de +92-316-7788990"
                 )
             },
 
             "contact_query": {
                 "keywords": ["contact", "address", "location", "office", "reach", "call", "visit", "where", "find"],
                 "response": (
-                    "📞 **Contact DATAPOINT Technologies:**\n\n"
-                    "📍 G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh\n"
-                    "📞 +92-316-7788990\n"
-                    "📧 info@datapointtechnology.com\n"
-                    "📧 sales@datapointtechnology.com (for orders & quotes)\n"
-                    "🌐 http://datapointtechnology.com\n\n"
-                    "🕐 Business Hours: Monday–Saturday, 9:00 AM – 7:00 PM\n\n"
-                    "📌 For urgent support, call directly.\n"
-                    "📌 For quotes & orders, email sales team."
+                    "\U0001f4de **Contact DATAPOINT Technologies:**\n\n"
+                    "\U0001f4cd G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh\n"
+                    "\U0001f4de +92-316-7788990\n"
+                    "\U0001f4e7 info@datapointtechnology.com\n"
+                    "\U0001f4e7 sales@datapointtechnology.com (for orders & quotes)\n"
+                    "\U0001f310 http://datapointtechnology.com\n\n"
+                    "\U0001f550 Business Hours: Monday\u2013Saturday, 9:00 AM \u2013 7:00 PM\n\n"
+                    "\U0001f4cc For urgent support, call directly.\n"
+                    "\U0001f4cc For quotes & orders, email sales team."
                 )
             },
 
             "bulk_corporate": {
                 "keywords": ["bulk", "corporate", "company", "business", "wholesale", "large order", "tender", "government", "ngo", "organization"],
                 "response": (
-                    "🏢 **Corporate & Bulk Orders:**\n\n"
+                    "\U0001f3e2 **Corporate & Bulk Orders:**\n\n"
                     "We offer special pricing for corporate and bulk purchases:\n\n"
-                    "✅ Volume discounts on hardware orders (5+ units)\n"
-                    "✅ Dedicated account manager for corporate clients\n"
-                    "✅ Credit terms available (Net 30/60 days)\n"
-                    "✅ Customized AMC packages\n"
-                    "✅ Government & NGO procurement support\n"
-                    "✅ Tender documentation assistance\n\n"
-                    "📧 Corporate inquiries: sales@datapointtechnology.com\n"
-                    "📞 +92-316-7788990"
+                    "\u2705 Volume discounts on hardware orders (5+ units)\n"
+                    "\u2705 Dedicated account manager for corporate clients\n"
+                    "\u2705 Credit terms available (Net 30/60 days)\n"
+                    "\u2705 Customized AMC packages\n"
+                    "\u2705 Government & NGO procurement support\n"
+                    "\u2705 Tender documentation assistance\n\n"
+                    "\U0001f4e7 Corporate inquiries: sales@datapointtechnology.com\n"
+                    "\U0001f4de +92-316-7788990"
                 )
             },
 
             "about": {
                 "keywords": ["about", "who are you", "company", "datapoint", "background", "experience", "history", "profile"],
                 "response": (
-                    "🏢 **About DATAPOINT Technologies:**\n\n"
+                    "\U0001f3e2 **About DATAPOINT Technologies:**\n\n"
                     "DATAPOINT Technologies is a leading IT solutions provider based in Hyderabad, Sindh.\n\n"
-                    "🔹 **What We Do:**\n"
-                    "   • Supply of computers, laptops & IT hardware\n"
-                    "   • Networking & infrastructure solutions\n"
-                    "   • CCTV & security systems\n"
-                    "   • Custom software & web development\n"
-                    "   • IT support & maintenance services\n\n"
-                    "🔹 **Why Choose Us:**\n"
-                    "   • Authorized dealers for major brands\n"
-                    "   • Experienced technical team\n"
-                    "   • After-sales support & AMC\n"
-                    "   • Competitive pricing\n"
-                    "   • Serving businesses across Sindh\n\n"
-                    "📞 +92-316-7788990 | 🌐 datapointtechnology.com"
+                    "\u25aa What We Do:\n"
+                    "   \u2022 Supply of computers, laptops & IT hardware\n"
+                    "   \u2022 Networking & infrastructure solutions\n"
+                    "   \u2022 CCTV & security systems\n"
+                    "   \u2022 Custom software & web development\n"
+                    "   \u2022 IT support & maintenance services\n\n"
+                    "\u25aa Why Choose Us:\n"
+                    "   \u2022 Authorized dealers for major brands\n"
+                    "   \u2022 Experienced technical team\n"
+                    "   \u2022 After-sales support & AMC\n"
+                    "   \u2022 Competitive pricing\n"
+                    "   \u2022 Serving businesses across Sindh\n\n"
+                    "\U0001f4de +92-316-7788990 | \U0001f310 datapointtechnology.com"
                 )
             }
         }
 
-    def get_response(self, user_message: str) -> str:
+    def _query_prices(self, db: Session, search_term: str = None, category: str = None) -> str:
+        from app.models.pricelist import PriceList
+        q = db.query(PriceList).filter(PriceList.is_active == True)
+        if search_term:
+            q = q.filter(PriceList.name.ilike(f"%{search_term}%"))
+        if category:
+            q = q.filter(PriceList.category.ilike(category))
+        items = q.order_by(PriceList.category, PriceList.name).limit(50).all()
+        if not items:
+            return None
+        cat_groups = {}
+        for item in items:
+            cat = item.category or "General"
+            cat_groups.setdefault(cat, []).append(item)
+        lines = []
+        for cat, cat_items in cat_groups.items():
+            lines.append(f"\n\u25aa **{cat}**")
+            for i in cat_items[:10]:
+                lines.append(f"   \u2022 {i.name} \u2014 PKR {i.unit_price:,.2f}/{i.unit}")
+        return "\n".join(lines)
+
+    def get_response(self, user_message: str, db: Session = None) -> str:
         msg = user_message.lower().strip()
         if not msg:
             return "Please type your query. I'm here to help!"
+
+        pricing_keywords = [
+            "price", "pricing", "cost", "rate", "rates", "pricelist", "price list",
+            "laptop", "laptops", "desktop", "desktops", "pc", "computer",
+            "router", "switch", "networking", "cctv", "camera", "camera",
+            "printer", "monitor", "accessories", "ssd", "hard drive",
+            "products", "product", "item", "items", "what is the price",
+            "how much", "pkr"
+        ]
+        is_pricing_query = any(kw in msg for kw in pricing_keywords)
+
+        is_category_query = False
+        category_map = {
+            "laptop": "laptop", "desktop": "desktop", "pc": "desktop",
+            "network": "networking", "router": "networking", "switch": "networking",
+            "cctv": "cctv", "camera": "cctv", "surveillance": "cctv",
+            "accessor": "accessories", "printer": "accessories", "monitor": "accessories",
+            "storage": "accessories", "software": "software", "service": "services",
+            "it support": "services", "maintenance": "services",
+        }
+        matched_category = None
+        for kw, cat in category_map.items():
+            if kw in msg:
+                is_category_query = True
+                matched_category = cat
+                break
+
+        if is_pricing_query and db is not None:
+            search = None
+            category_filter = matched_category
+            price_response = self._query_prices(db, search_term=search, category=category_filter)
+            if price_response:
+                header = (
+                    "\U0001f4b0 **Live Prices from our Database**\n"
+                    f"_(Prices effective as of today)_\n"
+                )
+                if matched_category:
+                    header = f"\U0001f4b0 **Live {matched_category.title()} Prices**\n(_Prices effective as of today_)\n"
+                return header + price_response + (
+                    "\n\n\U0001f4cc Prices are updated daily. Contact us for bulk discounts.\n"
+                    "\U0001f4de +92-316-7788990 | \U0001f4e7 sales@datapointtechnology.com"
+                )
+            if matched_category:
+                return (
+                    f"\U0001f50d No prices found for '{matched_category}'.\n\n"
+                    "Please check back later or contact us:\n"
+                    f"\U0001f4de {self.context['phone']}\n"
+                    f"\U0001f4e7 {self.context['sales_email']}"
+                )
 
         best_match = None
         max_score = 0
@@ -349,18 +270,18 @@ class SupportAgent:
                 max_score = score
                 best_match = data["response"]
 
-        if best_match:
+        if best_match and max_score > 0:
             return best_match
 
         return (
             "Thank you for your query! I'm not sure I have a specific answer for that.\n\n"
             "You can ask me about:\n"
-            "• Laptops, Desktops, Networking, CCTV, Accessories\n"
-            "• Software Development, IT Support, Web Development\n"
-            "• Invoices, Payments, Estimates, Delivery, Warranty\n\n"
+            "\u2022 Laptops, Desktops, Networking, CCTV, Accessories\n"
+            "\u2022 Software Development, IT Support, Web Development\n"
+            "\u2022 Invoices, Payments, Estimates, Delivery, Warranty\n\n"
             f"Or contact us directly:\n"
-            f"📞 {self.context['phone']}\n"
-            f"📧 {self.context['email']}"
+            f"\U0001f4de {self.context['phone']}\n"
+            f"\U0001f4e7 {self.context['email']}"
         )
 
 
@@ -397,7 +318,7 @@ class VoiceQuotationAgent:
             "quotation": {
                 "type": "quotation_request",
                 "message": (
-                    "I'd be happy to prepare a quotation for you! 📋\n\n"
+                    "I'd be happy to prepare a quotation for you! \U0001f4cb\n\n"
                     "Please tell me:\n"
                     "1. What products or services do you need?\n"
                     "2. Quantities required\n"
@@ -409,7 +330,7 @@ class VoiceQuotationAgent:
             "order": {
                 "type": "order_request",
                 "message": (
-                    "Great! Let's get your order started. 🛒\n\n"
+                    "Great! Let's get your order started. \U0001f6d2\n\n"
                     "Please specify:\n"
                     "1. Product name & model\n"
                     "2. Quantity\n"
@@ -421,10 +342,10 @@ class VoiceQuotationAgent:
             "billing": {
                 "type": "billing_inquiry",
                 "message": (
-                    "For billing inquiries, I can help! 💳\n\n"
+                    "For billing inquiries, I can help! \U0001f4b3\n\n"
                     "Please provide:\n"
-                    "• Your Invoice # (e.g. INV-202501-00001)\n"
-                    "• Or your company/client name\n\n"
+                    "\u2022 Your Invoice # (e.g. INV-202501-00001)\n"
+                    "\u2022 Or your company/client name\n\n"
                     "Our accounts team will verify and update you on payment status."
                 ),
                 "action": "check_billing"
@@ -432,13 +353,13 @@ class VoiceQuotationAgent:
             "greeting": {
                 "type": "greeting",
                 "message": (
-                    "Assalam-o-Alaikum! 👋 Welcome to DATAPOINT Technologies.\n\n"
+                    "Assalam-o-Alaikum! \U0001f44b Welcome to DATAPOINT Technologies.\n\n"
                     "I'm your assistant. I can help you with:\n"
-                    "• Product pricing & availability\n"
-                    "• Quotations & estimates\n"
-                    "• Order placement\n"
-                    "• Billing & invoice queries\n"
-                    "• Technical support\n\n"
+                    "\u2022 Product pricing & availability\n"
+                    "\u2022 Quotations & estimates\n"
+                    "\u2022 Order placement\n"
+                    "\u2022 Billing & invoice queries\n"
+                    "\u2022 Technical support\n\n"
                     "What can I help you with today?"
                 ),
                 "action": "none"
@@ -446,23 +367,23 @@ class VoiceQuotationAgent:
             "product_inquiry": {
                 "type": "product_inquiry",
                 "message": (
-                    "We carry a wide range of IT products! 🖥️\n\n"
-                    "• Laptops (Dell, HP, Lenovo) — from PKR 50,000\n"
-                    "• Desktop PCs & Workstations — from PKR 45,000\n"
-                    "• Networking (MikroTik, Cisco, TP-Link, Ubiquiti)\n"
-                    "• CCTV Systems (Hikvision, Dahua)\n"
-                    "• Printers, UPS, Accessories\n\n"
-                    "Tell me which product you're interested in for detailed pricing!"
+                    "We carry a wide range of IT products! \U0001f5a5\ufe0f\n\n"
+                    "\u2022 Laptops (Dell, HP, Lenovo)\n"
+                    "\u2022 Desktop PCs & Workstations\n"
+                    "\u2022 Networking (MikroTik, Cisco, TP-Link, Ubiquiti)\n"
+                    "\u2022 CCTV Systems (Hikvision, Dahua)\n"
+                    "\u2022 Printers, UPS, Accessories\n\n"
+                    "For exact pricing with latest updates, please visit our **Daily Prices** page or ask me for specific product prices!"
                 ),
                 "action": "show_products"
             },
             "support": {
                 "type": "support_request",
                 "message": (
-                    "I'm sorry to hear you're having an issue. 🛠️\n\n"
+                    "I'm sorry to hear you're having an issue. \U0001f6e0\ufe0f\n\n"
                     "For technical support:\n"
-                    "📞 Call us: +92-316-7788990\n"
-                    "📧 Email: info@datapointtechnology.com\n\n"
+                    "\U0001f4de Call us: +92-316-7788990\n"
+                    "\U0001f4e7 Email: info@datapointtechnology.com\n\n"
                     "Please describe your issue and we'll assign a technician.\n"
                     "On-site support available in Hyderabad & surrounding areas."
                 ),
@@ -472,10 +393,10 @@ class VoiceQuotationAgent:
                 "type": "general",
                 "message": (
                     "I'm here to help! You can ask me about:\n"
-                    "• Products & pricing\n"
-                    "• Quotations & orders\n"
-                    "• Invoices & payments\n"
-                    "• Technical support\n\n"
+                    "\u2022 Products & pricing\n"
+                    "\u2022 Quotations & orders\n"
+                    "\u2022 Invoices & payments\n"
+                    "\u2022 Technical support\n\n"
                     "Or call us directly at +92-316-7788990."
                 ),
                 "action": "clarify"

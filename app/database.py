@@ -48,6 +48,9 @@ def init_db():
         migrations = [
             "ALTER TABLE purchase_invoices ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id)",
             "ALTER TABLE users ADD COLUMN permissions JSON",
+            "ALTER TABLE products ADD COLUMN max_stock_level FLOAT DEFAULT 0",
+            "ALTER TABLE purchase_invoices ADD COLUMN amount_paid FLOAT DEFAULT 0",
+            "ALTER TABLE purchase_invoices ADD COLUMN balance_due FLOAT DEFAULT 0",
         ]
         with engine.connect() as conn:
             for sql in migrations:
