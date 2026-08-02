@@ -1288,7 +1288,7 @@ def list_invoices(status: Optional[str] = None, client_id: Optional[int] = None,
 def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "create"))):
     inv_no = generate_invoice_number(db)
     tr = invoice.tax_rate
-    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr) for it in invoice.items]
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr, tax_inclusive=False) for it in invoice.items]
     totals = calculate_invoice_tax(calculated_items, invoice.discount_percent, tax_rate=tr,
                                   apply_wht=invoice.apply_wht, apply_fed=invoice.apply_fed)
     due = invoice.due_date or invoice.invoice_date
@@ -1357,7 +1357,7 @@ def update_invoice(invoice_id: int, invoice: InvoiceCreate, db: Session = Depend
     db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).delete()
 
     tr = invoice.tax_rate
-    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr) for it in invoice.items]
+    calculated_items = [calculate_item_tax(it.unit_price, it.quantity, tr, tax_inclusive=False) for it in invoice.items]
     totals = calculate_invoice_tax(calculated_items, invoice.discount_percent, tax_rate=tr,
                                   apply_wht=invoice.apply_wht, apply_fed=invoice.apply_fed)
     due = invoice.due_date or invoice.invoice_date
@@ -1424,6 +1424,17 @@ def delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_user:
     db_invoice.status = InvoiceStatus.CANCELLED
     db.commit()
     return {"message": "Invoice cancelled"}
+
+@router.delete("/invoices/{invoice_id}/delete")
+def hard_delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "delete"))):
+    db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not db_invoice:
+        raise HTTPException(404, "Invoice not found")
+    if db_invoice.status != InvoiceStatus.CANCELLED:
+        raise HTTPException(400, "Only cancelled invoices can be permanently deleted")
+    db.delete(db_invoice)
+    db.commit()
+    return {"message": f"Invoice {db_invoice.invoice_no} permanently deleted"}
 
 @router.get("/invoices/{invoice_id}")
 def get_invoice(invoice_id: int, db: Session = Depends(get_db)):
@@ -1494,17 +1505,8 @@ def download_invoice_pdf(invoice_id: int, db: Session = Depends(get_db)):
     return StreamingResponse(pdf_buf, media_type="application/pdf",
                             headers={"Content-Disposition": f"attachment; filename=invoice_{invoice.invoice_no}.pdf"})
 
-class SendInvoiceRequest(BaseModel):
-    email: Optional[str] = None
-    whatsapp: Optional[str] = None
-    message: Optional[str] = None
-
-@router.post("/invoices/{invoice_id}/send")
-async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "edit"))):
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    if not invoice:
-        raise HTTPException(404, "Invoice not found")
-    items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
+def _build_invoice_pdf(invoice, db: Session):
+    items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).all()
     items_data = [{
         "description": i.description, "quantity": i.quantity,
         "unit": i.unit, "unit_price": i.unit_price,
@@ -1525,7 +1527,19 @@ async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Sessio
         "fed_amount": invoice.fed_amount, "total_amount": invoice.total_amount,
         "terms": invoice.terms_conditions or "", "notes": invoice.notes or ""
     }
-    pdf_buf = generate_invoice_pdf(invoice_data)
+    return generate_invoice_pdf(invoice_data)
+
+class SendInvoiceRequest(BaseModel):
+    email: Optional[str] = None
+    whatsapp: Optional[str] = None
+    message: Optional[str] = None
+
+@router.post("/invoices/{invoice_id}/send")
+async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "edit"))):
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(404, "Invoice not found")
+    pdf_buf = _build_invoice_pdf(invoice, db)
     results = {}
     if send_req.email:
         subject = f"Invoice {invoice.invoice_no} from DATAPOINT Technologies"
@@ -1549,6 +1563,7 @@ async def send_invoice(invoice_id: int, send_req: SendInvoiceRequest, db: Sessio
 
 # --- Price List Routes ---
 import csv, io, requests as http_requests
+from app.services.scraper import scrape_products
 
 class PriceItemCreate(BaseModel):
     name: str
@@ -1686,6 +1701,56 @@ def import_prices_from_url(body: PriceImportURL, db: Session = Depends(get_db), 
     source = body.source_name or body.url
     return _parse_csv_rows(resp.text, body.effective_date, source, db)
 
+class PriceScrapeRequest(BaseModel):
+    url: str
+    effective_date: date
+    source_name: Optional[str] = None
+
+@router.post("/prices/scrape")
+def scrape_prices_from_web(body: PriceScrapeRequest, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "create"))):
+    """Fetch a URL and extract items/accessories with prices (preview only, nothing saved)."""
+    try:
+        items = scrape_products(body.url)
+    except Exception as e:
+        raise HTTPException(400, f"Failed to parse URL: {e}")
+    if not items:
+        raise HTTPException(404, "No products/prices found on that page")
+    return {"source": body.source_name or body.url, "count": len(items), "items": items}
+
+class ScrapedItemImport(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: str = "general"
+    unit: str = "pcs"
+    unit_price: float
+    currency: str = "PKR"
+
+class PriceScrapeImportRequest(BaseModel):
+    items: List[ScrapedItemImport]
+    effective_date: date
+    source: Optional[str] = None
+
+@router.post("/prices/import/scraped")
+def import_scraped_prices(body: PriceScrapeImportRequest, db: Session = Depends(get_db), current_user: User = Depends(require_permission("products", "create"))):
+    created = 0
+    source = body.source or "web-scrape"
+    for item in body.items:
+        if not item.name or not item.unit_price or item.unit_price <= 0:
+            continue
+        db.add(PriceList(
+            name=item.name,
+            description=item.description or "",
+            category=item.category or "general",
+            unit=item.unit or "pcs",
+            unit_price=item.unit_price,
+            currency=item.currency or "PKR",
+            effective_date=body.effective_date,
+            source=source,
+        ))
+        created += 1
+    db.commit()
+    return {"message": f"{created} price item(s) added from web", "count": created}
+
 from fastapi import UploadFile, File
 
 @router.post("/prices/import/csv")
@@ -1806,8 +1871,85 @@ def get_reports(
 class AgentQuery(BaseModel):
     message: str
 
+async def _agent_send_invoice(action: dict, db: Session) -> str:
+    from app.models.invoice import Invoice, InvoiceStatus
+    from app.models.client import Client
+
+    invoice = None
+    ref = action.get("invoice_ref")
+    if ref:
+        if ref.upper().startswith("INV"):
+            invoice = db.query(Invoice).filter(Invoice.invoice_no == ref.upper()).first()
+        else:
+            try:
+                invoice = db.query(Invoice).filter(Invoice.id == int(ref)).first()
+            except (TypeError, ValueError):
+                invoice = None
+
+    if not invoice and action.get("use_latest"):
+        invoice = db.query(Invoice).order_by(Invoice.created_at.desc()).first()
+
+    if not invoice:
+        msg_lower = (action.get("message") or "").lower()
+        clients = db.query(Client).filter(Client.is_active == True).all()
+        matches = [c for c in clients if c.name and c.name.lower() in msg_lower]
+        if len(matches) == 1:
+            invoice = db.query(Invoice).filter(Invoice.client_id == matches[0].id).order_by(Invoice.created_at.desc()).first()
+
+    if not invoice:
+        recent = db.query(Invoice).order_by(Invoice.created_at.desc()).limit(5).all()
+        if recent:
+            lines = "\n".join(
+                f"   \u2022 {i.invoice_no} \u2014 {i.client.name if i.client else 'No client'} \u2014 PKR {i.total_amount:,.2f}"
+                for i in recent
+            )
+            return (
+                "Which invoice would you like to send on WhatsApp?\n\n"
+                "Recent invoices:\n" + lines +
+                '\n\nExample: "Send invoice INV-202601-00005 on WhatsApp"'
+            )
+        return "No invoices found to send. Please create an invoice first."
+
+    if not invoice.client:
+        return f"Invoice {invoice.invoice_no} has no client assigned. Please assign a client first."
+
+    phone = invoice.client.mobile or invoice.client.phone
+    if not phone:
+        return (
+            f"Client '{invoice.client.name}' has no mobile/phone number saved, "
+            "so I can't send the invoice on WhatsApp. Please update the client's phone number."
+        )
+
+    try:
+        pdf_buf = _build_invoice_pdf(invoice, db)
+    except Exception as e:
+        return f"Could not generate invoice PDF: {e}"
+
+    wa_msg = (
+        f"Dear {invoice.client.name}, your invoice #{invoice.invoice_no} "
+        f"for PKR {invoice.total_amount:,.2f} is attached. Thank you! - DATAPOINT Technologies"
+    )
+    try:
+        res = await send_whatsapp_message(
+            phone, wa_msg,
+            pdf_bytes=pdf_buf.getvalue(),
+            pdf_filename=f"invoice_{invoice.invoice_no}.pdf"
+        )
+    except ValueError as e:
+        return f"Could not send via WhatsApp: {e}"
+
+    if res.get("success"):
+        invoice.status = InvoiceStatus.SENT
+        db.commit()
+        return f"\u2705 Invoice {invoice.invoice_no} sent on WhatsApp to {invoice.client.name} ({phone})."
+    return f"\u274c WhatsApp send failed: {res.get('error') or 'unknown error'}"
+
 @router.post("/agent/chat")
-def agent_chat(query: AgentQuery, db: Session = Depends(get_db)):
+async def agent_chat(query: AgentQuery, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    action = support_agent.detect_send_invoice(query.message)
+    if action:
+        response = await _agent_send_invoice(action, db)
+        return {"response": response, "agent": "DATAPOINT Support", "sent": True}
     response = support_agent.get_response(query.message, db=db)
     return {"response": response, "agent": "DATAPOINT Support"}
 
@@ -1815,7 +1957,7 @@ class AudioInput(BaseModel):
     text: str
 
 @router.post("/agent/voice-quotation")
-def voice_quotation(audio: AudioInput):
+def voice_quotation(audio: AudioInput, current_user: User = Depends(get_current_user)):
     result = voice_agent.process_voice_input(audio.text)
     return result
 

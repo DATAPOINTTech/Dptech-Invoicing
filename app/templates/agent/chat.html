@@ -30,6 +30,7 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <h3 class="font-semibold text-gray-800 mb-3">Quick Questions</h3>
                         <div class="space-y-2">
+                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">Send latest invoice on WhatsApp</button>
                             <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">How do I pay my invoice?</button>
                             <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">What is the tax rate?</button>
                             <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">What products do you offer?</button>
@@ -55,18 +56,20 @@
 </div>
 <script>
 const token=localStorage.getItem('token');
+if(!token)window.location.href='/login';
+const authHeaders={Authorization:'Bearer '+token};
 function addMessage(text, isUser=false){
     const div=$('<div>').addClass('flex '+(isUser?'justify-end':'justify-start'));
     const bubble=$('<div>').addClass('max-w-[75%] px-4 py-2.5 rounded-2xl text-sm '+(isUser?'bg-cyan-600 text-white rounded-br-sm':'bg-white text-gray-700 border rounded-bl-sm shadow-sm'));
     bubble.text(text);div.append(bubble);$('#chat-messages').append(div);$('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
 }
 $('#chat-form').submit(function(e){e.preventDefault();const msg=$('#chat-input').val().trim();if(!msg)return;addMessage(msg,true);$('#chat-input').val('');
-    $.post({url:'/api/agent/chat',contentType:'application/json',data:JSON.stringify({message:msg})}).done(function(r){addMessage(r.response);}).fail(function(){addMessage('Sorry, I encountered an error. Please try again.');});
+    $.post({url:'/api/agent/chat',contentType:'application/json',data:JSON.stringify({message:msg}),headers:authHeaders}).done(function(r){addMessage(r.response);}).fail(function(x){addMessage((x.status===401?'Please log in again. ':'')+'Sorry, I encountered an error. Please try again.');});
 });
 $('.quick-q').click(function(){const txt=$(this).text();$('#chat-input').val(txt);$('#chat-form').submit();});
 $('#voice-form').submit(function(e){e.preventDefault();const txt=$('#voice-input').val().trim();if(!txt)return;
     addMessage(txt, true);
-    $.post({url:'/api/agent/voice-quotation',contentType:'application/json',data:JSON.stringify({text:txt})}).done(function(r){
+    $.post({url:'/api/agent/voice-quotation',contentType:'application/json',data:JSON.stringify({text:txt}),headers:authHeaders}).done(function(r){
         addMessage(r.message);
         $('#voice-result').removeClass('hidden').html(`<div class="bg-purple-50 rounded-lg p-3 text-sm text-purple-800"><strong>${r.type}:</strong> ${r.message}</div>`);
         $('#voice-input').val('');

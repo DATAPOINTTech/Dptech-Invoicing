@@ -27,7 +27,11 @@ def _company_header(styles):
     try:
         logo_path = os.path.join(os.path.dirname(__file__), "..", "static", "img", "logo.png")
         if os.path.exists(logo_path):
-            logo_img = Image(logo_path, width=50*mm, height=20*mm)
+            logo_img = Image(logo_path)
+            logo_w = 35 * mm
+            aspect = logo_img.imageHeight / logo_img.imageWidth
+            logo_img.drawWidth = logo_w
+            logo_img.drawHeight = logo_w * aspect
     except:
         pass
 
@@ -37,16 +41,20 @@ def _company_header(styles):
         [Paragraph(f"Phone: {settings.COMPANY_PHONE} | Email: {settings.COMPANY_EMAIL}", ParagraphStyle("SmallRight2", parent=styles["Small"], alignment=TA_RIGHT))],
         [Paragraph(f"NTN: {settings.COMPANY_NTN} | STRN: {settings.COMPANY_STRN}", ParagraphStyle("SmallRight3", parent=styles["Small"], alignment=TA_RIGHT))],
     ]
-    right_table = Table(right_col, colWidths=[100*mm])
 
     if logo_img:
-        header_data = [[logo_img, right_table]]
-        header_table = Table(header_data, colWidths=[50*mm, 130*mm])
+        right_table = Table(right_col, colWidths=[135 * mm])
+        right_table.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+        header_table = Table([[logo_img, right_table]], colWidths=[45 * mm, 135 * mm])
     else:
+        right_table = Table(right_col, colWidths=[180 * mm])
+        right_table.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         header_table = right_table
 
     header_table.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 6*mm))
@@ -65,7 +73,7 @@ def _build_item_table(items, styles):
             f"{item.get('tax_amount', 0):,.2f}",
             f"{item.get('total_price', 0):,.2f}"
         ])
-    col_widths = [10*mm, 55*mm, 12*mm, 12*mm, 20*mm, 12*mm, 18*mm, 20*mm]
+    col_widths = [10*mm, 76*mm, 12*mm, 12*mm, 20*mm, 12*mm, 18*mm, 20*mm]
     table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),

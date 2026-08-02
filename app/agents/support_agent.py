@@ -1,5 +1,6 @@
 from typing import List, Dict, Optional
 from datetime import date
+import re
 from sqlalchemy.orm import Session
 
 
@@ -207,6 +208,38 @@ class SupportAgent:
             for i in cat_items[:10]:
                 lines.append(f"   \u2022 {i.name} \u2014 PKR {i.unit_price:,.2f}/{i.unit}")
         return "\n".join(lines)
+
+    def detect_send_invoice(self, message: str) -> Optional[Dict]:
+        """Detect a 'send invoice via WhatsApp' intent and extract the invoice reference."""
+        msg = message.lower().strip()
+        if not msg:
+            return None
+        if re.match(r"^(how|what|why|when|where|explain|can you tell)\b", msg):
+            return None
+        has_whatsapp = any(w in msg for w in ("whatsapp", "whats app", "watsapp", "whatsapp "))
+        has_invoice = any(i in msg for i in ("invoice", "bill"))
+        if not (has_whatsapp and has_invoice):
+            return None
+        has_send = (
+            any(v in msg for v in ("send", "share", "forward"))
+            or "whatsapp me" in msg
+            or "on whatsapp" in msg
+            or "to whatsapp" in msg
+            or "via whatsapp" in msg
+        )
+        if not has_send:
+            return None
+
+        invoice_ref = None
+        m = re.search(r"inv[\s-]*(\d{4,6})[\s-]*(\d+)", msg, re.I)
+        if m:
+            invoice_ref = f"INV-{m.group(1)}-{m.group(2)}"
+        else:
+            m = re.search(r"(?:invoice|bill)\s*#?\s*(\d+)\b", msg)
+            if m:
+                invoice_ref = m.group(1)
+        use_latest = any(w in msg for w in ("last", "latest", "recent", "most recent"))
+        return {"invoice_ref": invoice_ref, "use_latest": use_latest, "message": message}
 
     def get_response(self, user_message: str, db: Session = None) -> str:
         msg = user_message.lower().strip()
