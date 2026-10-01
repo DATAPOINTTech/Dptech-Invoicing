@@ -1,0 +1,274 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [ 0 0 595.2756 841.8898 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+>>
+endobj
+5 0 obj
+<<
+/Length 4281
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 51.35433 769.3701 cm
+q
+.058824 .298039 .360784 rg
+BT 1 0 0 1 0 4 Tm /F2 20 Tf 24 TL 68.49346 0 Td (ESTIMATE - PDF IMPORT TEMPLATE) Tj T* -68.49346 0 Td ET
+Q
+Q
+q
+1 0 0 1 51.35433 752.0315 cm
+Q
+q
+1 0 0 1 51.35433 734.0315 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 8.5 Tf 12 TL (Keep these labels and the item-table columns unchanged so the application can copy the data accurately.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 51.35433 719.8583 cm
+Q
+q
+1 0 0 1 48.18898 641.8583 cm
+q
+.933333 .976471 .984314 rg
+n 0 78 498.8976 -78 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 8 59 cm
+q
+BT 1 0 0 1 0 3.5 Tm 12 TL /F2 8.5 Tf 0 0 0 rg (Estimate No.:) Tj /F1 8.5 Tf ( EST-2026-001) Tj T* ET
+Q
+Q
+q
+1 0 0 1 257.4488 59 cm
+q
+BT 1 0 0 1 0 3.5 Tm 12 TL /F2 8.5 Tf 0 0 0 rg (Estimate Date:) Tj /F1 8.5 Tf ( 05-09-26) Tj T* ET
+Q
+Q
+q
+1 0 0 1 8 33 cm
+q
+BT 1 0 0 1 0 3.5 Tm 12 TL /F2 8.5 Tf 0 0 0 rg (Valid Until:) Tj /F1 8.5 Tf ( 20-09-26) Tj T* ET
+Q
+Q
+q
+1 0 0 1 257.4488 33 cm
+q
+BT 1 0 0 1 0 3.5 Tm 12 TL /F2 8.5 Tf 0 0 0 rg (Bill To:) Tj /F1 8.5 Tf ( Example Client Ltd) Tj T* ET
+Q
+Q
+q
+1 0 0 1 8 7 cm
+q
+BT 1 0 0 1 0 3.5 Tm 12 TL /F2 8.5 Tf 0 0 0 rg (Title:) Tj /F1 8.5 Tf ( Office Network Upgrade) Tj T* ET
+Q
+Q
+q
+1 0 0 1 257.4488 7 cm
+q
+BT 1 0 0 1 0 3.5 Tm 12 TL /F2 8.5 Tf 0 0 0 rg (GST:) Tj /F1 8.5 Tf ( 18%) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.603922 .796078 .827451 RG
+.5 w
+n 0 78 m 498.8976 78 l S
+n 0 0 m 498.8976 0 l S
+n 0 0 m 0 78 l S
+n 498.8976 0 m 498.8976 78 l S
+.772549 .890196 .905882 RG
+.35 w
+n 0 52 m 498.8976 52 l S
+n 0 26 m 498.8976 26 l S
+n 249.4488 0 m 249.4488 78 l S
+Q
+Q
+Q
+q
+1 0 0 1 51.35433 627.685 cm
+Q
+q
+1 0 0 1 51.35433 597.685 cm
+q
+.058824 .298039 .360784 rg
+BT 1 0 0 1 0 8 Tm /F2 10 Tf 18 TL (ITEMS) Tj T* ET
+Q
+Q
+q
+1 0 0 1 51.35433 586.0157 cm
+Q
+q
+1 0 0 1 42.51969 442.0157 cm
+q
+.058824 .298039 .360784 rg
+n 0 144 510.2362 -24 re f*
+.85098 .945098 .956863 rg
+n 325.9843 24 184.252 -24 re f*
+1 1 1 rg
+BT /F2 8 Tf 12 TL ET
+BT 1 0 0 1 6 130 Tm (Item Name) Tj T* ET
+BT 1 0 0 1 210.0945 130 Tm (Qty) Tj T* ET
+BT 1 0 0 1 261.1181 130 Tm (Unit) Tj T* ET
+BT 1 0 0 1 331.9843 130 Tm (Unit Price) Tj T* ET
+BT 1 0 0 1 428.3622 130 Tm (Total ) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 12 TL ET
+BT 1 0 0 1 6 106 Tm (Laptop installation service) Tj T* ET
+BT 1 0 0 1 244.6701 106 Tm (2) Tj T* ET
+BT 1 0 0 1 294.6483 106 Tm (service) Tj T* ET
+BT 1 0 0 1 380.7782 106 Tm (25,000.00) Tj T* ET
+BT 1 0 0 1 468.6522 106 Tm (50,000.00) Tj T* ET
+BT 1 0 0 1 6 82 Tm (Network cable - CAT6) Tj T* ET
+BT 1 0 0 1 240.2221 82 Tm (50) Tj T* ET
+BT 1 0 0 1 299.5363 82 Tm (meter) Tj T* ET
+BT 1 0 0 1 391.8982 82 Tm (180.00) Tj T* ET
+BT 1 0 0 1 473.1002 82 Tm (9,000.00) Tj T* ET
+BT 1 0 0 1 6 58 Tm  T* ET
+BT 1 0 0 1 249.1181 58 Tm  T* ET
+BT 1 0 0 1 319.9843 58 Tm  T* ET
+BT 1 0 0 1 387.0102 58 Tm (Subtotal) Tj T* ET
+BT 1 0 0 1 468.6522 58 Tm (59,000.00) Tj T* ET
+BT 1 0 0 1 6 34 Tm  T* ET
+BT 1 0 0 1 249.1181 34 Tm  T* ET
+BT 1 0 0 1 319.9843 34 Tm  T* ET
+BT 1 0 0 1 376.3542 34 Tm (GST \(18%\)) Tj T* ET
+BT 1 0 0 1 468.6522 34 Tm (10,620.00) Tj T* ET
+BT 1 0 0 1 6 10 Tm  T* ET
+BT 1 0 0 1 249.1181 10 Tm  T* ET
+BT 1 0 0 1 319.9843 10 Tm  T* ET
+BT /F2 8 Tf 12 TL ET
+BT 1 0 0 1 397.2502 10 Tm (Total) Tj T* ET
+BT 1 0 0 1 468.6522 10 Tm (69,620.00) Tj T* ET
+q
+1 J
+1 j
+.717647 .788235 .8 RG
+.35 w
+n 0 144 m 510.2362 144 l S
+n 0 0 m 510.2362 0 l S
+n 0 0 m 0 144 l S
+n 510.2362 0 m 510.2362 144 l S
+n 0 120 m 510.2362 120 l S
+n 0 96 m 510.2362 96 l S
+n 0 72 m 510.2362 72 l S
+n 0 48 m 510.2362 48 l S
+n 0 24 m 510.2362 24 l S
+n 204.0945 0 m 204.0945 144 l S
+n 255.1181 0 m 255.1181 144 l S
+n 325.9843 0 m 325.9843 144 l S
+n 422.3622 0 m 422.3622 144 l S
+Q
+Q
+Q
+q
+1 0 0 1 51.35433 427.8425 cm
+Q
+q
+1 0 0 1 51.35433 397.8425 cm
+q
+BT 1 0 0 1 0 8 Tm 18 TL /F2 10 Tf .058824 .298039 .360784 rg (TERMS & CONDITIONS) Tj T* ET
+Q
+Q
+q
+1 0 0 1 51.35433 389.0079 cm
+Q
+q
+1 0 0 1 51.35433 371.0079 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 8.5 Tf 12 TL (Payment: Net 30 Days. Prices include GST. Validity: 15 days from estimate date.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 51.35433 359.6693 cm
+Q
+q
+1 0 0 1 51.35433 329.6693 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 15.5 Tm /F1 8.5 Tf 12 TL (Import checklist: use a selectable-text PDF; use DD-MM-YY dates; keep one item per table row; review all imported values before) Tj T* (saving.) Tj T* ET
+Q
+Q
+ 
+
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000113 00000 n 
+0000000162 00000 n 
+0000000361 00000 n 
+0000004694 00000 n 
+0000004735 00000 n 
+0000004842 00000 n 
+trailer
+<<
+/Size 9
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+4954
+%%EOF

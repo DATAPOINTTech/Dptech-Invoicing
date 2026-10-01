@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import re
 import logging
 from datetime import date, datetime
 from app.database import get_db
@@ -21,6 +22,7 @@ from app.services.taxation import calculate_item_tax, calculate_invoice_tax, gen
 from app.services.inventory_service import update_stock, get_stock_level, get_low_stock_products, get_or_create_inventory
 from app.services.pdf_service import generate_invoice_pdf, generate_estimate_pdf
 from app.services.communication import send_email_pdf, send_whatsapp_message
+from app.services.invoice_import import parse_invoice_file, MAX_IMPORT_SIZE
 from app.agents.support_agent import support_agent, voice_agent
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordRequestForm
@@ -1039,6 +1041,38 @@ def list_estimates(status: Optional[str] = None, db: Session = Depends(get_db), 
         })
     return result
 
+@router.post("/estimates/import")
+async def import_estimate_file(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(require_permission("estimates", "create"))):
+    """Parse a source PDF or DOCX into a reviewable, unsaved estimate draft."""
+    filename = file.filename or ""
+    if not filename.lower().endswith((".pdf", ".docx")):
+        raise HTTPException(400, "Upload a PDF or DOCX estimate.")
+    content = await file.read(MAX_IMPORT_SIZE + 1)
+    if len(content) > MAX_IMPORT_SIZE:
+        raise HTTPException(400, "File is larger than the 10 MB import limit.")
+    try:
+        draft = parse_invoice_file(filename, content)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception:
+        logging.getLogger(__name__).exception("Estimate import failed for %s", filename)
+        raise HTTPException(400, "This file could not be read as an estimate. Try a text-based PDF or DOCX file.")
+
+    name = (draft.pop("client_name", None) or "").strip()
+    if name:
+        normalized = re.sub(r"\s+", " ", name).strip().lower()
+        clients = db.query(Client).filter(Client.is_active == True).all()  # noqa: E712
+        matched = next((client for client in clients if normalized in {client.name.lower(), (client.company or "").lower()}), None)
+        if matched:
+            draft["client_id"] = matched.id
+            draft["client_name"] = matched.name
+        else:
+            draft["client_name"] = name
+            draft["warnings"].append(f"No existing client matched '{name}'. Select or create a client.")
+    else:
+        draft["warnings"].append("No client was identified. Select or create a client.")
+    return draft
+
 @router.put("/estimates/{estimate_id}")
 def update_estimate(estimate_id: int, estimate: EstimateCreate, db: Session = Depends(get_db), current_user: User = Depends(require_permission("estimates", "edit"))):
     db_estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
@@ -1248,6 +1282,38 @@ def download_estimate_pdf(estimate_id: int, db: Session = Depends(get_db), curre
                             headers={"Content-Disposition": f"attachment; filename=estimate_{estimate.estimate_no}.pdf"})
 
 # --- Invoice Routes ---
+@router.post("/invoices/import")
+async def import_invoice_file(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(require_permission("invoices", "create"))):
+    """Parse a source invoice into a reviewable, unsaved invoice draft."""
+    filename = file.filename or ""
+    if not filename.lower().endswith((".pdf", ".docx")):
+        raise HTTPException(400, "Upload a PDF or DOCX invoice.")
+    content = await file.read(MAX_IMPORT_SIZE + 1)
+    if len(content) > MAX_IMPORT_SIZE:
+        raise HTTPException(400, "File is larger than the 10 MB import limit.")
+    try:
+        draft = parse_invoice_file(filename, content)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception:
+        logging.getLogger(__name__).exception("Invoice import failed for %s", filename)
+        raise HTTPException(400, "This file could not be read as an invoice. Try a text-based PDF or DOCX file.")
+
+    name = (draft.pop("client_name", None) or "").strip()
+    if name:
+        normalized = re.sub(r"\s+", " ", name).strip().lower()
+        clients = db.query(Client).filter(Client.is_active == True).all()  # noqa: E712
+        matched = next((client for client in clients if normalized in {client.name.lower(), (client.company or "").lower()}), None)
+        if matched:
+            draft["client_id"] = matched.id
+            draft["client_name"] = matched.name
+        else:
+            draft["client_name"] = name
+            draft["warnings"].append(f"No existing client matched '{name}'. Select or create a client.")
+    else:
+        draft["warnings"].append("No client was identified. Select or create a client.")
+    return draft
+
 class InvoiceCreate(BaseModel):
     client_id: int
     estimate_id: Optional[int] = None

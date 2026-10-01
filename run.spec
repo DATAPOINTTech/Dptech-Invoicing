@@ -1,12 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_submodules
+
 
 a = Analysis(
     ['run.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[
+        ('app/templates', 'app/templates'),
+        ('app/static', 'app/static'),
+    ],
+    # Uvicorn imports the ASGI target from the string in run.py at runtime.
+    hiddenimports=collect_submodules('app') + collect_submodules('passlib.handlers'),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

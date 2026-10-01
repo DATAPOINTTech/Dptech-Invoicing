@@ -1,0 +1,250 @@
+<aside class="fixed inset-y-0 left-0 w-64 z-30 flex flex-col" id="sidebar" style="background:#0f172a">
+    <!-- Logo -->
+    <div class="flex items-center gap-3 px-5 py-5 border-b border-slate-700/50">
+        <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow">
+            <img src="/static/img/logo.png" alt="Logo" class="w-7 h-7 object-contain">
+        </div>
+        <div>
+            <p class="text-white font-bold text-sm leading-tight">DATAPOINT</p>
+            <p class="text-slate-400 text-xs">Invoicing System</p>
+        </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+        <a href="/dashboard" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-gauge-high w-4 text-center text-slate-400"></i> Dashboard
+        </a>
+
+        <p class="nav-section-label">Sales</p>
+        
+        <!-- Estimates with Company Folders Subheading -->
+        <div class="sidebar-estimates-group mb-1">
+            <div class="flex items-center justify-between rounded-lg">
+                <a href="/estimates" class="nav-item flex-1 flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg" id="nav-estimates">
+                    <i class="fas fa-file-lines w-4 text-center text-slate-400"></i>
+                    <span>Estimates</span>
+                </a>
+                <button type="button" id="sidebar-estimates-toggle" class="p-2 text-slate-400 hover:text-white transition-colors" title="Toggle Company Folders">
+                    <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" id="sidebar-estimates-chevron"></i>
+                </button>
+            </div>
+
+            <!-- Sub heading with company names -->
+            <div id="sidebar-company-folders" class="ml-4 pl-3 border-l border-slate-700/60 my-1 space-y-1">
+                <div class="flex items-center justify-between px-2 pt-1 pb-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span class="flex items-center gap-1.5"><i class="fas fa-folder-tree text-indigo-400 text-[10px]"></i> Company Folders</span>
+                    <a href="/companies" class="text-[9px] text-indigo-400 hover:text-indigo-300" title="Setup Companies"><i class="fas fa-cog"></i></a>
+                </div>
+
+                <!-- All Estimates Link -->
+                <a href="/estimates" class="company-folder-link flex items-center justify-between px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-md transition-colors" data-cid="">
+                    <span class="truncate flex items-center gap-1.5">
+                        <i class="fas fa-folder text-slate-400 text-[11px]"></i>
+                        <span>All Folders</span>
+                    </span>
+                    <span class="text-[10px] bg-slate-800/90 text-slate-400 px-1.5 py-0.2 rounded font-mono" id="sb-est-count-all">...</span>
+                </a>
+
+                <!-- Container dynamically populated with company names from DB -->
+                <div id="sidebar-company-links" class="space-y-1">
+                    <div class="px-2 py-1 text-[11px] text-slate-500 italic"><i class="fas fa-spinner fa-spin mr-1"></i> Loading companies...</div>
+                </div>
+
+                <!-- Quick New Estimate Link -->
+                <div class="pt-1 px-1">
+                    <a href="/estimates/new" class="flex items-center justify-center gap-1.5 w-full py-1 px-2 text-[11px] font-semibold text-cyan-400 hover:text-white bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-800/40 rounded-md transition-all">
+                        <i class="fas fa-plus text-[9px]"></i> <span>New Estimate</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <a href="/invoices" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-file-invoice-dollar w-4 text-center text-slate-400"></i> Invoices
+        </a>
+        <a href="/clients" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-users w-4 text-center text-slate-400"></i> Clients
+        </a>
+
+        <p class="nav-section-label">Inventory</p>
+        <a href="/products" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-box w-4 text-center text-slate-400"></i> Products
+        </a>
+        <a href="/inventory" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-warehouse w-4 text-center text-slate-400"></i> Stock
+        </a>
+        <a href="/purchases" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-cart-flatbed w-4 text-center text-slate-400"></i> Purchases
+        </a>
+
+        <p class="nav-section-label">Finance</p>
+        <a href="/expenses" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-money-bill-wave w-4 text-center text-slate-400"></i> Expenses
+        </a>
+        <a href="/projects" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-diagram-project w-4 text-center text-slate-400"></i> Projects
+        </a>
+        <a href="/reports" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-chart-bar w-4 text-center text-slate-400"></i> Reports
+        </a>
+
+        <p class="nav-section-label">Pricing</p>
+        <a href="/prices" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-tags w-4 text-center text-slate-400"></i> Daily Prices
+        </a>
+
+        <p class="nav-section-label">Tools</p>
+        <a href="/agent" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-robot w-4 text-center text-slate-400"></i> AI Agent
+        </a>
+        <a href="/companies" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
+            <i class="fas fa-building w-4 text-center text-slate-400"></i> Companies Setup
+        </a>
+        <a href="/users" class="nav-item flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg" id="nav-users" style="display:none">
+            <span class="flex items-center gap-3">
+                <i class="fas fa-user-gear w-4 text-center text-slate-400"></i>
+                <span>Users &amp; Permissions</span>
+            </span>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-800/50">Admin</span>
+        </a>
+    </nav>
+
+    <!-- User footer -->
+    <div class="border-t border-slate-700/50 px-3 py-3">
+        <div class="flex items-center gap-3 px-3 py-2 rounded-lg mb-1">
+            <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0" id="sidebar-avatar">U</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-slate-200 text-sm font-medium truncate" id="sidebar-username">User</p>
+                <p class="text-slate-500 text-xs truncate" id="sidebar-role">Staff</p>
+            </div>
+        </div>
+        <a href="/login" id="logout-btn" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300">
+            <i class="fas fa-arrow-right-from-bracket w-4 text-center"></i> Logout
+        </a>
+    </div>
+</aside>
+
+<script>
+$(function() {
+    const esc = (s = '') => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.role && String(user.role).toLowerCase() === 'admin') $('#nav-users').show();
+    if (user.name) {
+        $('#sidebar-username').text(user.name);
+        $('#sidebar-avatar').text(user.name.charAt(0).toUpperCase());
+    }
+    if (user.role) $('#sidebar-role').text(user.role.charAt(0).toUpperCase() + user.role.slice(1));
+
+    const path = window.location.pathname;
+    $('.nav-item').each(function() {
+        const href = $(this).attr('href');
+        if (href && href !== '#' && href !== '/login' && (path === href || path.startsWith(href + '/'))) {
+            $(this).addClass('sidebar-active');
+            $(this).find('i').css('color', '#fff');
+        }
+    });
+
+    // Toggle Company Folders
+    const foldersCollapsed = localStorage.getItem('sidebar_folders_collapsed') === '1';
+    if (foldersCollapsed) {
+        $('#sidebar-company-folders').hide();
+        $('#sidebar-estimates-chevron').addClass('-rotate-90');
+    }
+
+    $('#sidebar-estimates-toggle').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isHidden = $('#sidebar-company-folders').is(':hidden');
+        if (isHidden) {
+            $('#sidebar-company-folders').slideDown(150);
+            $('#sidebar-estimates-chevron').removeClass('-rotate-90');
+            localStorage.setItem('sidebar_folders_collapsed', '0');
+        } else {
+            $('#sidebar-company-folders').slideUp(150);
+            $('#sidebar-estimates-chevron').addClass('-rotate-90');
+            localStorage.setItem('sidebar_folders_collapsed', '1');
+        }
+    });
+
+    // Load Companies & Estimate Counts
+    function loadSidebarCompanies() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        $.ajax({
+            url: '/api/companies',
+            method: 'GET',
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function(companies) {
+            if (!Array.isArray(companies) || !companies.length) {
+                $('#sidebar-company-links').html('<div class="px-2 py-1 text-[11px] text-slate-500">No companies found</div>');
+                return;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentCid = urlParams.get('company_id');
+            const isEstimates = path.startsWith('/estimates');
+
+            let totalEstimates = 0;
+            let linksHtml = '';
+
+            companies.forEach(function(co, index) {
+                const count = parseInt(co.estimates_count || 0);
+                totalEstimates += count;
+                const markup = parseFloat(co.markup_percent || 0);
+
+                let badge = '<span class="text-[9px] font-bold px-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/40">0%</span>';
+                if (markup === 2) {
+                    badge = '<span class="text-[9px] font-bold px-1 rounded bg-blue-950 text-blue-400 border border-blue-800/40">+2%</span>';
+                } else if (markup === 3) {
+                    badge = '<span class="text-[9px] font-bold px-1 rounded bg-purple-950 text-purple-400 border border-purple-800/40">+3%</span>';
+                } else if (markup > 0) {
+                    badge = `<span class="text-[9px] font-bold px-1 rounded bg-amber-950 text-amber-400 border border-amber-800/40">+${markup}%</span>`;
+                }
+
+                const isActive = isEstimates && currentCid && String(currentCid) === String(co.id);
+                const activeStyle = isActive 
+                    ? 'bg-indigo-600/30 text-white font-semibold border border-indigo-500/50 shadow-sm' 
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/80';
+                const folderIcon = isActive 
+                    ? 'fa-folder-open text-indigo-400' 
+                    : 'fa-folder text-amber-400/90';
+
+                linksHtml += `
+                    <a href="/estimates?company_id=${encodeURIComponent(co.id)}" 
+                       class="company-folder-link flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors ${activeStyle}"
+                       data-cid="${esc(co.id)}"
+                       title="${esc(co.name)} (Markup: ${markup}%)">
+                        <span class="truncate flex items-center gap-1.5 mr-1 min-w-0">
+                            <i class="fas ${folderIcon} text-[11px] shrink-0"></i>
+                            <span class="truncate">${esc(co.name)}</span>
+                        </span>
+                        <span class="flex items-center gap-1 shrink-0">
+                            ${badge}
+                            <span class="text-[10px] bg-slate-800/90 text-slate-400 px-1.5 py-0.2 rounded font-mono">${count}</span>
+                        </span>
+                    </a>
+                `;
+            });
+
+            $('#sidebar-company-links').html(linksHtml);
+            $('#sb-est-count-all').text(totalEstimates);
+
+            if (isEstimates && !currentCid) {
+                $('.company-folder-link[data-cid=""]').addClass('bg-indigo-600/30 text-white font-semibold border border-indigo-500/50 shadow-sm');
+                $('.company-folder-link[data-cid=""] i').removeClass('fa-folder').addClass('fa-folder-open text-indigo-400');
+            }
+        }).fail(function() {
+            $('#sidebar-company-links').html('<div class="px-2 py-1 text-[11px] text-slate-500">Failed to load folders</div>');
+        });
+    }
+
+    loadSidebarCompanies();
+
+    $('#logout-btn').click(function() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    });
+});
+</script>

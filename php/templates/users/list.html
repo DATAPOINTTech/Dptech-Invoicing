@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+{% block title %}Users & Granular Permissions - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6">
+        <!-- Page Header -->
+        <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+            <div>
+                <div class="flex items-center gap-2.5">
+                    <h1 class="page-title text-2xl font-bold text-slate-900">Users &amp; Granular Permissions</h1>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                        <i class="fas fa-lock text-[10px]"></i> Admin Controlled
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Manage system accounts and assign granular module-by-module permissions (View, Create, Edit, Delete) to individual users.</p>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" onclick="showCreateModal()" class="btn btn-primary text-xs flex items-center gap-1.5 shadow-sm">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Add New User</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="mb-5 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-blue-50/50 to-slate-50 p-4">
+            <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <i class="fas fa-shield-halved text-base"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="text-xs font-bold text-indigo-950 uppercase tracking-wide">Granular Security Architecture</h4>
+                    <p class="text-xs text-indigo-800/90 mt-0.5">
+                        Only Administrators have the authority to assign or revoke permissions. Staff and Manager accounts are restricted to the exact actions checked in their individual permission profiles.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Table Card -->
+        <div class="card overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">System Users</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-mono" id="users-count">0</span>
+                </div>
+                <div>
+                    <input type="text" id="user-search" placeholder="Search by name, email, role..." class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 w-56">
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User / Name</th>
+                            <th>Username</th>
+                            <th>Contact Email / Phone</th>
+                            <th>Role</th>
+                            <th>Assigned Permissions</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-body">
+                        <tr><td colspan="7" class="text-center py-8 text-slate-400"><i class="fas fa-spinner fa-spin mr-1.5"></i> Loading users...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Modal: Create New User -->
+<div id="create-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Add New User</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Create user credentials and assign initial role.</p>
+            </div>
+            <button type="button" onclick="hideCreateModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        </div>
+        <form id="create-form" class="space-y-4 pt-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name *</label>
+                    <input type="text" id="new-full_name" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username *</label>
+                    <input type="text" id="new-username" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address *</label>
+                    <input type="email" id="new-email" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Phone Number</label>
+                    <input type="text" id="new-phone" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password *</label>
+                    <input type="password" id="new-password" required minlength="6" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Role *</label>
+                    <select id="new-role" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 bg-white">
+                        <option value="staff" selected>Staff (Granular Permissions)</option>
+                        <option value="manager">Manager (Granular Permissions)</option>
+                        <option value="admin">Administrator (Full Access)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button type="button" onclick="hideCreateModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50">Cancel</button>
+                <button type="submit" id="create-user-btn" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm">Create Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit User Details -->
+<div id="edit-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-2xl">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Edit User Account</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Update profile information and credentials.</p>
+            </div>
+            <button type="button" onclick="hideEditModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        </div>
+        <form id="edit-form" class="space-y-4 pt-4">
+            <input type="hidden" id="edit-user-id">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>
+                    <input type="text" id="edit-full_name" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Role</label>
+                    <select id="edit-role" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 bg-white">
+                        <option value="staff">Staff</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address</label>
+                    <input type="email" id="edit-email" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Phone Number</label>
+                    <input type="text" id="edit-phone" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">New Password (leave blank to keep current)</label>
+                <input type="password" id="edit-password" placeholder="Enter new password to change" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500">
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button type="button" onclick="hideEditModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Granular Permissions Matrix -->
+<div id="perms-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-3xl mx-auto shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div class="flex justify-between items-start pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg font-bold shrink-0">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900" id="perms-target-name">Granular Permissions</h3>
+                    <p class="text-xs text-slate-500 mt-0.5" id="perms-target-subtitle">Assign granular access privileges for this user.</p>
+                </div>
+            </div>
+            <button type="button" onclick="hidePermsModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="py-3 px-1 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/50 rounded-lg my-3">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2">Quick Presets:</span>
+            <div class="flex flex-wrap gap-1.5">
+                <button type="button" onclick="applyPreset('all')" class="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md">
+                    <i class="fas fa-check-double text-emerald-600 mr-1"></i> Select All
+                </button>
+                <button type="button" onclick="applyPreset('read')" class="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md">
+                    <i class="fas fa-eye text-blue-600 mr-1"></i> Read Only
+                </button>
+                <button type="button" onclick="applyPreset('sales')" class="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md">
+                    <i class="fas fa-file-invoice-dollar text-purple-600 mr-1"></i> Sales Only
+                </button>
+                <button type="button" onclick="applyPreset('inventory')" class="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md">
+                    <i class="fas fa-boxes-stacked text-amber-600 mr-1"></i> Inventory Only
+                </button>
+                <button type="button" onclick="applyPreset('none')" class="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 text-red-600 hover:bg-red-50 rounded-md">
+                    <i class="fas fa-ban text-red-500 mr-1"></i> Clear All
+                </button>
+            </div>
+        </div>
+
+        <!-- Granular Permissions Grid -->
+        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider">
+                        <th class="text-left px-4 py-3">System Module</th>
+                        <th class="text-center px-3 py-3 w-20">View</th>
+                        <th class="text-center px-3 py-3 w-20">Create</th>
+                        <th class="text-center px-3 py-3 w-20">Edit</th>
+                        <th class="text-center px-3 py-3 w-20">Delete</th>
+                        <th class="text-center px-3 py-3 w-24">Row All</th>
+                    </tr>
+                </thead>
+                <tbody id="perms-matrix-body" class="divide-y divide-slate-100">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pt-4 mt-4 border-t border-slate-100 flex justify-between items-center">
+            <p class="text-[11px] text-slate-400">Changes take effect immediately on next user action.</p>
+            <div class="flex gap-2">
+                <button type="button" onclick="hidePermsModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50">Cancel</button>
+                <button type="button" id="save-perms-btn" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5">
+                    <i class="fas fa-save"></i> Save Permissions
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('token');
+const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+// Strictly enforce Admin client-side guard
+if (!token || currentUser.role !== 'admin') {
+    alert('Access restricted: Only administrators have permissions to access User Management.');
+    window.location.href = '/dashboard';
+}
+
+const MODULE_DEFINITIONS = [
+    { key: 'estimates', label: 'Estimates / Quotations', icon: 'fa-file-lines', color: 'text-indigo-600' },
+    { key: 'invoices', label: 'Invoices & Billing', icon: 'fa-file-invoice-dollar', color: 'text-emerald-600' },
+    { key: 'clients', label: 'Clients Management', icon: 'fa-users', color: 'text-cyan-600' },
+    { key: 'products', label: 'Products Catalog', icon: 'fa-box', color: 'text-amber-600' },
+    { key: 'inventory', label: 'Stock & Inventory', icon: 'fa-warehouse', color: 'text-blue-600' },
+    { key: 'purchases', label: 'Purchases & Suppliers', icon: 'fa-cart-flatbed', color: 'text-rose-600' },
+    { key: 'expenses', label: 'Expenses Tracking', icon: 'fa-money-bill-wave', color: 'text-orange-600' },
+    { key: 'projects', label: 'Projects Management', icon: 'fa-diagram-project', color: 'text-teal-600' },
+    { key: 'prices', label: 'Price List & Rates', icon: 'fa-tags', color: 'text-violet-600' },
+    { key: 'reports', label: 'Financial Reports', icon: 'fa-chart-bar', color: 'text-sky-600' },
+    { key: 'companies', label: 'Companies & Setup', icon: 'fa-building', color: 'text-fuchsia-600' },
+    { key: 'users', label: 'User Admin Settings', icon: 'fa-user-gear', color: 'text-purple-600' }
+];
+
+const ACTIONS = ['view', 'create', 'edit', 'delete'];
+let cachedUsers = [];
+let activePermsUserId = null;
+
+function esc(value = '') {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
+}
+
+function showCreateModal() {
+    $('#create-form')[0].reset();
+    $('#create-modal').removeClass('hidden').addClass('flex');
+}
+
+function hideCreateModal() {
+    $('#create-modal').addClass('hidden').removeClass('flex');
+}
+
+function showEditModal(u) {
+    $('#edit-user-id').val(u.id);
+    $('#edit-full_name').val(u.full_name);
+    $('#edit-email').val(u.email);
+    $('#edit-phone').val(u.phone || '');
+    $('#edit-role').val(u.role || 'staff');
+    $('#edit-password').val('');
+    $('#edit-modal').removeClass('hidden').addClass('flex');
+}
+
+function hideEditModal() {
+    $('#edit-modal').addClass('hidden').removeClass('flex');
+}
+
+function hidePermsModal() {
+    $('#perms-modal').addClass('hidden').removeClass('flex');
+}
+
+function loadUsers() {
+    $.ajax({
+        url: '/api/users',
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(users) {
+        cachedUsers = Array.isArray(users) ? users : [];
+        $('#users-count').text(cachedUsers.length);
+        renderUsers(cachedUsers);
+    }).fail(function(xhr) {
+        if (xhr.status === 403 || xhr.status === 401) {
+            alert('Permission denied. Admin authorization required.');
+            window.location.href = '/dashboard';
+        } else {
+            $('#users-body').html(`<tr><td colspan="7" class="text-center py-6 text-red-500 font-semibold">Failed to load users: ${esc(xhr.responseJSON?.detail || 'Error')}</td></tr>`);
+        }
+    });
+}
+
+function renderUsers(list) {
+    if (!list.length) {
+        $('#users-body').html('<tr><td colspan="7" class="text-center py-8 text-slate-400">No users found.</td></tr>');
+        return;
+    }
+
+    const html = list.map(u => {
+        const id = u.id;
+        const isSelf = currentUser.id == id;
+        const role = String(u.role || 'staff').toLowerCase();
+        
+        let roleBadge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">Staff</span>';
+        if (role === 'admin') {
+            roleBadge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200"><i class="fas fa-crown mr-0.5"></i> Admin</span>';
+        } else if (role === 'manager') {
+            roleBadge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">Manager</span>';
+        }
+
+        // Calculate count of granted permissions
+        const perms = u.permissions || {};
+        let grantedCount = 0;
+        let totalPossible = MODULE_DEFINITIONS.length * ACTIONS.length;
+        MODULE_DEFINITIONS.forEach(m => {
+            ACTIONS.forEach(a => {
+                if (perms[m.key] && perms[m.key][a]) grantedCount++;
+            });
+        });
+
+        let permsSummary = '';
+        if (role === 'admin') {
+            permsSummary = '<span class="text-[11px] text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded border border-purple-200"><i class="fas fa-infinity mr-1"></i> Full Access</span>';
+        } else if (grantedCount === 0) {
+            permsSummary = '<span class="text-[11px] text-slate-400 italic">No permissions assigned</span>';
+        } else {
+            permsSummary = `<span class="text-[11px] text-indigo-700 font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200"><i class="fas fa-shield-check mr-1"></i> ${grantedCount} / ${totalPossible} actions</span>`;
+        }
+
+        const statusBadge = u.is_active
+            ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">Active</span>'
+            : '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">Inactive</span>';
+
+        const toggleBtn = u.is_active
+            ? `<button type="button" class="btn btn-ghost btn-sm text-amber-600 hover:text-amber-800 toggle-status" data-id="${id}" data-active="1" title="Deactivate" ${isSelf ? 'disabled' : ''}><i class="fas fa-ban"></i></button>`
+            : `<button type="button" class="btn btn-ghost btn-sm text-emerald-600 hover:text-emerald-800 toggle-status" data-id="${id}" data-active="0" title="Activate"><i class="fas fa-check"></i></button>`;
+
+        const deleteBtn = isSelf
+            ? `<button class="btn btn-ghost btn-sm text-slate-300 cursor-not-allowed" title="Cannot delete yourself" disabled><i class="fas fa-trash"></i></button>`
+            : `<button type="button" class="btn btn-ghost btn-sm text-rose-500 hover:text-rose-700 delete-user" data-id="${id}" data-name="${esc(u.full_name)}" title="Delete User"><i class="fas fa-trash"></i></button>`;
+
+        return `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="font-medium text-slate-900">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                            ${esc((u.full_name || 'U').charAt(0).toUpperCase())}
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-900 text-xs">${esc(u.full_name)} ${isSelf ? '<span class="text-[10px] text-indigo-600">(You)</span>' : ''}</p>
+                            <p class="text-[10px] text-slate-400">ID: #${id}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-xs font-mono text-slate-600">${esc(u.username)}</td>
+                <td class="text-xs text-slate-600">
+                    <div>${esc(u.email)}</div>
+                    ${u.phone ? `<div class="text-[10px] text-slate-400">${esc(u.phone)}</div>` : ''}
+                </td>
+                <td>${roleBadge}</td>
+                <td>${permsSummary}</td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-right">
+                    <div class="flex items-center justify-end gap-1">
+                        <button type="button" class="px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors open-perms" data-id="${id}" data-name="${esc(u.full_name)}" data-role="${role}" title="Configure Granular Permissions">
+                            <i class="fas fa-shield-alt mr-1"></i> Permissions
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm text-slate-600 hover:text-slate-900 edit-user" data-id="${id}" title="Edit User">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        ${toggleBtn}
+                        ${deleteBtn}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    $('#users-body').html(html);
+}
+
+// Preset application
+function applyPreset(type) {
+    if (type === 'all') {
+        $('.perm-cb').prop('checked', true);
+    } else if (type === 'none') {
+        $('.perm-cb').prop('checked', false);
+    } else if (type === 'read') {
+        $('.perm-cb').prop('checked', false);
+        $('.perm-cb[data-act="view"]').prop('checked', true);
+    } else if (type === 'sales') {
+        $('.perm-cb').prop('checked', false);
+        ['estimates', 'invoices', 'clients'].forEach(m => {
+            $(`.perm-cb[data-mod="${m}"]`).prop('checked', true);
+        });
+    } else if (type === 'inventory') {
+        $('.perm-cb').prop('checked', false);
+        ['products', 'inventory', 'purchases'].forEach(m => {
+            $(`.perm-cb[data-mod="${m}"]`).prop('checked', true);
+        });
+    }
+}
+
+$(function() {
+    loadUsers();
+
+    $('#user-search').on('input', function() {
+        const q = $(this).val().toLowerCase().trim();
+        if (!q) {
+            renderUsers(cachedUsers);
+            return;
+        }
+        const filtered = cachedUsers.filter(u => 
+            (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+            (u.username && u.username.toLowerCase().includes(q)) ||
+            (u.email && u.email.toLowerCase().includes(q)) ||
+            (u.role && u.role.toLowerCase().includes(q))
+        );
+        renderUsers(filtered);
+    });
+
+    // Create User Form Submit
+    $('#create-form').submit(function(e) {
+        e.preventDefault();
+        const payload = {
+            full_name: $('#new-full_name').val().trim(),
+            username: $('#new-username').val().trim(),
+            email: $('#new-email').val().trim(),
+            phone: $('#new-phone').val().trim(),
+            password: $('#new-password').val(),
+            role: $('#new-role').val(),
+            permissions: {}
+        };
+
+        // Give standard permissions for staff by default
+        if (payload.role === 'staff') {
+            payload.permissions = {
+                estimates: { view: true, create: true, edit: true, delete: false },
+                invoices: { view: true, create: true, edit: false, delete: false },
+                clients: { view: true, create: true, edit: true, delete: false },
+                products: { view: true, create: false, edit: false, delete: false },
+                inventory: { view: true, create: false, edit: false, delete: false },
+                reports: { view: true, export: false }
+            };
+        } else if (payload.role === 'manager') {
+            payload.permissions = {
+                estimates: { view: true, create: true, edit: true, delete: true },
+                invoices: { view: true, create: true, edit: true, delete: false },
+                clients: { view: true, create: true, edit: true, delete: true },
+                products: { view: true, create: true, edit: true, delete: false },
+                inventory: { view: true, create: true, edit: true, delete: false },
+                purchases: { view: true, create: true, edit: true, delete: false },
+                expenses: { view: true, create: true, edit: true, delete: false },
+                reports: { view: true, export: true }
+            };
+        }
+
+        $('#create-user-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Creating...');
+
+        $.ajax({
+            url: '/api/users',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function() {
+            hideCreateModal();
+            loadUsers();
+        }).fail(function(xhr) {
+            alert('Failed to create user: ' + (xhr.responseJSON?.detail || 'Unknown error'));
+        }).always(function() {
+            $('#create-user-btn').prop('disabled', false).html('Create Account');
+        });
+    });
+
+    // Edit User Click
+    $(document).on('click', '.edit-user', function() {
+        const id = $(this).data('id');
+        const user = cachedUsers.find(u => u.id == id);
+        if (user) showEditModal(user);
+    });
+
+    // Edit User Submit
+    $('#edit-form').submit(function(e) {
+        e.preventDefault();
+        const id = $('#edit-user-id').val();
+        const payload = {
+            full_name: $('#edit-full_name').val().trim(),
+            email: $('#edit-email').val().trim(),
+            phone: $('#edit-phone').val().trim(),
+            role: $('#edit-role').val()
+        };
+        const pass = $('#edit-password').val();
+        if (pass && pass.trim()) {
+            payload.password = pass.trim();
+        }
+
+        $.ajax({
+            url: '/api/users/' + id,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function() {
+            hideEditModal();
+            loadUsers();
+        }).fail(function(xhr) {
+            alert('Failed to update user: ' + (xhr.responseJSON?.detail || 'Error'));
+        });
+    });
+
+    // Open Granular Permissions Modal
+    $(document).on('click', '.open-perms', function() {
+        activePermsUserId = $(this).data('id');
+        const name = $(this).data('name');
+        const role = $(this).data('role');
+
+        $('#perms-target-name').text(`Permissions for ${name}`);
+        $('#perms-target-subtitle').text(`User Role: ${role.toUpperCase()} • Check or uncheck individual granular rights`);
+
+        // Fetch current permissions
+        $.ajax({
+            url: `/api/users/${activePermsUserId}/permissions`,
+            method: 'GET',
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function(resp) {
+            const perms = resp.permissions || resp || {};
+
+            let matrixHtml = '';
+            MODULE_DEFINITIONS.forEach(m => {
+                const modKey = m.key;
+                const modPerms = perms[modKey] || {};
+
+                let actionCells = ACTIONS.map(act => {
+                    const isChecked = !!modPerms[act];
+                    return `
+                        <td class="text-center px-3 py-2.5">
+                            <input type="checkbox" class="perm-cb w-4 h-4 accent-indigo-600 rounded cursor-pointer" 
+                                   data-mod="${modKey}" data-act="${act}" ${isChecked ? 'checked' : ''}>
+                        </td>
+                    `;
+                }).join('');
+
+                matrixHtml += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-2.5 font-semibold text-slate-800">
+                            <div class="flex items-center gap-2">
+                                <i class="fas ${m.icon} ${m.color} text-xs w-4 text-center"></i>
+                                <span>${m.label}</span>
+                            </div>
+                        </td>
+                        ${actionCells}
+                        <td class="text-center px-3 py-2.5">
+                            <button type="button" class="text-[10px] text-slate-400 hover:text-indigo-600 underline font-semibold toggle-row-perms" data-mod="${modKey}">
+                                Toggle
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            $('#perms-matrix-body').html(matrixHtml);
+            $('#perms-modal').removeClass('hidden').addClass('flex');
+        }).fail(function(xhr) {
+            alert('Failed to load permissions: ' + (xhr.responseJSON?.detail || 'Error'));
+        });
+    });
+
+    // Toggle row all
+    $(document).on('click', '.toggle-row-perms', function() {
+        const mod = $(this).data('mod');
+        const rowCbs = $(`.perm-cb[data-mod="${mod}"]`);
+        const allChecked = rowCbs.length === rowCbs.filter(':checked').length;
+        rowCbs.prop('checked', !allChecked);
+    });
+
+    // Save Permissions
+    $('#save-perms-btn').click(function() {
+        if (!activePermsUserId) return;
+
+        const permissions = {};
+        MODULE_DEFINITIONS.forEach(m => {
+            permissions[m.key] = {};
+            ACTIONS.forEach(act => {
+                permissions[m.key][act] = $(`.perm-cb[data-mod="${m.key}"][data-act="${act}"]`).is(':checked');
+            });
+        });
+
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+        $.ajax({
+            url: `/api/users/${activePermsUserId}/permissions`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ permissions }),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function() {
+            hidePermsModal();
+            loadUsers();
+        }).fail(function(xhr) {
+            alert('Failed to save permissions: ' + (xhr.responseJSON?.detail || 'Error'));
+        }).always(function() {
+            $('#save-perms-btn').prop('disabled', false).html('<i class="fas fa-save"></i> Save Permissions');
+        });
+    });
+
+    // Toggle Status
+    $(document).on('click', '.toggle-status', function() {
+        const id = $(this).data('id');
+        const currentActive = $(this).data('active') == 1;
+        const newStatus = !currentActive;
+
+        if (!confirm(`Are you sure you want to ${newStatus ? 'activate' : 'deactivate'} this user account?`)) return;
+
+        $.ajax({
+            url: `/api/users/${id}/status`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ is_active: newStatus }),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function() {
+            loadUsers();
+        }).fail(function(xhr) {
+            alert('Failed to update status: ' + (xhr.responseJSON?.detail || 'Error'));
+        });
+    });
+
+    // Delete User
+    $(document).on('click', '.delete-user', function() {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+
+        if (!confirm(`Permanently delete user "${name}"? This action cannot be undone.`)) return;
+
+        $.ajax({
+            url: `/api/users/${id}`,
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function() {
+            loadUsers();
+        }).fail(function(xhr) {
+            alert('Failed to delete user: ' + (xhr.responseJSON?.detail || 'Error'));
+        });
+    });
+});
+</script>
+{% endblock %}

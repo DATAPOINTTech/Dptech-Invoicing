@@ -1,0 +1,22 @@
+{
+    "name": "datapoint/invoicing",
+    "description": "DATAPOINT Business Management & Invoicing System in PHP",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-json": "*",
+        "ext-ctype": "*"
+    },
+    "suggest": {
+        "ext-pdo_sqlite": "Required for local SQLite database",
+        "ext-pdo_pgsql": "Required for PostgreSQL production database",
+        "ext-pdo_mysql": "Required for MySQL production database",
+        "ext-gd": "For image generation and processing",
+        "ext-zip": "For docx invoice imports"
+    },
+    "scripts": {
+        "serve": "php -S 0.0.0.0:8000 -t php/public php/public/index.php"
+    }
+}

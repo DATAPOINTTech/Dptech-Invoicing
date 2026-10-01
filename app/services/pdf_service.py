@@ -61,26 +61,22 @@ def _company_header(styles):
     return elements
 
 def _build_item_table(items, styles):
-    data = [["#", "Description", "Qty", "Unit", "Unit Price", "Tax%", "Tax Amt", "Total"]]
-    for i, item in enumerate(items, 1):
+    data = [["Item Name", "Qty", "Unit", "Unit Price", "Total"]]
+    for item in items:
         data.append([
-            str(i),
             item.get("description", ""),
             str(item.get("quantity", 0)),
             item.get("unit", "pcs"),
             f"{item.get('unit_price', 0):,.2f}",
-            f"{item.get('tax_rate', 0)}%",
-            f"{item.get('tax_amount', 0):,.2f}",
             f"{item.get('total_price', 0):,.2f}"
         ])
-    col_widths = [10*mm, 76*mm, 12*mm, 12*mm, 20*mm, 12*mm, 18*mm, 20*mm]
+    col_widths = [88*mm, 20*mm, 22*mm, 25*mm, 25*mm]
     table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
-        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),

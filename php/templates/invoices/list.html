@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Invoices - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6">
+        <div class="flex justify-between items-center mb-5">
+            <div>
+                <h1 class="page-title">Sales Invoices</h1>
+            </div>
+            <a href="/invoices/new" class="btn btn-success"><i class="fas fa-plus"></i> New Invoice</a>
+        </div>
+        <div class="card overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 flex gap-3 items-center">
+                <select id="status-filter" class="px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"><option value="">All Status</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="partially_paid">Partially Paid</option><option value="overdue">Overdue</option></select>
+            </div>
+            <div class="table-container">
+            <table class="data-table"><thead><tr><th>Invoice #</th><th>Client</th><th>Date</th><th class="text-right">Total</th><th class="text-right">Balance</th><th class="text-center">Status</th><th class="text-right">Actions</th></tr></thead><tbody id="invoices-body"></tbody></table>
+            </div>
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+function load(){const s=$('#status-filter').val();$.ajax({url:'/api/invoices'+(s?'?status='+s:''),method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(invs){
+    const statusBadge=s=>{const m={paid:'badge-green',sent:'badge-blue',overdue:'badge-red',partially_paid:'badge-amber',draft:'badge-gray',cancelled:'badge-red'};return `<span class="badge ${m[s]||'badge-gray'}">${s.replace('_',' ')}</span>`;};
+    if(!invs.length){$('#invoices-body').html('<tr><td colspan="7" class="text-center py-8 text-slate-400">No invoices found</td></tr>');return;}
+    $('#invoices-body').html(invs.map(i=>`<tr>
+        <td class="font-medium text-slate-800">${i.invoice_no}</td>
+        <td>${i.client_name}</td>
+        <td class="text-slate-500">${i.invoice_date}</td>
+        <td class="text-right font-medium">PKR ${i.total_amount?.toLocaleString()}</td>
+        <td class="text-right ${i.balance_due>0?'text-red-600 font-semibold':'text-green-600'}">PKR ${i.balance_due?.toLocaleString()}</td>
+        <td class="text-center">${statusBadge(i.status)}</td>
+        <td class="text-right">
+            <div class="flex gap-2 justify-end">
+            <a href="/invoices/${i.id}" class="btn btn-ghost btn-sm" title="View"><i class="fas fa-eye"></i></a>
+            <a href="/api/invoices/${i.id}/pdf?token=${encodeURIComponent(token)}" target="_blank" class="btn btn-ghost btn-sm text-red-500" title="PDF"><i class="fas fa-file-pdf"></i></a>
+            <a href="/invoices/${i.id}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
+            ${i.status==='cancelled'
+                ? `<button class="btn btn-ghost btn-sm text-red-500 delete-invoice" data-id="${i.id}" data-no="${i.invoice_no}" title="Delete"><i class="fas fa-trash"></i></button>`
+                : `<button class="btn btn-ghost btn-sm text-red-500 cancel-invoice" data-id="${i.id}" data-no="${i.invoice_no}" title="Cancel"><i class="fas fa-times"></i></button>`}
+            </div>
+        </td>
+    </tr>`).join(''));
+}).fail(function(x){if(x.status===401){localStorage.removeItem('token');window.location.href='/login';}$('#invoices-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Error: '+(x.responseJSON?.detail||'Failed to load invoices')+'</td></tr>');});}
+$(document).on('click', '.cancel-invoice', function(e){
+    e.preventDefault();
+    const id=$(this).data('id'), no=$(this).data('no');
+    if(confirm('Cancel invoice '+no+'?')){
+        $.ajax({url:'/api/invoices/'+id,method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+    }
+});
+$(document).on('click', '.delete-invoice', function(e){
+    e.preventDefault();
+    const id=$(this).data('id'), no=$(this).data('no');
+    if(confirm('Permanently delete cancelled invoice '+no+'? This cannot be undone.')){
+        $.ajax({url:'/api/invoices/'+id+'/delete',method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+    }
+});
+$(function(){load();$('#status-filter').on('change',load);});
+</script>
+{% endblock %}

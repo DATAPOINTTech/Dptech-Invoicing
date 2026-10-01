@@ -137,15 +137,26 @@ $('#login-form').submit(function(e) {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: formData.toString()
-    }).then(r => {
-        if (!r.ok) return r.json().then(d => { throw new Error(d.detail || 'Login failed'); });
-        return r.json();
+    }).then(async r => {
+        const text = await r.text();
+        let payload = {};
+        if (text) {
+            try {
+                payload = JSON.parse(text);
+            } catch (e) {
+                throw new Error(text || 'Login failed');
+            }
+        }
+        if (!r.ok) {
+            throw new Error(payload.detail || text || 'Login failed');
+        }
+        return payload;
     }).then(res => {
         localStorage.setItem('token', res.access_token);
         localStorage.setItem('user', JSON.stringify(res.user));
         window.location.href = '/dashboard';
     }).catch(err => {
-        $('#error-text').text(err.message);
+        $('#error-text').text(err.message || 'Login failed');
         $('#error-msg').removeClass('hidden');
         btn.html('<i class="fas fa-sign-in-alt"></i> Sign In').prop('disabled', false);
     });

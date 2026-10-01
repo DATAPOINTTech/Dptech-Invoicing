@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Product - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">{{ 'Edit' if request.query_params.id else 'New' }} Product</h1>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl">
+            <form id="product-form" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2"><label class="block text-sm font-medium text-gray-700">Name *</label><input type="text" id="name" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">SKU</label><input type="text" id="sku" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Category</label><select id="category" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="hardware">Hardware</option><option value="software">Software</option><option value="service">Service</option><option value="networking">Networking</option><option value="consumable">Consumable</option><option value="other">Other</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Unit Price (PKR)</label><input type="number" step="0.01" id="unit_price" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Cost Price (PKR)</label><input type="number" step="0.01" id="cost_price" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Unit</label><select id="unit" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="pcs">Pieces</option><option value="box">Box</option><option value="meter">Meter</option><option value="kg">Kg</option><option value="hour">Hour</option><option value="day">Day</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Tax Rate (%)</label><input type="number" step="0.01" id="tax_rate" value="17" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Min Stock Level</label><input type="number" step="1" id="min_stock_level" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Max Stock Level</label><input type="number" step="1" id="max_stock_level" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">HS Code</label><input type="text" id="hs_code" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div class="col-span-2"><label class="flex items-center gap-2"><input type="checkbox" id="tax_inclusive" checked class="rounded"><span class="text-sm text-gray-700">Price is tax inclusive</span></label></div>
+                    <div class="col-span-2"><label class="block text-sm font-medium text-gray-700">Description</label><textarea id="description" rows="2" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></textarea></div>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="bg-cyan-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-cyan-700"><i class="fas fa-save mr-2"></i>Save</button>
+                    <a href="/products" class="bg-gray-100 text-gray-700 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+const editId=new URLSearchParams(window.location.search).get('id');
+if(editId){$.ajax({url:'/api/products/'+editId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(p){$('#name').val(p.name);$('#sku').val(p.sku);$('#category').val(p.category);$('#unit_price').val(p.unit_price);$('#cost_price').val(p.cost_price);$('#unit').val(p.unit);$('#tax_rate').val(p.tax_rate);$('#min_stock_level').val(p.min_stock_level);$('#max_stock_level').val(p.max_stock_level);$('#hs_code').val(p.hs_code);$('#tax_inclusive').prop('checked',p.tax_inclusive);$('#description').val(p.description);});}
+$('#product-form').submit(function(e){e.preventDefault();const data={name:$('#name').val(),sku:$('#sku').val(),category:$('#category').val(),unit_price:parseFloat($('#unit_price').val())||0,cost_price:parseFloat($('#cost_price').val())||0,unit:$('#unit').val(),tax_rate:parseFloat($('#tax_rate').val())||0,min_stock_level:parseFloat($('#min_stock_level').val())||0,max_stock_level:parseFloat($('#max_stock_level').val())||0,hs_code:$('#hs_code').val(),tax_inclusive:$('#tax_inclusive').is(':checked'),description:$('#description').val()};const method=editId?'PUT':'POST';const url=editId?'/api/products/'+editId:'/api/products';$('button[type=submit]').prop('disabled',true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Saving...');$.ajax({url,method,contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(){window.location.href='/products';}).fail(function(x){$('button[type=submit]').prop('disabled',false).html('<i class="fas fa-save mr-2"></i>Save');alert('Error: '+(x.responseJSON?.detail||x.statusText||'Unknown'));});});
+</script>
+{% endblock %}

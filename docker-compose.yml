@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dptech_invoicing_app
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    environment:
+      - APP_ENV=production
+      - COMPANY_NAME=DATAPOINT Technologies
+      - SECRET_KEY=change-this-to-a-secure-random-secret-key
+      - DATABASE_URL=sqlite:///./storage/dptech.db
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=admin@datapointtechnology.com
+      - ADMIN_PASSWORD=admin123
+    volumes:
+      - ./php/storage:/var/www/html/php/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

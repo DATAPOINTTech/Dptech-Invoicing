@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{% if purchase_id %}Edit Purchase{% else %}New Purchase{% endif %} - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">{% if purchase_id %}Edit Purchase Invoice{% else %}New Purchase Invoice{% endif %}</h1>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <form id="purchase-form" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-700">Supplier Name *</label>
+                        <input type="text" id="supplier_name" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none" autocomplete="off">
+                        <div id="supplier-suggestions" class="hidden absolute z-10 bg-white border rounded shadow-lg mt-1 max-h-40 overflow-y-auto text-sm w-full"></div>
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700">Supplier NTN</label><input type="text" id="supplier_ntn" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Invoice Date</label><input type="date" id="invoice_date" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Received Date</label><input type="date" id="received_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div class="col-span-2"><label class="block text-sm font-medium text-gray-700">Address</label><textarea id="supplier_address" rows="2" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></textarea></div>
+                </div>
+                <div class="border-t pt-4">
+                    <h3 class="font-semibold text-gray-800 mb-3">Items</h3>
+                    <p class="text-xs text-gray-400 mb-3">Type product name to search existing products. New names will auto-create products.</p>
+                    <div id="items-container"></div>
+                    <button type="button" onclick="addItem()" class="text-cyan-600 text-sm font-medium mt-2"><i class="fas fa-plus mr-1"></i>Add Item</button>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="bg-cyan-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-cyan-700"><i class="fas fa-save mr-2"></i>{% if purchase_id %}Update Purchase{% else %}Save Purchase{% endif %}</button>
+                    <a href="/purchases" class="bg-gray-100 text-gray-700 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200">Cancel</a>
+                </div>
+            </form>
+            {% if not purchase_id %}
+            <div class="mt-6 border-t pt-4">
+                <h3 class="font-semibold text-gray-800 mb-3">Bulk Import</h3>
+                <p class="text-xs text-gray-500 mb-2">Paste JSON array of purchases to import in bulk:</p>
+                <textarea id="import-json" rows="5" class="w-full px-4 py-2 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-cyan-500 outline-none" placeholder='[{"supplier_name":"ABC Corp","invoice_date":"2026-07-21","items":[{"product_name":"Item 1","quantity":10,"unit_price":500}]}]'></textarea>
+                <button onclick="importBulk()" class="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700"><i class="fas fa-upload mr-2"></i>Import</button>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+let itemCount=0, productCache=[], supplierCache=[];
+const purchaseId = {{ purchase_id|tojson }};
+
+$.ajax({url:'/api/products',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ps){productCache=ps;});
+$.ajax({url:'/api/suppliers',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ss){supplierCache=ss;});
+
+function addItem(data){
+    const idx=itemCount++;
+    const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-12 gap-2 items-end">
+        <div class="col-span-4">
+            <label class="text-xs text-gray-500">Product Name</label>
+            <input type="text" name="pname" class="w-full px-2 py-1.5 border rounded text-sm product-input" data-idx="${idx}" value="${data?.product_name||''}" autocomplete="off">
+            <div class="product-suggestions hidden bg-white border rounded shadow-lg mt-1 max-h-32 overflow-y-auto text-sm"></div>
+        </div>
+        <div class="col-span-2"><label class="text-xs text-gray-500">Qty</label><input type="number" name="qty" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm" value="${data?.quantity||1}"></div>
+        <div class="col-span-2"><label class="text-xs text-gray-500">Unit</label><select name="unit" class="w-full px-2 py-1.5 border rounded text-sm"><option value="pcs" ${data?.unit==='pcs'?'selected':''}>pcs</option><option value="box" ${data?.unit==='box'?'selected':''}>box</option><option value="meter" ${data?.unit==='meter'?'selected':''}>meter</option><option value="kg" ${data?.unit==='kg'?'selected':''}>kg</option></select></div>
+        <div class="col-span-2"><label class="text-xs text-gray-500">Unit Price</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm price-input" value="${data?.unit_price||0}"></div>
+        <div class="col-span-1"><label class="text-xs text-gray-500">Tax %</label><input type="number" name="tax" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm" value="${data?.tax_rate||0}"></div>
+        <div class="col-span-1"><button type="button" onclick="this.closest('.item-row').remove()" class="text-red-500 text-sm mt-6"><i class="fas fa-times"></i></button></div>
+    </div>`;
+    $('#items-container').append(html);
+}
+
+$(document).on('input', '.product-input', function(){
+    const val=$(this).val().toLowerCase();
+    const $suggestions=$(this).siblings('.product-suggestions');
+    if(!val||val.length<1){$suggestions.addClass('hidden');return;}
+    const matches=productCache.filter(p=>p.name.toLowerCase().includes(val));
+    if(matches.length){
+        $suggestions.removeClass('hidden').html(matches.map(p=>
+            `<div class="px-3 py-1.5 cursor-pointer hover:bg-cyan-50" data-id="${p.id}" data-name="${p.name}" data-price="${p.unit_price}" data-unit="${p.unit}">${p.name} <span class="text-gray-400 text-xs">PKR ${p.unit_price}</span></div>`
+        ).join(''));
+    } else {
+        $suggestions.removeClass('hidden').html(`<div class="px-3 py-1.5 text-gray-400 italic">New product will be created</div>`);
+    }
+});
+
+$(document).on('click', '.product-suggestions div', function(){
+    const $row=$(this).closest('.item-row');
+    $row.find('.product-input').val($(this).data('name'));
+    if($(this).data('price')!==undefined){
+        $row.find('[name=price]').val($(this).data('price'));
+    }
+    $(this).parent().addClass('hidden');
+});
+
+$(document).on('blur', '.product-input', function(){
+    setTimeout(()=>$(this).siblings('.product-suggestions').addClass('hidden'),200);
+});
+
+$('#supplier_name').on('input', function(){
+    const val=$(this).val().toLowerCase();
+    const $suggestions=$('#supplier-suggestions');
+    if(!val||val.length<1){$suggestions.addClass('hidden');return;}
+    const matches=supplierCache.filter(s=>s.name.toLowerCase().includes(val));
+    if(matches.length){
+        $suggestions.removeClass('hidden').html(matches.map(s=>
+            `<div class="px-3 py-1.5 cursor-pointer hover:bg-cyan-50" data-name="${s.name}" data-ntn="${s.ntn||''}" data-address="${s.address||''}">${s.name} ${s.ntn?'<span class="text-gray-400 text-xs">NTN: '+s.ntn+'</span>':''}</div>`
+        ).join(''));
+    } else {
+        $suggestions.removeClass('hidden').html(`<div class="px-3 py-1.5 text-gray-400 italic">New supplier will be created</div>`);
+    }
+});
+
+$(document).on('click', '#supplier-suggestions div', function(){
+    $('#supplier_name').val($(this).data('name'));
+    if($(this).data('ntn')) $('#supplier_ntn').val($(this).data('ntn'));
+    if($(this).data('address')) $('#supplier_address').val($(this).data('address'));
+    $('#supplier-suggestions').addClass('hidden');
+});
+
+$('#supplier_name').on('blur', function(){
+    setTimeout(()=>$('#supplier-suggestions').addClass('hidden'),200);
+});
+
+function getFormData() {
+    const items=[];$('.item-row').each(function(){items.push({product_name:$(this).find('[name=pname]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:parseFloat($(this).find('[name=tax]').val())||0});});
+    return {supplier_name:$('#supplier_name').val(),supplier_ntn:$('#supplier_ntn').val(),supplier_address:$('#supplier_address').val(),invoice_date:$('#invoice_date').val(),received_date:$('#received_date').val()||null,items};
+}
+
+$('#purchase-form').submit(function(e){e.preventDefault();
+    const items=[];$('.item-row').each(function(){items.push({product_name:$(this).find('[name=pname]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:parseFloat($(this).find('[name=tax]').val())||0});});
+    if(!items.length||!items[0].product_name){alert('Add at least one item');return;}
+    const data=getFormData();
+    const url = purchaseId ? '/api/purchases/'+purchaseId : '/api/purchases';
+    const method = purchaseId ? 'PUT' : 'POST';
+    $.ajax({url:url,method:method,contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(){window.location.href='/purchases';}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+});
+
+function importBulk(){
+    try{
+        const data=JSON.parse($('#import-json').val());
+        if(!Array.isArray(data)){alert('Must be a JSON array');return;}
+        $.ajax({url:'/api/purchases/import',method:'POST',contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(r){alert(r.message);window.location.href='/purchases';}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+    }catch(e){alert('Invalid JSON: '+e.message);}
+}
+
+$(function(){
+    if (purchaseId) {
+        $.ajax({url:'/api/purchases/'+purchaseId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(p){
+            $('#supplier_name').val(p.supplier_name);
+            $('#supplier_ntn').val(p.supplier_ntn||'');
+            $('#supplier_address').val(p.supplier_address||'');
+            $('#invoice_date').val(p.invoice_date);
+            $('#received_date').val(p.received_date||'');
+            p.items.forEach(function(item){addItem(item);});
+        }).fail(function(){alert('Failed to load purchase');window.location.href='/purchases';});
+    } else {
+        addItem();
+        $('#invoice_date').val(new Date().toISOString().split('T')[0]);
+    }
+});
+</script>
+{% endblock %}

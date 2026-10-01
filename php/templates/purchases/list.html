@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Purchases - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6">
+        <div class="flex justify-between items-center mb-5">
+            <h1 class="page-title">Purchase Invoices</h1>
+            <a href="/purchases/new" class="btn btn-primary"><i class="fas fa-plus"></i> New Purchase</a>
+        </div>
+        <div class="card overflow-hidden">
+            <div class="table-container">
+            <table class="data-table"><thead><tr><th>Invoice #</th><th>Supplier</th><th>Products</th><th>Date</th><th class="text-right">Total</th><th class="text-right">Paid</th><th class="text-right">Balance</th><th class="text-center">Status</th><th class="text-right">Actions</th></tr></thead><tbody id="purchases-body"></tbody></table>
+            </div>
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+function loadPurchases(){
+    $.ajax({url:'/api/purchases',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ps){
+        if(!ps.length){$('#purchases-body').html('<tr><td colspan="9" class="text-center py-8 text-slate-400">No purchases</td></tr>');return;}
+        $('#purchases-body').html(ps.map(p=>{
+            const balCls = p.balance_due > 0 ? 'text-red-600 font-semibold' : 'text-green-600';
+            const stCls = p.status==='paid'?'badge-green':p.status==='partially_paid'?'badge-amber':p.status==='cancelled'?'badge-red':'badge-blue';
+            const itemsList = (p.items||[]).map(i=>i.product_name).join(', ');
+            return `<tr>
+            <td class="font-medium text-slate-800"><a href="/purchases/${p.id}" class="hover:text-blue-600">${p.invoice_no}</a></td>
+            <td class="max-w-[160px] truncate" title="${p.supplier_name}">${p.supplier_name}</td>
+            <td class="max-w-[200px] truncate text-slate-600 text-xs" title="${itemsList}">${itemsList}</td>
+            <td class="text-slate-500 whitespace-nowrap">${p.invoice_date}</td>
+            <td class="text-right font-medium whitespace-nowrap">PKR ${p.total_amount?.toLocaleString()}</td>
+            <td class="text-right text-slate-600 whitespace-nowrap">PKR ${(p.amount_paid||0)?.toLocaleString()}</td>
+            <td class="text-right ${balCls} whitespace-nowrap">PKR ${(p.balance_due||0)?.toLocaleString()}</td>
+            <td class="text-center"><span class="badge ${stCls}">${p.status.replace('_',' ')}</span></td>
+            <td class="text-right">
+                <div class="flex gap-2 justify-end">
+                <a href="/purchases/${p.id}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
+                ${p.status==='cancelled'?
+                    `<button class="btn btn-ghost btn-sm text-red-500 delete-purchase" data-id="${p.id}" data-no="${p.invoice_no}" title="Delete"><i class="fas fa-trash"></i></button>`:
+                    `<button class="btn btn-ghost btn-sm text-red-500 cancel-purchase" data-id="${p.id}" data-no="${p.invoice_no}" title="Cancel"><i class="fas fa-times"></i></button>`
+                }
+                </div>
+            </td>
+        </tr>`}).join(''));
+    });
+}
+$(document).on('click', '.cancel-purchase', function(e){
+    e.preventDefault();
+    const id=$(this).data('id'), no=$(this).data('no');
+    if(confirm('Cancel purchase '+no+'? It can be deleted after cancellation.')){
+        $.ajax({url:'/api/purchases/'+id+'/cancel',method:'POST',headers:{Authorization:'Bearer '+token}}).done(function(){loadPurchases();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+    }
+});
+$(document).on('click', '.delete-purchase', function(e){
+    e.preventDefault();
+    const id=$(this).data('id'), no=$(this).data('no');
+    if(confirm('Permanently delete cancelled purchase '+no+'?')){
+        $.ajax({url:'/api/purchases/'+id,method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){loadPurchases();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+    }
+});
+$(function(){loadPurchases();});
+</script>
+{% endblock %}

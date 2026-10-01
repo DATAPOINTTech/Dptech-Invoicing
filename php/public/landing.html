@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DATAPOINT Invoicing</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --muted: #475569;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #eff6ff 0%, var(--bg) 100%);
+      color: var(--primary);
+    }
+    .container {
+      max-width: 960px;
+      margin: 80px auto;
+      padding: 0 20px;
+    }
+    .hero {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+      padding: 40px 32px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 3rem);
+    }
+    p {
+      margin: 0 0 20px;
+      line-height: 1.6;
+      color: var(--muted);
+      font-size: 1.02rem;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 700;
+      transition: transform 0.15s ease;
+    }
+    .button:hover { transform: translateY(-1px); }
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+    .secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-top: 28px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      margin: 0 0 8px;
+    }
+    .card p {
+      margin: 0;
+      font-size: 0.96rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>DATAPOINT Invoicing</h1>
+      <p>
+        The PHP migration is running and the app is now serving a landing page at the root URL.
+        Use the API endpoints below for backend integrations, or keep the Python app for the full UI.
+      </p>
+      <div class="actions">
+        <a class="button primary" href="/login">Open application</a>
+        <a class="button primary" href="/health">Check health</a>
+        <a class="button secondary" href="/api/auth/login">Login API</a>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Authentication</h2>
+          <p>POST /api/auth/login</p>
+        </div>
+        <div class="card">
+          <h2>Tax Calculation</h2>
+          <p>POST /api/tax/calculate</p>
+        </div>
+        <div class="card">
+          <h2>PDF Invoices</h2>
+          <p>POST /api/invoices/pdf</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

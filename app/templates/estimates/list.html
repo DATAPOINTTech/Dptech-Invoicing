@@ -19,44 +19,61 @@
     </main>
 </div>
 <script>
-const token=localStorage.getItem('token');if(!token)window.location.href='/login';
-function load(){const s=$('#status-filter').val();$.ajax({url:'/api/estimates'+(s?'?status='+s:''),method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ests){
-    const statusBadge=s=>{const m={approved:'badge-green',sent:'badge-blue',converted:'badge-purple',rejected:'badge-red',draft:'badge-gray',expired:'badge-amber'};return `<span class="badge ${m[s]||'badge-gray'}">${s}</span>`;};
-    if(!ests.length){$('#estimates-body').html('<tr><td colspan="6" class="text-center py-8 text-slate-400">No estimates found</td></tr>');return;}
-    $('#estimates-body').html(ests.map(e=>`<tr>
-        <td class="font-medium text-slate-800">${e.estimate_no}</td>
-        <td>${e.client_name}</td>
-        <td class="text-slate-500">${e.estimate_date}</td>
-        <td class="text-right font-medium">PKR ${e.total_amount?.toLocaleString()}</td>
-        <td class="text-center">${statusBadge(e.status)}</td>
-        <td class="text-right">
-            <div class="flex gap-2 justify-end">
-            <a href="/estimates/${e.id}" class="btn btn-ghost btn-sm" title="View"><i class="fas fa-eye"></i></a>
-            <a href="/estimates/${e.id}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
-            ${e.status==='rejected'?
-                `<button class="btn btn-ghost btn-sm text-red-500 delete-estimate" data-id="${e.id}" data-no="${e.estimate_no}" title="Delete"><i class="fas fa-trash"></i></button>`:
-                `<button class="btn btn-ghost btn-sm text-red-500 reject-estimate" data-id="${e.id}" data-no="${e.estimate_no}" title="Reject"><i class="fas fa-times"></i></button>`
-            }
-            </div>
-        </td>
-    </tr>`).join(''));
-}).fail(function(x){
-    $('#estimates-body').html('<tr><td colspan="6" class="text-center py-8 text-red-400">Failed to load estimates: '+(x.responseJSON?.detail||x.statusText||'Error')+'</td></tr>');
-});}
-$(document).on('click', '.reject-estimate', function(e){
-    e.preventDefault();
-    const id=$(this).data('id'), no=$(this).data('no');
-    if(confirm('Reject estimate '+no+'? It can be deleted after rejection.')){
-        $.ajax({url:'/api/estimates/'+id+'/reject',method:'POST',headers:{Authorization:'Bearer '+token}}).done(function(){load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+const token=localStorage.getItem('token');
+if(!token){
+    window.location.href='/login';
+} else {
+    const escapeHtml=(value='')=>String(value).replace(/[&<>"']/g,(char)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[char]||char));
+    function load(){
+        const s=$('#status-filter').val();
+        $.ajax({url:'/api/estimates'+(s?'?status='+encodeURIComponent(s):''),method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ests){
+            const statusBadge=s=>{const m={approved:'badge-green',sent:'badge-blue',converted:'badge-purple',rejected:'badge-red',draft:'badge-gray',expired:'badge-amber'};const label=String(s||'draft');return `<span class="badge ${m[label]||'badge-gray'}">${escapeHtml(label)}</span>`;};
+            const list=Array.isArray(ests)?ests:[];
+            if(!list.length){$('#estimates-body').html('<tr><td colspan="6" class="text-center py-8 text-slate-400">No estimates found</td></tr>');return;}
+            $('#estimates-body').html(list.map(e=>{
+                const id=escapeHtml(e.id ?? '');
+                const estimateNo=escapeHtml(e.estimate_no ?? '');
+                const clientName=escapeHtml(e.client_name ?? '');
+                const estimateDate=escapeHtml(e.estimate_date ?? '');
+                const status=String(e.status || 'draft');
+                const total=Number(e.total_amount || 0);
+                const rowAction = status === 'rejected'
+                    ? `<button class="btn btn-ghost btn-sm text-red-500 delete-estimate" data-id="${id}" data-no="${estimateNo}" title="Delete"><i class="fas fa-trash"></i></button>`
+                    : `<button class="btn btn-ghost btn-sm text-red-500 reject-estimate" data-id="${id}" data-no="${estimateNo}" title="Reject"><i class="fas fa-times"></i></button>`;
+                return `<tr>
+                    <td class="font-medium text-slate-800">${estimateNo}</td>
+                    <td>${clientName}</td>
+                    <td class="text-slate-500">${estimateDate}</td>
+                    <td class="text-right font-medium">PKR ${Number.isFinite(total) ? total.toLocaleString() : '0'}</td>
+                    <td class="text-center">${statusBadge(status)}</td>
+                    <td class="text-right">
+                        <div class="flex gap-2 justify-end">
+                        <a href="/estimates/${id}" class="btn btn-ghost btn-sm" title="View"><i class="fas fa-eye"></i></a>
+                        <a href="/estimates/${id}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
+                        ${rowAction}
+                        </div>
+                    </td>
+                </tr>`;
+            }).join(''));
+        }).fail(function(x){
+            $('#estimates-body').html('<tr><td colspan="6" class="text-center py-8 text-red-400">Failed to load estimates: '+escapeHtml(x.responseJSON?.detail||x.statusText||'Error')+'</td></tr>');
+        });
     }
-});
-$(document).on('click', '.delete-estimate', function(e){
-    e.preventDefault();
-    const id=$(this).data('id'), no=$(this).data('no');
-    if(confirm('Permanently delete rejected estimate '+no+'?')){
-        $.ajax({url:'/api/estimates/'+id,method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
-    }
-});
-$(function(){load();$('#status-filter').on('change',load);});
+    $(document).on('click', '.reject-estimate', function(e){
+        e.preventDefault();
+        const id=$(this).data('id'), no=$(this).data('no');
+        if(confirm('Reject estimate '+no+'? It can be deleted after rejection.')){
+            $.ajax({url:'/api/estimates/'+id+'/reject',method:'POST',headers:{Authorization:'Bearer '+token}}).done(function(){load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+        }
+    });
+    $(document).on('click', '.delete-estimate', function(e){
+        e.preventDefault();
+        const id=$(this).data('id'), no=$(this).data('no');
+        if(confirm('Permanently delete rejected estimate '+no+'?')){
+            $.ajax({url:'/api/estimates/'+id,method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+        }
+    });
+    $(function(){load();$('#status-filter').on('change',load);});
+}
 </script>
 {% endblock %}

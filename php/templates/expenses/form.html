@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{% if expense_id %}Edit Expense{% else %}New Expense{% endif %} - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">{% if expense_id %}Edit Expense{% else %}New Expense{% endif %}</h1>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl">
+            <form id="expense-form" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700">Description *</label><input type="text" id="description" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Category</label><select id="category" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="utilities">Utilities</option><option value="rent">Rent</option><option value="salary">Salary</option><option value="transport">Transport</option><option value="office_supplies">Office Supplies</option><option value="marketing">Marketing</option><option value="other">Other</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Amount (PKR) *</label><input type="number" step="0.01" id="amount" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Tax Amount</label><input type="number" step="0.01" id="tax_amount" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Expense Date</label><input type="date" id="expense_date" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Payment Method</label><select id="payment_method" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select</option><option value="cash">Cash</option><option value="bank">Bank Transfer</option><option value="cheque">Cheque</option><option value="jazzcash">JazzCash</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Vendor</label><input type="text" id="vendor_name" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Receipt Ref</label><input type="text" id="receipt_ref" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
+                    <div class="col-span-2"><label class="block text-sm font-medium text-gray-700">Notes</label><textarea id="notes" rows="2" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></textarea></div>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="bg-cyan-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-cyan-700"><i class="fas fa-save mr-2"></i>{% if expense_id %}Update{% else %}Save{% endif %}</button>
+                    <a href="/expenses" class="bg-gray-100 text-gray-700 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+<script>
+const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+const expenseId = {{ expense_id|tojson }};
+
+$('#expense-form').submit(function(e){e.preventDefault();
+    const data={description:$('#description').val(),category:$('#category').val(),amount:parseFloat($('#amount').val())||0,tax_amount:parseFloat($('#tax_amount').val())||0,expense_date:$('#expense_date').val(),payment_method:$('#payment_method').val()||null,vendor_name:$('#vendor_name').val()||null,receipt_ref:$('#receipt_ref').val()||null,notes:$('#notes').val()||null};
+    const url = expenseId ? '/api/expenses/'+expenseId : '/api/expenses';
+    const method = expenseId ? 'PUT' : 'POST';
+    $.ajax({url:url,method:method,contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(){window.location.href='/expenses';}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+});
+
+$(function(){
+    if (expenseId) {
+        $.ajax({url:'/api/expenses/'+expenseId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(e){
+            $('#description').val(e.description);
+            $('#category').val(e.category);
+            $('#amount').val(e.amount);
+            $('#tax_amount').val(e.tax_amount);
+            $('#expense_date').val(e.expense_date);
+            if(e.payment_method) $('#payment_method').val(e.payment_method);
+            if(e.vendor_name) $('#vendor_name').val(e.vendor_name);
+            if(e.receipt_ref) $('#receipt_ref').val(e.receipt_ref);
+            if(e.notes) $('#notes').val(e.notes);
+        }).fail(function(){alert('Failed to load expense');window.location.href='/expenses';});
+    } else {
+        $('#expense_date').val(new Date().toISOString().split('T')[0]);
+    }
+});
+</script>
+{% endblock %}

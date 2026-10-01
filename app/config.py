@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     COMPANY_NAME: str = "DATAPOINT Technologies"
     COMPANY_ADDRESS: str = "G 32 Shayas Residence Jamshoro Road, Hyderabad Sindh"
     COMPANY_PHONE: str = "+92-316-7788990"
+    COMPANY_MOBILE: str = "+923167788990"
     COMPANY_EMAIL: str = "sales@datapointtechnology.com"
     COMPANY_WEBSITE: str = "http://datapointtechnology.com"
     COMPANY_LOGO_URL: str = "http://datapointtechnology.com"
