@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import logging
 from datetime import date, datetime
 from app.database import get_db
 from app.models.user import User, UserRole, DEFAULT_PERMISSIONS
@@ -38,7 +39,7 @@ class UserCreate(BaseModel):
     role: str = "staff"
 
 @router.post("/auth/register")
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(user: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role([UserRole.ADMIN]))):
     existing = db.query(User).filter((User.username == user.username) | (User.email == user.email)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username or email already exists")
@@ -267,14 +268,14 @@ class SupplierCreate(BaseModel):
     strn: Optional[str] = None
 
 @router.get("/suppliers")
-def list_suppliers(search: Optional[str] = None, db: Session = Depends(get_db)):
+def list_suppliers(search: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(Supplier).filter(Supplier.is_active == True)
     if search:
         query = query.filter(Supplier.name.ilike(f"%{search}%"))
     return query.order_by(Supplier.name).all()
 
 @router.post("/suppliers")
-def create_supplier(supplier: SupplierCreate, db: Session = Depends(get_db)):
+def create_supplier(supplier: SupplierCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_supplier = Supplier(**supplier.model_dump())
     db.add(db_supplier)
     db.commit()
@@ -313,7 +314,7 @@ class ProductCreate(BaseModel):
     max_stock_level: float = 0
 
 @router.get("/products")
-def list_products(search: Optional[str] = None, category: Optional[str] = None, db: Session = Depends(get_db)):
+def list_products(search: Optional[str] = None, category: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(Product).filter(Product.is_active == True)
     if search:
         query = query.filter(Product.name.ilike(f"%{search}%") | Product.sku.ilike(f"%{search}%"))
@@ -345,7 +346,7 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), curren
     return db_product
 
 @router.get("/products/{product_id}")
-def get_product(product_id: int, db: Session = Depends(get_db)):
+def get_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(404, "Product not found")
@@ -506,7 +507,7 @@ def create_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db), cur
             update_stock(db, product_id, item.quantity, MovementType.PURCHASE_IN,
                         "purchase", db_purchase.id, f"Purchase {inv_no}", current_user.id)
         except ValueError as e:
-            print(f"Stock update warning: {e}")
+            logging.getLogger(__name__).warning("Stock update warning: %s", e)
     db.commit()
     db.refresh(db_purchase)
     return db_purchase
@@ -564,7 +565,7 @@ def import_purchases(purchases: List[PurchaseCreate], db: Session = Depends(get_
                 update_stock(db, product_id, item.quantity, MovementType.PURCHASE_IN,
                             "purchase", db_purchase.id, f"Purchase {inv_no}", current_user.id)
             except ValueError as e:
-                print(f"Stock update warning: {e}")
+                logging.getLogger(__name__).warning("Stock update warning: %s", e)
 
         db.commit()
         db.refresh(db_purchase)
@@ -572,7 +573,7 @@ def import_purchases(purchases: List[PurchaseCreate], db: Session = Depends(get_
     return {"message": f"{len(created)} purchase(s) imported", "purchases": created}
 
 @router.get("/purchases/{purchase_id}")
-def get_purchase(purchase_id: int, db: Session = Depends(get_db)):
+def get_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
     if not purchase:
         raise HTTPException(404, "Purchase not found")
@@ -750,7 +751,7 @@ def update_purchase(purchase_id: int, purchase: PurchaseCreate, db: Session = De
 
 # --- Inventory Routes ---
 @router.get("/inventory")
-def list_inventory(low_stock: bool = False, show_all: bool = False, db: Session = Depends(get_db)):
+def list_inventory(low_stock: bool = False, show_all: bool = False, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(Inventory, Product).join(Product)
     if not show_all:
         query = query.filter(Inventory.quantity > 0)
@@ -770,7 +771,7 @@ def list_inventory(low_stock: bool = False, show_all: bool = False, db: Session 
     return results
 
 @router.get("/inventory/movements")
-def list_movements(product_id: Optional[int] = None, limit: int = 100, db: Session = Depends(get_db)):
+def list_movements(product_id: Optional[int] = None, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(StockMovement).order_by(StockMovement.created_at.desc())
     if product_id:
         query = query.filter(StockMovement.product_id == product_id)
@@ -870,7 +871,7 @@ class ExpenseCreate(BaseModel):
     notes: Optional[str] = None
 
 @router.get("/expenses")
-def list_expenses(category: Optional[str] = None, from_date: Optional[date] = None, to_date: Optional[date] = None, db: Session = Depends(get_db)):
+def list_expenses(category: Optional[str] = None, from_date: Optional[date] = None, to_date: Optional[date] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(Expense).order_by(Expense.expense_date.desc())
     if category:
         query = query.filter(Expense.category == category)
@@ -905,7 +906,7 @@ def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), curren
     return db_expense
 
 @router.get("/expenses/summary")
-def expense_summary(from_date: Optional[date] = None, to_date: Optional[date] = None, db: Session = Depends(get_db)):
+def expense_summary(from_date: Optional[date] = None, to_date: Optional[date] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(Expense)
     if from_date:
         query = query.filter(Expense.expense_date >= from_date)
@@ -920,7 +921,7 @@ def expense_summary(from_date: Optional[date] = None, to_date: Optional[date] = 
     return {"total_expenses": round(total, 2), "count": len(expenses), "by_category": by_category}
 
 @router.get("/expenses/{expense_id}")
-def get_expense(expense_id: int, db: Session = Depends(get_db)):
+def get_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not expense:
         raise HTTPException(404, "Expense not found")
@@ -964,7 +965,7 @@ def list_projects(db: Session = Depends(get_db), current_user: User = Depends(ge
     return db.query(Project).order_by(Project.created_at.desc()).all()
 
 @router.get("/projects/{project_id}")
-def get_project(project_id: int, db: Session = Depends(get_db)):
+def get_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(404, "Project not found")
@@ -1139,7 +1140,7 @@ def create_estimate(estimate: EstimateCreate, db: Session = Depends(get_db), cur
     return db_estimate
 
 @router.get("/estimates/{estimate_id}")
-def get_estimate(estimate_id: int, db: Session = Depends(get_db)):
+def get_estimate(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not estimate:
         raise HTTPException(404, "Estimate not found")
@@ -1218,7 +1219,7 @@ def convert_estimate_to_invoice(estimate_id: int, db: Session = Depends(get_db),
     return {"message": "Invoice created", "invoice_id": db_invoice.id, "invoice_no": db_invoice.invoice_no}
 
 @router.get("/estimates/{estimate_id}/pdf")
-def download_estimate_pdf(estimate_id: int, db: Session = Depends(get_db)):
+def download_estimate_pdf(estimate_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     estimate = db.query(Estimate).filter(Estimate.id == estimate_id).first()
     if not estimate:
         raise HTTPException(404, "Estimate not found")
@@ -1263,7 +1264,7 @@ class InvoiceCreate(BaseModel):
     items: List[EstimateItemCreate]
 
 @router.get("/invoices")
-def list_invoices(status: Optional[str] = None, client_id: Optional[int] = None, db: Session = Depends(get_db)):
+def list_invoices(status: Optional[str] = None, client_id: Optional[int] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(Invoice).order_by(Invoice.created_at.desc())
     if status:
         query = query.filter(Invoice.status == status)
@@ -1437,7 +1438,7 @@ def hard_delete_invoice(invoice_id: int, db: Session = Depends(get_db), current_
     return {"message": f"Invoice {db_invoice.invoice_no} permanently deleted"}
 
 @router.get("/invoices/{invoice_id}")
-def get_invoice(invoice_id: int, db: Session = Depends(get_db)):
+def get_invoice(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(404, "Invoice not found")
@@ -1476,7 +1477,7 @@ def record_payment(invoice_id: int, amount: float = Query(...), db: Session = De
     return {"message": "Payment recorded", "amount_paid": invoice.amount_paid, "balance_due": invoice.balance_due}
 
 @router.get("/invoices/{invoice_id}/pdf")
-def download_invoice_pdf(invoice_id: int, db: Session = Depends(get_db)):
+def download_invoice_pdf(invoice_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(404, "Invoice not found")
@@ -1962,7 +1963,7 @@ def voice_quotation(audio: AudioInput, current_user: User = Depends(get_current_
     return result
 
 @router.get("/agent/help")
-def agent_help():
+def agent_help(current_user: User = Depends(get_current_user)):
     return {
         "agent_name": "DATAPOINT Support Agent",
         "capabilities": [

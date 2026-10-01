@@ -23,6 +23,16 @@ class Settings(BaseSettings):
 
     PDF_OUTPUT_DIR: str = "./pdf_output"
 
+    # Comma-separated list of allowed CORS origins (e.g. https://app.example.com).
+    # Leave empty to disable cross-origin access. Set to "*" for any origin (no credentials).
+    CORS_ORIGINS: str = ""
+
+    # Admin bootstrap — used to create the first admin account on an empty database.
+    # In production ALWAYS set these via environment/secrets; never rely on a default.
+    ADMIN_USERNAME: Optional[str] = None
+    ADMIN_EMAIL: Optional[str] = None
+    ADMIN_PASSWORD: Optional[str] = None
+
     EMAIL_HOST: Optional[str] = None
     EMAIL_PORT: Optional[int] = None
     EMAIL_USER: Optional[str] = None

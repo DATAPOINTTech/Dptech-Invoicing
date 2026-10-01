@@ -11,10 +11,12 @@ import app.models.pricelist  # register PriceList with Base
 
 app = FastAPI(title=f"{settings.COMPANY_NAME} - Business Management System")
 
+# CORS — restrict to explicit origins in production. Empty => no cross-origin access.
+cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()] if settings.CORS_ORIGINS else []
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins or ["*"],
+    allow_credentials=bool(cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -43,28 +45,42 @@ def on_startup():
     _seed_admin()
 
 def _seed_admin():
-    """Create a default admin account if no users exist."""
+    """Create the first admin account from environment variables when the DB is empty.
+
+    Never creates a hardcoded default credential. If ADMIN_USERNAME/ADMIN_EMAIL/
+    ADMIN_PASSWORD are not provided, no admin is created and the operator is warned.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
     from app.database import SessionLocal
     from app.models.user import User, UserRole
     from app.services.auth import get_password_hash
+
+    if not (settings.ADMIN_USERNAME and settings.ADMIN_EMAIL and settings.ADMIN_PASSWORD):
+        logger.warning(
+            "No admin bootstrapped: set ADMIN_USERNAME, ADMIN_EMAIL and ADMIN_PASSWORD "
+            "in the environment to create the first admin account."
+        )
+        return
+
     db = SessionLocal()
     try:
-        if db.query(User).count() == 0:
-            admin = User(
-                username="admin",
-                email="admin@dptech.local",
-                hashed_password=get_password_hash("admin123"),
-                full_name="Administrator",
-                role=UserRole.ADMIN,
-                is_active=True,
-            )
-            db.add(admin)
-            db.commit()
-            import logging
-            logging.getLogger(__name__).warning(
-                "Default admin created — username: admin  password: admin123  "
-                "CHANGE THIS PASSWORD IMMEDIATELY after first login."
-            )
+        if db.query(User).count() > 0:
+            return
+        password = settings.ADMIN_PASSWORD
+        if len(password) < 8:
+            logger.warning("ADMIN_PASSWORD is weak (< 8 characters). Change it after first login.")
+        admin = User(
+            username=settings.ADMIN_USERNAME,
+            email=settings.ADMIN_EMAIL,
+            hashed_password=get_password_hash(password),
+            full_name="Administrator",
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        db.add(admin)
+        db.commit()
+        logger.info("Admin account '%s' created from environment configuration.", settings.ADMIN_USERNAME)
     finally:
         db.close()
 
