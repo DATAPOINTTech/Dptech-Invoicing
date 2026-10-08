@@ -908,7 +908,6 @@ function resolve_context_var(string $key, array $context): mixed
     return $context[$key] ?? null;
 }
 
+load_dotenv(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
 load_dotenv(PHP_APP_ROOT . DIRECTORY_SEPARATOR . '.env');
-if (getenv('DATABASE_URL') === false || getenv('SECRET_KEY') === false) {
-    load_dotenv(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
-}
+

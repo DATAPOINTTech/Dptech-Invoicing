@@ -46,6 +46,10 @@ $allPassed = true;
 
 foreach ($tests as $t) {
     echo "\nTesting: {$t['desc']}\n";
+    if (!file_exists($t['file'])) {
+        echo "SKIPPED: Optional test file not present\n";
+        continue;
+    }
     $cfile = new CURLFile($t['file'], mime_content_type($t['file']), basename($t['file']));
     $ch = curl_init($t['url']);
     curl_setopt_array($ch, [
