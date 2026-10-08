@@ -177,16 +177,78 @@ class SupportAgent
             $groups[$cat][] = $item;
         }
 
+        $categoryIcons = [
+            'CCTV' => '📹',
+            'Networking' => '🌐',
+            'Laptop' => '💻',
+            'Desktop' => '🖥️',
+            'Printer' => '🖨️',
+            'Accessories' => '🔌',
+            'Power' => '⚡',
+            'Services' => '🛠️',
+        ];
+
         $lines = [];
         foreach ($groups as $cat => $catItems) {
-            $lines[] = "\n▪ **{$cat}**";
-            foreach (array_slice($catItems, 0, 10) as $i) {
+            $icon = $categoryIcons[$cat] ?? '📦';
+            $lines[] = "\n### {$icon} {$cat} Solutions\n";
+            $lines[] = "| Product / Model | Unit | Live Rate (PKR) | Action |";
+            $lines[] = "| :--- | :---: | :---: | :---: |";
+            foreach (array_slice($catItems, 0, 8) as $i) {
                 $price = number_format((float) ($i['unit_price'] ?? 0), 2);
-                $unit = $i['unit'] ?? 'pcs';
-                $lines[] = "   • {$i['name']} — PKR {$price}/{$unit}";
+                $unit = htmlspecialchars($i['unit'] ?? 'pcs');
+                $name = htmlspecialchars($i['name']);
+                $desc = !empty($i['description']) ? "<br><small style='color:#64748b'>" . htmlspecialchars(substr($i['description'], 0, 85)) . "...</small>" : "";
+                $lines[] = "| **{$name}**{$desc} | {$unit} | **PKR {$price}** | [Order / Quote](#quote) |";
             }
         }
         return implode("\n", $lines);
+    }
+
+    public function detectSendQuotation(string $message): ?array
+    {
+        $msg = strtolower(trim($message));
+        if ($msg === '' || preg_match('/^(how|what|why|when|where|explain|can you tell)\b/', $msg)) {
+            return null;
+        }
+
+        $hasQuotation = str_contains($msg, 'quotation') || str_contains($msg, 'estimate') || str_contains($msg, 'quote');
+        if (!$hasQuotation) {
+            return null;
+        }
+
+        $hasSend = false;
+        foreach (['send', 'share', 'forward', 'whatsapp', 'dispatch', 'on whatsapp', 'via whatsapp', 'to me', 'to:'] as $v) {
+            if (str_contains($msg, $v)) {
+                $hasSend = true;
+                break;
+            }
+        }
+        if (!$hasSend) {
+            return null;
+        }
+
+        $estimateRef = null;
+        if (preg_match('/est[\s-]*(\d{4,6})[\s-]*(\d+)/i', $msg, $m)) {
+            $estimateRef = sprintf('EST-%s-%s', $m[1], $m[2]);
+        } elseif (preg_match('/(?:estimate|quotation|quote)\s*#?\s*(\d+)\b/i', $msg, $m)) {
+            $estimateRef = $m[1];
+        }
+
+        $useLatest = false;
+        foreach (['last', 'latest', 'recent', 'most recent'] as $w) {
+            if (str_contains($msg, $w)) {
+                $useLatest = true;
+                break;
+            }
+        }
+
+        $targetPhone = null;
+        if (preg_match('/(?:to|whatsapp|phone|number)?\s*(?:(?:\+|00)?92|0)?(3\d{9})\b/i', $message, $pm)) {
+            $targetPhone = '92' . $pm[1];
+        }
+
+        return ['estimate_ref' => $estimateRef, 'use_latest' => $useLatest, 'target_phone' => $targetPhone, 'message' => $message];
     }
 
     public function detectSendInvoice(string $message): ?array
@@ -196,14 +258,13 @@ class SupportAgent
             return null;
         }
 
-        $hasWhatsApp = str_contains($msg, 'whatsapp') || str_contains($msg, 'whats app') || str_contains($msg, 'watsapp');
         $hasInvoice = str_contains($msg, 'invoice') || str_contains($msg, 'bill');
-        if (!($hasWhatsApp && $hasInvoice)) {
+        if (!$hasInvoice) {
             return null;
         }
 
         $hasSend = false;
-        foreach (['send', 'share', 'forward', 'whatsapp me', 'on whatsapp', 'to whatsapp', 'via whatsapp'] as $v) {
+        foreach (['send', 'share', 'forward', 'whatsapp', 'dispatch', 'on whatsapp', 'via whatsapp', 'to me', 'to:'] as $v) {
             if (str_contains($msg, $v)) {
                 $hasSend = true;
                 break;
@@ -228,7 +289,12 @@ class SupportAgent
             }
         }
 
-        return ['invoice_ref' => $invoiceRef, 'use_latest' => $useLatest, 'message' => $message];
+        $targetPhone = null;
+        if (preg_match('/(?:to|whatsapp|phone|number)?\s*(?:(?:\+|00)?92|0)?(3\d{9})\b/i', $message, $pm)) {
+            $targetPhone = '92' . $pm[1];
+        }
+
+        return ['invoice_ref' => $invoiceRef, 'use_latest' => $useLatest, 'target_phone' => $targetPhone, 'message' => $message];
     }
 
     public function getResponse(string $userMessage, ?PDO $db = null): string
@@ -311,6 +377,424 @@ class SupportAgent
             . "Or contact us directly:\n"
             . "📞 {$this->context['phone']}\n"
             . "📧 {$this->context['email']}";
+    }
+
+    public function queryPricesWhatsApp(PDO $db, ?string $searchTerm = null, ?string $category = null): ?string
+    {
+        $where = ['is_active = 1'];
+        $params = [];
+        if ($searchTerm !== null && $searchTerm !== '') {
+            $where[] = 'name LIKE :search';
+            $params['search'] = '%' . $searchTerm . '%';
+        }
+        if ($category !== null && $category !== '') {
+            $where[] = 'category LIKE :cat';
+            $params['cat'] = '%' . $category . '%';
+        }
+        $sql = 'SELECT * FROM price_list WHERE ' . implode(' AND ', $where) . ' ORDER BY category ASC, name ASC LIMIT 40';
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!$items) {
+            return null;
+        }
+
+        $groups = [];
+        foreach ($items as $item) {
+            $cat = !empty($item['category']) ? $item['category'] : 'General';
+            $groups[$cat][] = $item;
+        }
+
+        $categoryIcons = [
+            'CCTV' => '📹',
+            'Networking' => '🌐',
+            'Laptop' => '💻',
+            'Desktop' => '🖥️',
+            'Printer' => '🖨️',
+            'Accessories' => '🔌',
+            'Power' => '⚡',
+            'Services' => '🛠️',
+        ];
+
+        $output = "🏢 *DATAPOINT Technologies - Official Product Catalog*\n";
+        $output .= "📅 _Live Effective Rates (PKR)_\n";
+        $output .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+
+        foreach ($groups as $cat => $catItems) {
+            $icon = $categoryIcons[$cat] ?? '📦';
+            $output .= "\n{$icon} *" . strtoupper($cat) . " SOLUTIONS*\n";
+            $output .= "────────────────────────────\n";
+
+            foreach (array_slice($catItems, 0, 6) as $i) {
+                $price = number_format((float) ($i['unit_price'] ?? 0), 2);
+                $unit = $i['unit'] ?? 'unit';
+                $name = $i['name'];
+                $desc = !empty($i['description']) ? substr($i['description'], 0, 75) : '';
+
+                $output .= "🔹 *{$name}*\n";
+                if ($desc) {
+                    $output .= "   ℹ️ _{$desc}_\n";
+                }
+                $output .= "   💵 Rate: *PKR {$price}* / {$unit} | 🟢 _In Stock_\n\n";
+            }
+        }
+
+        $output .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $output .= "📌 _Prices include testing & standard warranty._\n";
+        $output .= "💬 *Want an official Quotation PDF?* Reply with:\n";
+        $output .= "• *\"Quote for [item name]\"* or reply with your requirements\n";
+        $output .= "• Or call sales: *{$this->context['phone']}*";
+
+        return $output;
+    }
+
+    public function getOrCreateConversation(PDO $db, string $channel, string $senderPhone, string $senderName, ?int $clientId, string $lastMessage): int
+    {
+        try {
+            $digits = preg_replace('/\D+/', '', $senderPhone);
+            $last9 = strlen($digits) >= 9 ? substr($digits, -9) : $digits;
+            $stmt = $db->prepare('SELECT id FROM agent_conversations WHERE sender_phone = :phone OR (sender_phone IS NOT NULL AND :p1 != "" AND sender_phone LIKE :p2) ORDER BY id DESC LIMIT 1');
+            $stmt->execute([
+                'phone' => $digits,
+                'p1' => $last9,
+                'p2' => '%' . $last9 . '%'
+            ]);
+            $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($conv) {
+                $convId = (int) $conv['id'];
+                $upd = $db->prepare('UPDATE agent_conversations SET last_message = :msg, sender_name = CASE WHEN :sname != "" THEN :sname ELSE sender_name END, unread_count = unread_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+                $upd->execute(['msg' => $lastMessage, 'sname' => $senderName, 'id' => $convId]);
+                return $convId;
+            } else {
+                $ins = $db->prepare('INSERT INTO agent_conversations (channel, sender_phone, sender_name, client_id, last_message, unread_count) VALUES (:ch, :phone, :sname, :cid, :msg, 1)');
+                $ins->execute([
+                    'ch' => $channel,
+                    'phone' => $digits,
+                    'sname' => $senderName ?: ('Client +' . $digits),
+                    'cid' => $clientId,
+                    'msg' => $lastMessage
+                ]);
+                return (int) $db->lastInsertId();
+            }
+        } catch (Throwable $e) {
+            error_log('Error in getOrCreateConversation: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function recordMessage(PDO $db, int $conversationId, string $senderType, string $senderName, string $message, string $messageType = 'text', ?string $docUrl = null, ?string $docName = null, bool $isWhatsApp = true): int
+    {
+        try {
+            $stmt = $db->prepare('INSERT INTO agent_messages (conversation_id, sender_type, sender_name, message, message_type, document_url, document_name, is_whatsapp) VALUES (:cid, :stype, :sname, :msg, :mtype, :durl, :dname, :is_wa)');
+            $stmt->execute([
+                'cid' => $conversationId,
+                'stype' => $senderType,
+                'sname' => $senderName,
+                'msg' => $message,
+                'mtype' => $messageType,
+                'durl' => $docUrl,
+                'dname' => $docName,
+                'is_wa' => $isWhatsApp ? 1 : 0
+            ]);
+            return (int) $db->lastInsertId();
+        } catch (Throwable $e) {
+            error_log('Error in recordMessage: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function handleWhatsAppIncoming(PDO $db, string $senderPhone, string $senderName, string $rawMessage): array
+    {
+        $message = trim($rawMessage);
+        $clean = strtolower($message);
+
+        // Extract last 9 digits of phone for flexible matching (handles 923... and 03...)
+        $digits = preg_replace('/\D+/', '', $senderPhone);
+        $last9 = strlen($digits) >= 9 ? substr($digits, -9) : $digits;
+
+        // Try to locate existing client by phone
+        $client = null;
+        if ($last9 !== '') {
+            $cStmt = $db->prepare('SELECT * FROM clients WHERE mobile LIKE :p1 OR phone LIKE :p2 ORDER BY id DESC LIMIT 1');
+            $cStmt->execute(['p1' => '%' . $last9 . '%', 'p2' => '%' . $last9 . '%']);
+            $client = $cStmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        $greetingName = $senderName ?: ($client['name'] ?? 'Valued Customer');
+
+        // Automatically sync conversation & incoming message with Support Assistant database
+        $convId = $this->getOrCreateConversation($db, 'whatsapp', $senderPhone, $greetingName, $client['id'] ?? null, $rawMessage);
+        if ($convId > 0) {
+            $this->recordMessage($db, $convId, 'client', $greetingName, $rawMessage, 'text', null, null, true);
+        }
+
+        $finishResponse = function (array $resp) use ($db, $convId): array {
+            if ($convId > 0 && !empty($resp['success'])) {
+                if (($resp['reply_type'] ?? '') === 'document' && !empty($resp['file_base64'])) {
+                    $isInv = str_contains($resp['filename'] ?? '', 'Invoice');
+                    $docType = $isInv ? 'invoice' : 'quotation';
+                    $this->recordMessage($db, $convId, 'bot', 'DPTech Sales Agent', $resp['caption'] ?? 'Sent document', $docType, $resp['document_url'] ?? null, $resp['filename'] ?? 'document.pdf', true);
+                    $db->prepare('UPDATE agent_conversations SET last_message = :msg, updated_at = CURRENT_TIMESTAMP WHERE id = :id')
+                        ->execute(['msg' => '📎 ' . ($resp['filename'] ?? 'Document.pdf'), 'id' => $convId]);
+                } elseif (($resp['reply_type'] ?? '') === 'text' && !empty($resp['reply_text'])) {
+                    $this->recordMessage($db, $convId, 'bot', 'DPTech Sales Agent', $resp['reply_text'], 'text', null, null, true);
+                    $preview = mb_substr($resp['reply_text'], 0, 95);
+                    $db->prepare('UPDATE agent_conversations SET last_message = :msg, updated_at = CURRENT_TIMESTAMP WHERE id = :id')
+                        ->execute(['msg' => $preview, 'id' => $convId]);
+                }
+            }
+            return $resp;
+        };
+
+        // 1. Check for INVOICE request or specific Invoice Number
+        $invMatch = null;
+        if (preg_match('/inv[\s-]*(\d{4,6})[\s-]*(\d+)/i', $message, $m)) {
+            $invMatch = sprintf('INV-%s-%s', $m[1], $m[2]);
+        } elseif (preg_match('/(?:invoice|bill)\s*#?\s*(\d+)\b/i', $message, $m)) {
+            $invMatch = $m[1];
+        }
+
+        $wantsInvoice = $invMatch !== null || str_contains($clean, 'invoice') || str_contains($clean, 'bill') || $clean === '3';
+
+        if ($wantsInvoice) {
+            $inv = null;
+            if ($invMatch) {
+                if (str_starts_with(strtoupper($invMatch), 'INV')) {
+                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE UPPER(i.invoice_no) = :no');
+                    $st->execute(['no' => strtoupper($invMatch)]);
+                    $inv = $st->fetch(PDO::FETCH_ASSOC);
+                } else {
+                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.id = :id');
+                    $st->execute(['id' => (int) $invMatch]);
+                    $inv = $st->fetch(PDO::FETCH_ASSOC);
+                }
+            } elseif ($client) {
+                $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.client_id = :cid ORDER BY i.created_at DESC, i.id DESC LIMIT 1');
+                $st->execute(['cid' => $client['id']]);
+                $inv = $st->fetch(PDO::FETCH_ASSOC);
+            } else {
+                $inv = $db->query('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id ORDER BY i.created_at DESC, i.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+            }
+
+            if ($inv) {
+                $itStmt = $db->prepare('SELECT * FROM invoice_items WHERE invoice_id = :id');
+                $itStmt->execute(['id' => $inv['id']]);
+                $inv['items'] = $itStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $amountFormatted = number_format((float) $inv['total_amount'], 2);
+                $balFormatted = number_format((float) ($inv['balance_due'] ?? $inv['total_amount']), 2);
+                $cleanNo = preg_replace('/[^a-zA-Z0-9_\-]/', '_', (string) $inv['invoice_no']);
+
+                $caption = "📄 *Official Sales Tax Invoice #{$inv['invoice_no']}*\n\n"
+                    . "Dear *" . ($inv['client_name'] ?: $greetingName) . "*,\n\n"
+                    . "Here is your requested invoice document from *{$this->context['company']}*.\n\n"
+                    . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    . "• Invoice No: *{$inv['invoice_no']}*\n"
+                    . "• Total Amount: *PKR {$amountFormatted}*\n"
+                    . "• Balance Due: *PKR {$balFormatted}*\n"
+                    . "• Status: *" . ucfirst($inv['status']) . "*\n"
+                    . "• Issue Date: *" . substr($inv['issue_date'] ?? $inv['created_at'], 0, 10) . "*\n"
+                    . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "Thank you for your business! Please find the official PDF attached.";
+
+                $pdfBytes = generate_invoice_pdf($inv);
+
+                return $finishResponse([
+                    'success' => true,
+                    'reply_type' => 'document',
+                    'filename' => "Invoice_{$cleanNo}.pdf",
+                    'document_url' => "/api/invoices/{$inv['id']}/pdf",
+                    'file_base64' => base64_encode($pdfBytes),
+                    'caption' => $caption,
+                    'reply_text' => null,
+                ]);
+            } else {
+                return $finishResponse([
+                    'success' => true,
+                    'reply_type' => 'text',
+                    'reply_text' => "🔍 *Invoice Search Notice*\n\n"
+                        . "We could not find an invoice under reference *\"{$invMatch}\"*.\n\n"
+                        . "Please reply with your exact Invoice Number (e.g., *INV-202610-00001*), or reply *4* to contact our accounts manager directly.",
+                ]);
+            }
+        }
+
+        // 2. Check for QUOTATION / ESTIMATE request or specific Estimate Number
+        $estMatch = null;
+        if (preg_match('/est[\s-]*(\d{4,6})[\s-]*(\d+)/i', $message, $m)) {
+            $estMatch = sprintf('EST-%s-%s', $m[1], $m[2]);
+        } elseif (preg_match('/(?:estimate|quotation|quote)\s*#?\s*(\d+)\b/i', $message, $m)) {
+            $estMatch = $m[1];
+        }
+
+        $wantsQuote = $estMatch !== null || str_contains($clean, 'quotation') || str_contains($clean, 'estimate') || str_contains($clean, 'quote') || $clean === '2';
+
+        if ($wantsQuote) {
+            $est = null;
+            if ($estMatch) {
+                if (str_starts_with(strtoupper($estMatch), 'EST')) {
+                    $st = $db->prepare('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE UPPER(e.estimate_no) = :no');
+                    $st->execute(['no' => strtoupper($estMatch)]);
+                    $est = $st->fetch(PDO::FETCH_ASSOC);
+                } else {
+                    $st = $db->prepare('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE e.id = :id');
+                    $st->execute(['id' => (int) $estMatch]);
+                    $est = $st->fetch(PDO::FETCH_ASSOC);
+                }
+            } elseif ($client) {
+                $st = $db->prepare('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE e.client_id = :cid ORDER BY e.created_at DESC, e.id DESC LIMIT 1');
+                $st->execute(['cid' => $client['id']]);
+                $est = $st->fetch(PDO::FETCH_ASSOC);
+            } else {
+                $est = $db->query('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM estimates e LEFT JOIN clients c ON c.id = e.client_id ORDER BY e.created_at DESC, e.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+            }
+
+            // Check if user is asking for items (e.g., "quote for 4 cctv cameras and 1 switch")
+            $voiceCheck = process_voice_quotation($message, $db);
+            if (!empty($voiceCheck['items']) && count($voiceCheck['items']) > 0) {
+                $summary = "📋 *Instant Quotation Estimate*\n";
+                $summary .= "Prepared for *" . ($client['name'] ?? $greetingName) . "*\n";
+                $summary .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+                foreach ($voiceCheck['items'] as $item) {
+                    $lTotal = number_format((float) $item['total'], 2);
+                    $uPrice = number_format((float) $item['unit_price'], 2);
+                    $summary .= "• *{$item['name']}*\n";
+                    $summary .= "  Qty: {$item['quantity']} × PKR {$uPrice} = *PKR {$lTotal}*\n";
+                }
+                $summary .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+                $summary .= "• Subtotal: *PKR " . number_format($voiceCheck['subtotal'], 2) . "*\n";
+                $summary .= "• GST (17%): *PKR " . number_format($voiceCheck['tax_amount'], 2) . "*\n";
+                $summary .= "• *Grand Total: PKR " . number_format($voiceCheck['total_amount'], 2) . "*\n";
+                $summary .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+                $summary .= "💬 Reply *CONFIRM* to generate your official PDF quotation or contact sales at *{$this->context['phone']}*";
+
+                return $finishResponse([
+                    'success' => true,
+                    'reply_type' => 'text',
+                    'reply_text' => $summary,
+                ]);
+            }
+
+            if ($est) {
+                $itStmt = $db->prepare('SELECT * FROM estimate_items WHERE estimate_id = :id');
+                $itStmt->execute(['id' => $est['id']]);
+                $est['items'] = $itStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $amountFormatted = number_format((float) $est['total_amount'], 2);
+                $cleanNo = preg_replace('/[^a-zA-Z0-9_\-]/', '_', (string) $est['estimate_no']);
+
+                $caption = "📋 *Official Quotation #{$est['estimate_no']}*\n\n"
+                    . "Dear *" . ($est['client_name'] ?: $greetingName) . "*,\n\n"
+                    . "Thank you for contacting *{$this->context['company']}*.\n"
+                    . "Please find attached your official Quotation PDF.\n\n"
+                    . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    . "• Quotation No: *{$est['estimate_no']}*\n"
+                    . "• Total Amount: *PKR {$amountFormatted}*\n"
+                    . "• Valid Until: *" . ($est['valid_until'] ?: '15 Days') . "*\n"
+                    . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "Please feel free to reach out if you have any questions or require revisions.";
+
+                $pdfBytes = generate_estimate_pdf($est);
+
+                return $finishResponse([
+                    'success' => true,
+                    'reply_type' => 'document',
+                    'filename' => "Quotation_{$cleanNo}.pdf",
+                    'document_url' => "/api/estimates/{$est['id']}/pdf",
+                    'file_base64' => base64_encode($pdfBytes),
+                    'caption' => $caption,
+                    'reply_text' => null,
+                ]);
+            }
+        }
+
+        // 3. Check for PRICING / CATALOG / PRODUCTS
+        $pricingKeywords = [
+            'price', 'pricing', 'rate', 'cost', 'how much', 'cctv', 'camera', 'nvr', 'dvr',
+            'switch', 'router', 'network', 'networking', 'cable', 'cat6', 'fiber',
+            'laptop', 'desktop', 'computer', 'pc', 'ups', 'printer', 'accessories',
+            'catalog', 'product', 'products', 'services', '1'
+        ];
+
+        $wantsPricing = false;
+        foreach ($pricingKeywords as $pk) {
+            if ($clean === $pk || str_contains($clean, $pk)) {
+                $wantsPricing = true;
+                break;
+            }
+        }
+
+        if ($wantsPricing) {
+            $cat = null;
+            if (str_contains($clean, 'cctv') || str_contains($clean, 'camera') || str_contains($clean, 'nvr')) {
+                $cat = 'CCTV';
+            } elseif (str_contains($clean, 'network') || str_contains($clean, 'switch') || str_contains($clean, 'router') || str_contains($clean, 'cable')) {
+                $cat = 'Networking';
+            } elseif (str_contains($clean, 'laptop')) {
+                $cat = 'Laptop';
+            } elseif (str_contains($clean, 'desktop') || str_contains($clean, 'pc') || str_contains($clean, 'computer')) {
+                $cat = 'Desktop';
+            } elseif (str_contains($clean, 'power') || str_contains($clean, 'ups')) {
+                $cat = 'Power';
+            } elseif (str_contains($clean, 'service')) {
+                $cat = 'Services';
+            }
+
+            $catalogMsg = $this->queryPricesWhatsApp($db, null, $cat);
+            if ($catalogMsg) {
+                return $finishResponse([
+                    'success' => true,
+                    'reply_type' => 'text',
+                    'reply_text' => $catalogMsg,
+                ]);
+            }
+        }
+
+        // 4. Check for Support / Knowledge Base match
+        $bestMatch = null;
+        $maxScore = 0;
+        foreach ($this->knowledgeBase as $topic => $data) {
+            $score = 0;
+            foreach ($data['keywords'] as $kw) {
+                if (str_contains($clean, $kw)) {
+                    $score++;
+                }
+            }
+            if ($score > $maxScore) {
+                $maxScore = $score;
+                $bestMatch = $data['response'];
+            }
+        }
+
+        if ($bestMatch !== null && $maxScore > 0) {
+            // Convert any markdown tables/formatting to clean WhatsApp bold text
+            $cleanResp = str_replace('**', '*', $bestMatch);
+            return $finishResponse([
+                'success' => true,
+                'reply_type' => 'text',
+                'reply_text' => $cleanResp,
+            ]);
+        }
+
+        // 5. Default: Interactive Menu
+        $menu = "👋 *Assalam-o-Alaikum, {$greetingName}!*\n"
+            . "Welcome to *{$this->context['company']}*.\n"
+            . "_Your Trusted Partner for IT, CCTV & Networking Solutions_\n\n"
+            . "How can our 24/7 automated sales agent assist you today?\n\n"
+            . "1️⃣ *Products & Live Prices* (CCTV, Laptops, Switches, Racks)\n"
+            . "2️⃣ *Request a Quotation PDF*\n"
+            . "3️⃣ *Check Invoice Status or Get PDF*\n"
+            . "4️⃣ *Payment Methods & Tax Info*\n"
+            . "5️⃣ *Talk to Live Sales Representative*\n\n"
+            . "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            . "_Simply reply with 1, 2, 3, 4, 5 or type your question._";
+
+        return $finishResponse([
+            'success' => true,
+            'reply_type' => 'text',
+            'reply_text' => $menu,
+        ]);
     }
 
     public function getHelpTopics(): array

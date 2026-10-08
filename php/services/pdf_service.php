@@ -10,9 +10,15 @@ declare(strict_types=1);
 
 function resolve_company_logo_path(?string $logoUrl): ?string
 {
+    $appRoot = defined('PHP_APP_ROOT') ? PHP_APP_ROOT : dirname(__DIR__);
+
     if (empty($logoUrl)) {
-        $defaultPath = defined('PHP_APP_ROOT') ? PHP_APP_ROOT . '/public/static/img/logo.png' : __DIR__ . '/../public/static/img/logo.png';
-        return file_exists($defaultPath) ? $defaultPath : null;
+        $exactJpg = $appRoot . '/public/static/img/dptech_logo_exact.jpg';
+        if (file_exists($exactJpg)) {
+            return $exactJpg;
+        }
+        $defaultPng = $appRoot . '/public/static/img/logo.png';
+        return file_exists($defaultPng) ? $defaultPng : null;
     }
 
     $candidates = [];
@@ -21,12 +27,9 @@ function resolve_company_logo_path(?string $logoUrl): ?string
         $candidates[] = $logoUrl;
     }
 
-    $appRoot = defined('PHP_APP_ROOT') ? PHP_APP_ROOT : dirname(__DIR__);
-
     if (str_starts_with($logoUrl, '/static/')) {
         $candidates[] = $appRoot . '/public' . $logoUrl;
         $candidates[] = $appRoot . $logoUrl;
-        $candidates[] = dirname($appRoot) . '/app' . $logoUrl;
     }
 
     $candidates[] = $appRoot . '/public/' . ltrim($logoUrl, '/');
@@ -38,7 +41,36 @@ function resolve_company_logo_path(?string $logoUrl): ?string
         }
     }
 
+    $exactJpg = $appRoot . '/public/static/img/dptech_logo_exact.jpg';
+    if (file_exists($exactJpg)) {
+        return $exactJpg;
+    }
+
     return null;
+}
+
+function parse_image_for_pdf(string $file): ?array
+{
+    if (!file_exists($file)) {
+        return null;
+    }
+    $info = @getimagesize($file);
+    if ($info && ($info['mime'] ?? '') === 'image/jpeg') {
+        $raw = file_get_contents($file);
+        if ($raw === false || strlen($raw) === 0) {
+            return null;
+        }
+        return [
+            'width' => (int)$info[0],
+            'height' => (int)$info[1],
+            'data' => $raw,
+            'filter' => '/DCTDecode',
+            'decodeParms' => null,
+            'colorSpace' => '/DeviceRGB',
+            'smask' => null,
+        ];
+    }
+    return parse_png_for_pdf($file);
 }
 
 function parse_png_for_pdf(string $file): ?array
@@ -181,56 +213,81 @@ function get_company_color_theme(array $data): array
     $markup = isset($data['markup_percent']) ? (float)$data['markup_percent'] : 0.0;
     $cid = (int)($data['company_id'] ?? $data['id'] ?? 1);
     $name = strtolower((string)($data['company_name'] ?? $data['name'] ?? ''));
+    $code = strtoupper((string)($data['company_code'] ?? $data['code'] ?? ''));
 
-    // Company 2: M Tech Cybernet / TechPoint -> Modern Forest Emerald & Teal
-    if (abs($markup - 2.0) < 0.1 || $cid === 2 || str_contains($name, 'cybernet') || str_contains($name, 'techpoint')) {
+    // Company 2: Pakistan Technocrates Works & Services (PTC / +2%) -> Executive Charcoal Slate & Warm Bronze Gold
+    if ($cid === 2 || $code === 'PTC' || str_contains($name, 'technocrates') || str_contains($name, 'services') || (abs($markup - 2.0) < 0.1 && !str_contains($name, 'datapoint'))) {
         return [
-            'name' => 'Emerald & Forest Teal',
-            'primary' => [0.02, 0.32, 0.22],      // #055238
-            'accent' => [0.04, 0.65, 0.45],       // #0ba673
-            'secondary' => [0.10, 0.75, 0.55],    // #1abf8c
-            'light' => [0.92, 0.98, 0.95],        // #ebfaf2
-            'tint' => [0.96, 0.99, 0.97],         // #f5fcf8
-            'border' => [0.75, 0.88, 0.82],       // #bfdfd1
-            'text_dark' => [0.05, 0.18, 0.12],
-            'badge_bg' => [0.86, 0.96, 0.90],
-            'badge_text' => [0.02, 0.42, 0.28],
-            'tag' => null,
+            'theme_key' => 'technocrates',
+            'is_primary' => false,
+            'name' => 'Charcoal Slate & Warm Bronze Gold',
+            'doc_title' => 'COMMERCIAL QUOTATION',
+            'slogan' => 'General Order Suppliers, Engineering Works & Technical Services',
+            'primary' => [0.118, 0.161, 0.231],       // #1e293b Deep Slate Charcoal
+            'accent' => [0.706, 0.325, 0.035],        // #b45309 Warm Antique Bronze Gold
+            'secondary' => [0.851, 0.467, 0.024],     // #d97706 Warm Amber
+            'header_bg' => [0.118, 0.161, 0.231],     // #1e293b Deep Charcoal header
+            'row_alt' => [0.988, 0.980, 0.965],       // #fdfbf7 Warm Ivory alternating rows
+            'row_border' => [0.867, 0.835, 0.792],    // #ded5ca Warm Taupe Sand borders
+            'total_bar_bg' => [0.600, 0.250, 0.020],  // #9a3412 Solid Warm Bronze Amber grand total
+            'gst_color' => [0.600, 0.120, 0.120],     // Deep Crimson GST label
+            'terms_bg' => [0.988, 0.980, 0.965],      // Warm Ivory terms box
+            'terms_border' => [0.867, 0.835, 0.792],  // Warm Taupe border
+            'terms_title' => 'TERMS & TECHNICAL SPECIFICATIONS',
+            'stamp_label' => 'AUTHORIZED SIGNATURE & STAMP',
+            'stamp_shape' => 'double_rect',           // Formal rectangular double-line stamp
+            'header_style' => 'corporate_letterhead', // Dual-stripe heavy slate + bronze rule
+            'initials' => 'PTC',
+        ];
+    }
+
+    // Company 3: M tech Cybernet and Electronics (MTC / +3%) -> Forest Emerald & Vibrant Teal
+    if ($cid === 3 || $code === 'MTC' || str_contains($name, 'cybernet') || str_contains($name, 'electronics') || (abs($markup - 3.0) < 0.1 && !str_contains($name, 'datapoint'))) {
+        return [
+            'theme_key' => 'cybernet',
+            'is_primary' => false,
+            'name' => 'Forest Emerald & Vibrant Teal',
+            'doc_title' => 'PROFORMA QUOTATION',
+            'slogan' => 'Telecommunications, Network Infrastructure & Electronic Systems',
+            'primary' => [0.024, 0.306, 0.231],       // #064e3b Deep Forest Pine
+            'accent' => [0.020, 0.588, 0.412],        // #059669 Vibrant Emerald
+            'secondary' => [0.051, 0.580, 0.533],     // #0d9488 Deep Teal
+            'header_bg' => [0.024, 0.306, 0.231],     // #064e3b Deep Forest header
+            'row_alt' => [0.941, 0.992, 0.957],       // #f0fdf4 Crisp Mint Ice alternating rows
+            'row_border' => [0.655, 0.902, 0.780],    // #a7e6c7 Soft Mint borders
+            'total_bar_bg' => [0.024, 0.306, 0.231],  // #064e3b Solid Forest Pine grand total
+            'gst_color' => [0.750, 0.150, 0.150],     // Coral Crimson GST label
+            'terms_bg' => [0.941, 0.992, 0.957],      // Mint Ice terms box
+            'terms_border' => [0.655, 0.902, 0.780],  // Soft Mint border
+            'terms_title' => 'COMMERCIAL TERMS & WARRANTY',
+            'stamp_label' => 'VERIFIED & STAMPED',
+            'stamp_shape' => 'rounded',
+            'header_style' => 'tech_emerald',         // Modern crisp emerald rule
             'initials' => 'MTC',
         ];
     }
 
-    // Company 3: Pakistan Technocrates / Apex -> Royal Purple & Majestic Violet
-    if (abs($markup - 3.0) < 0.1 || $cid === 3 || str_contains($name, 'technocrates') || str_contains($name, 'apex')) {
-        return [
-            'name' => 'Royal Purple & Violet',
-            'primary' => [0.28, 0.10, 0.45],      // #471a73
-            'accent' => [0.55, 0.22, 0.85],       // #8c38d9
-            'secondary' => [0.68, 0.35, 0.95],    // #ad59f2
-            'light' => [0.96, 0.93, 0.99],        // #f5edfc
-            'tint' => [0.98, 0.96, 1.00],         // #faf5ff
-            'border' => [0.84, 0.78, 0.92],       // #d6c7eb
-            'text_dark' => [0.16, 0.06, 0.26],
-            'badge_bg' => [0.92, 0.86, 0.98],
-            'badge_text' => [0.38, 0.12, 0.62],
-            'tag' => null,
-            'initials' => 'PTS',
-        ];
-    }
-
-    // Company 1: DATAPOINT Technologies (Base / Default) -> Executive Sapphire & Navy
+    // Default / Company 1: DATAPOINT Technologies (DPT / 0%) -> Executive Sapphire Navy & Ice Blue
     return [
+        'theme_key' => 'datapoint',
+        'is_primary' => true,
         'name' => 'Sapphire & Deep Navy',
-        'primary' => [0.06, 0.16, 0.32],      // #0f2952
-        'accent' => [0.12, 0.40, 0.85],       // #1e66d9
-        'secondary' => [0.25, 0.50, 0.90],    // #4080e6
-        'light' => [0.93, 0.96, 1.00],        // #edf5ff
-        'tint' => [0.96, 0.98, 1.00],         // #f5f9ff
-        'border' => [0.80, 0.86, 0.94],       // #ccdcf0
-        'text_dark' => [0.08, 0.12, 0.20],
-        'badge_bg' => [0.88, 0.93, 1.00],
-        'badge_text' => [0.08, 0.25, 0.65],
-        'tag' => null,
+        'doc_title' => 'QUOTATION',
+        'slogan' => 'Offering complete Suite of IT and Security solutions',
+        'primary' => [0.059, 0.231, 0.424],       // #0f3b6c Sapphire Navy
+        'accent' => [0.008, 0.518, 0.780],        // #0284c7 Bright Cyan
+        'secondary' => [0.220, 0.741, 0.973],     // #38bdf8 Sky Blue
+        'header_bg' => [0.059, 0.231, 0.424],     // #0f3b6c Sapphire Navy header
+        'row_alt' => [0.941, 0.969, 1.000],       // #f0f7ff Soft Ice Blue alternating rows
+        'row_border' => [0.796, 0.835, 0.886],    // Soft Blue-Gray borders
+        'total_bar_bg' => [0.027, 0.114, 0.216],  // #071d37 Dark Navy grand total
+        'gst_color' => [0.753, 0.224, 0.169],     // Bold Crimson Red GST label
+        'terms_bg' => [0.941, 0.969, 1.000],      // Ice Blue terms box
+        'terms_border' => [0.796, 0.859, 0.941],  // Soft Slate Blue border
+        'terms_title' => 'TERMS & CONDITIONS',
+        'stamp_label' => 'STAMP',
+        'stamp_shape' => 'rounded',
+        'header_style' => 'datapoint_modern',
         'initials' => 'DPT',
     ];
 }
@@ -245,18 +302,68 @@ class DpPdfEngine
     private float $marginLeft = 36.0;
     private float $marginRight = 36.0;
     private float $marginBottom = 45.0;
+    private ?array $footerInfo = null;
+    private ?array $footerBanner = null;
     private array $images = [];
     private array $pageImages = [];
     private array $theme = [];
     private string $companyName = 'DATAPOINT Technologies';
+    private string $companyPhone = '';
+    private string $companyNtn = '';
 
-    public function __construct(array $theme = [], string $companyName = '')
+    public function __construct(array $theme = [], string $companyName = '', string $companyPhone = '', string $companyNtn = '')
     {
         $this->theme = $theme;
         if ($companyName !== '') {
             $this->companyName = $companyName;
         }
+        $this->companyPhone = $companyPhone;
+        $this->companyNtn = $companyNtn;
         $this->addPage();
+    }
+
+    public function setMargins(float $left, float $right, float $bottom = 45.0, float $top = 28.0): void
+    {
+        $this->marginLeft = $left;
+        $this->marginRight = $right;
+        $this->marginBottom = $bottom;
+        $this->currentY = $this->pageHeight - $top;
+    }
+
+    public function setFooterInfo(?array $info): void
+    {
+        $this->footerInfo = $info;
+    }
+
+    public function setFooterBannerImage(string $filePath, float $x = 36.0, float $y = 28.0, float $w = 523.28, float $h = 45.0): void
+    {
+        if (!file_exists($filePath)) {
+            return;
+        }
+        $imgIdx = null;
+        foreach ($this->images as $idx => $stored) {
+            if ($stored['path'] === $filePath) {
+                $imgIdx = $idx + 1;
+                break;
+            }
+        }
+        if ($imgIdx === null) {
+            $parsed = parse_image_for_pdf($filePath);
+            if ($parsed) {
+                $parsed['path'] = $filePath;
+                $this->images[] = $parsed;
+                $imgIdx = count($this->images);
+            }
+        }
+        if ($imgIdx !== null) {
+            $this->footerBanner = [
+                'imgIdx' => $imgIdx,
+                'x' => $x,
+                'y' => $y,
+                'w' => $w,
+                'h' => $h,
+            ];
+        }
     }
 
     public function getPageWidth(): float { return $this->pageWidth; }
@@ -335,6 +442,49 @@ class DpPdfEngine
         $this->append($cmd);
     }
 
+    public function drawRoundedRect(float $x, float $y, float $w, float $h, float $r = 4.0, bool $fill = true, bool $stroke = false): void
+    {
+        $r = min($r, $w / 2, $h / 2);
+        $k = 0.552284749831 * $r;
+        $cmd = sprintf("%.2F %.2F m\n", $x + $r, $y);
+        $cmd .= sprintf("%.2F %.2F l\n", $x + $w - $r, $y);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $x + $w - $r + $k, $y, $x + $w, $y + $r - $k, $x + $w, $y + $r);
+        $cmd .= sprintf("%.2F %.2F l\n", $x + $w, $y + $h - $r);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $x + $w, $y + $h - $r + $k, $x + $w, $y + $h, $x + $w - $r, $y + $h);
+        $cmd .= sprintf("%.2F %.2F l\n", $x + $r, $y + $h);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $x + $r - $k, $y + $h, $x, $y + $h - $r + $k, $x, $y + $h - $r);
+        $cmd .= sprintf("%.2F %.2F l\n", $x, $y + $r);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $x, $y + $r - $k, $x + $r - $k, $y, $x + $r, $y);
+        $cmd .= "h\n";
+        if ($fill && $stroke) {
+            $cmd .= "B\n";
+        } elseif ($fill) {
+            $cmd .= "f\n";
+        } else {
+            $cmd .= "S\n";
+        }
+        $this->append($cmd);
+    }
+
+    public function drawCircle(float $cx, float $cy, float $r, bool $fill = true, bool $stroke = false): void
+    {
+        $k = 0.552284749831 * $r;
+        $cmd = sprintf("%.2F %.2F m\n", $cx, $cy - $r);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $cx + $k, $cy - $r, $cx + $r, $cy - $k, $cx + $r, $cy);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $cx + $r, $cy + $k, $cx + $k, $cy + $r, $cx, $cy + $r);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $cx - $k, $cy + $r, $cx - $r, $cy + $k, $cx - $r, $cy);
+        $cmd .= sprintf("%.2F %.2F %.2F %.2F %.2F %.2F c\n", $cx - $r, $cy - $k, $cx - $k, $cy - $r, $cx, $cy - $r);
+        $cmd .= "h\n";
+        if ($fill && $stroke) {
+            $cmd .= "B\n";
+        } elseif ($fill) {
+            $cmd .= "f\n";
+        } else {
+            $cmd .= "S\n";
+        }
+        $this->append($cmd);
+    }
+
     public function drawLine(float $x1, float $y1, float $x2, float $y2): void
     {
         $this->append(sprintf("%.2F %.2F m\n%.2F %.2F l\nS\n", $x1, $y1, $x2, $y2));
@@ -398,7 +548,7 @@ class DpPdfEngine
         }
 
         if ($imgIdx === null) {
-            $parsed = parse_png_for_pdf($filePath);
+            $parsed = parse_image_for_pdf($filePath);
             if (!$parsed) {
                 return null;
             }
@@ -470,6 +620,51 @@ class DpPdfEngine
             $pId = $pageObjIds[$i];
             $sId = $streamObjIds[$i];
 
+            // If footerBanner is set, ensure it's in this page's images
+            $footerCmd = '';
+            if ($this->footerBanner !== null) {
+                $fIdx = $this->footerBanner['imgIdx'];
+                if (!in_array($fIdx, $this->pageImages[$i], true)) {
+                    $this->pageImages[$i][] = $fIdx;
+                }
+                $footerCmd = sprintf(
+                    "q\n%.2F 0 0 %.2F %.2F %.2F cm\n/I%d Do\nQ\n",
+                    $this->footerBanner['w'],
+                    $this->footerBanner['h'],
+                    $this->footerBanner['x'],
+                    $this->footerBanner['y'],
+                    $fIdx
+                );
+            } else {
+                $footerLine = sprintf(
+                    "%.3F %.3F %.3F RG\n1.20 w\n%.2F 36.00 m\n%.2F 36.00 l\nS\n",
+                    $this->theme['accent'][0] ?? 0.2,
+                    $this->theme['accent'][1] ?? 0.4,
+                    $this->theme['accent'][2] ?? 0.8,
+                    $this->marginLeft,
+                    $this->pageWidth - $this->marginRight
+                );
+                $infoParts = array_filter([
+                    $this->companyName,
+                    $this->companyPhone ? 'Tel: ' . $this->companyPhone : null,
+                    $this->companyNtn ? 'NTN: ' . $this->companyNtn : null
+                ]);
+                $footerText = sprintf(
+                    "BT\n/F1 8.00 Tf\n0.350 0.400 0.450 rg\n%.2F 24.00 Td\n(%s) Tj\nET\n",
+                    $this->marginLeft,
+                    $this->escape(implode(' • ', $infoParts))
+                );
+                $footerPageNum = sprintf(
+                    "BT\n/F2 8.00 Tf\n%.3F %.3F %.3F rg\n%.2F 24.00 Td\n(%s) Tj\nET\n",
+                    $this->theme['primary'][0] ?? 0.2,
+                    $this->theme['primary'][1] ?? 0.2,
+                    $this->theme['primary'][2] ?? 0.2,
+                    $this->pageWidth - $this->marginRight - 65,
+                    $this->escape("Page " . ($i + 1) . " of " . $pageCount)
+                );
+                $footerCmd = $footerLine . $footerText . $footerPageNum;
+            }
+
             // Build XObject resource dictionary for this page
             $xobjDict = '';
             foreach ($this->pageImages[$i] as $imgIndex) {
@@ -479,26 +674,7 @@ class DpPdfEngine
             }
             $xobjectEntry = $xobjDict !== '' ? " /XObject <<{$xobjDict} >>" : "";
 
-            // Page Footer
-            $footerLine = sprintf(
-                "%.3F %.3F %.3F RG\n0.80 w\n%.2F 36.00 m\n%.2F 36.00 l\nS\n",
-                $this->theme['accent'][0] ?? 0.2,
-                $this->theme['accent'][1] ?? 0.4,
-                $this->theme['accent'][2] ?? 0.8,
-                $this->marginLeft,
-                $this->pageWidth - $this->marginRight
-            );
-            $footerCmd = sprintf(
-                "BT\n/F1 8.00 Tf\n0.400 0.450 0.500 rg\n%.2F 24.00 Td\n(%s) Tj\nET\n",
-                $this->marginLeft,
-                $this->escape("Generated on " . date('Y-m-d H:i') . " • " . $this->companyName)
-            );
-            $footerPageNum = sprintf(
-                "BT\n/F2 8.00 Tf\n0.300 0.350 0.400 rg\n%.2F 24.00 Td\n(%s) Tj\nET\n",
-                $this->pageWidth - $this->marginRight - 65,
-                $this->escape("Page " . ($i + 1) . " of " . $pageCount)
-            );
-            $streamContent = $this->pages[$i] . $footerLine . $footerCmd . $footerPageNum;
+            $streamContent = $this->pages[$i] . $footerCmd;
             $streamLen = strlen($streamContent);
 
             $offsets[$pId] = strlen($out);
@@ -554,534 +730,362 @@ class DpPdfEngine
     }
 }
 
-function generate_invoice_pdf(array $inv): string
+function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE'): string
 {
-    $companyName = !empty($inv['company_name']) ? (string)$inv['company_name'] : (getenv('COMPANY_NAME') ?: 'DATAPOINT Technologies');
-    $companyAddress = !empty($inv['company_address']) ? (string)$inv['company_address'] : (getenv('COMPANY_ADDRESS') ?: 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh');
-    $companyPhone = !empty($inv['company_phone']) ? (string)$inv['company_phone'] : (getenv('COMPANY_MOBILE') ?: getenv('COMPANY_PHONE') ?: '+923167788990');
-    $companyEmail = !empty($inv['company_email']) ? (string)$inv['company_email'] : (getenv('COMPANY_EMAIL') ?: 'info@datapointtechnology.com');
-    $companyNtn = !empty($inv['company_ntn']) ? (string)$inv['company_ntn'] : (getenv('COMPANY_NTN') ?: '');
-    $companyStrn = !empty($inv['company_strn']) ? (string)$inv['company_strn'] : (getenv('COMPANY_STRN') ?: '');
-    $logoUrl = $inv['company_logo'] ?? $inv['logo_url'] ?? null;
+    $companyName = !empty($doc['company_name']) ? (string)$doc['company_name'] : (getenv('COMPANY_NAME') ?: 'DATAPOINT Technologies');
+    $companyAddress = !empty($doc['company_address']) ? (string)$doc['company_address'] : (getenv('COMPANY_ADDRESS') ?: 'G32 Shayas Residence, Jamshoro Road, Citizen Colony, Hyderabad, Sindh');
+    $companyPhone = !empty($doc['company_phone']) ? (string)$doc['company_phone'] : (getenv('COMPANY_MOBILE') ?: getenv('COMPANY_PHONE') ?: '0316 7788990');
+    $companyEmail = !empty($doc['company_email']) ? (string)$doc['company_email'] : (getenv('COMPANY_EMAIL') ?: 'info@datapointtechnology.com');
+    $companyNtn = !empty($doc['company_ntn']) ? (string)$doc['company_ntn'] : (getenv('COMPANY_NTN') ?: '7178396-5');
+    $companyStrn = !empty($doc['company_strn']) ? (string)$doc['company_strn'] : (getenv('COMPANY_STRN') ?: '3277876124452');
+    $logoUrl = $doc['company_logo'] ?? $doc['logo_url'] ?? null;
 
-    $theme = get_company_color_theme($inv);
-    $pdf = new DpPdfEngine($theme, $companyName);
-    $left = $pdf->getMarginLeft();
-    $width = $pdf->getPrintableWidth();
+    $theme = get_company_color_theme($doc);
+    $pdf = new DpPdfEngine($theme, $companyName, $companyPhone, $companyNtn);
 
-    // 1. Top Decorative Brand Bar
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawRect($left, 788, $width, 5, true, false);
+    // Margins: left=36, right=36, bottom=85, top=25
+    $left = 36.0;
+    $right = 36.0;
+    $pdf->setMargins($left, $right, 85.0, 25.0);
+    $width = $pdf->getPrintableWidth(); // 523.28 pt
 
-    // 2. Header Container Frame (Light theme background)
-    $headerBoxH = 78.0;
-    $headerBoxY = 708.0;
-    $pdf->setFillColorArray($theme['light']);
-    $pdf->setStrokeColorArray($theme['border']);
-    $pdf->setLineWidth(0.8);
-    $pdf->drawRect($left, $headerBoxY, $width, $headerBoxH, true, true);
-
-    // 3. Logo Placement or Monogram Badge
-    $logoResolved = resolve_company_logo_path($logoUrl);
-    $textStartX = $left + 14.0;
-
-    if ($logoResolved) {
-        $logoRes = $pdf->addImage($logoResolved, $left + 12, $headerBoxY + $headerBoxH - 12, 54, 54);
-        if ($logoRes) {
-            $textStartX = $left + 12 + 54 + 14.0;
+    // Attach footer banner image ONLY if primary company (DATAPOINT)
+    if (!empty($theme['is_primary'])) {
+        $footerBannerPath = resolve_company_logo_path('/static/img/dptech_footer_banner.jpg');
+        if ($footerBannerPath && file_exists($footerBannerPath)) {
+            $pdf->setFooterBannerImage($footerBannerPath, $left, 28.0, $width, 45.0);
         }
+    }
+
+    // 1. Top Header: Logo (top-left) and Document Title (top-right)
+    $logoResolved = resolve_company_logo_path($logoUrl);
+    if ($logoResolved) {
+        // Prominent, large logo at top-left corner
+        $pdf->addImage($logoResolved, $left, 822.0, 145.0, 78.0);
     } else {
-        // Stylish Monogram Badge
-        $pdf->setFillColorArray($theme['accent']);
-        $pdf->drawRect($left + 12, $headerBoxY + 14, 50, 50, true, false);
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawRoundedRect($left, 744.0, 120.0, 68.0, 5.0, true, false);
         $pdf->setFillColor(1, 1, 1);
-        $pdf->drawText($left + 12, $headerBoxY + 31, $theme['initials'] ?? 'DPT', 'F2', 15, 'center', 50);
-        $textStartX = $left + 12 + 50 + 14.0;
+        $pdf->drawText($left, 774.0, $theme['initials'] ?? 'DPT', 'F2', 22.0, 'center', 120.0);
     }
 
-    // 4. Company Profile Text
+    // Document Title on top right
+    $docTitle = ($type === 'INVOICE')
+        ? (!empty($doc['invoice_heading']) ? (string)$doc['invoice_heading'] : (!empty($theme['is_primary']) ? 'SALES TAX INVOICE' : 'COMMERCIAL INVOICE'))
+        : ($theme['doc_title'] ?? 'QUOTATION');
     $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($textStartX, $headerBoxY + $headerBoxH - 20, strtoupper($companyName), 'F2', 13.5);
-    $pdf->setFillColor(0.35, 0.40, 0.48);
-    $pdf->drawText($textStartX, $headerBoxY + $headerBoxH - 34, $companyAddress, 'F1', 8.5);
+    $pdf->drawText($left, 772.0, $docTitle, 'F2', 21.0, 'right', $width);
 
-    $contactStr = array_filter([$companyPhone, $companyEmail]);
+    // 2. Sub-heading under Heading: Clean, justified & balanced across document width
+    $slogan = $theme['slogan'] ?? 'Offering complete Suite of IT and Security solutions';
     $pdf->setFillColorArray($theme['accent']);
-    $pdf->drawText($textStartX, $headerBoxY + $headerBoxH - 47, implode('  •  ', $contactStr), 'F2', 8.5);
+    $pdf->drawText($left, 730.0, $slogan, 'F2', 11.0, 'center', $width);
 
-    if ($companyNtn !== '' || $companyStrn !== '') {
-        $taxParts = [];
-        if ($companyNtn !== '') $taxParts[] = 'NTN: ' . $companyNtn;
-        if ($companyStrn !== '') $taxParts[] = 'STRN: ' . $companyStrn;
-        $pdf->setFillColorArray($theme['badge_bg']);
-        $pdf->drawRect($textStartX, $headerBoxY + 10, 200, 14, true, false);
-        $pdf->setFillColorArray($theme['badge_text']);
-        $pdf->drawText($textStartX + 6, $headerBoxY + 14, implode('  |  ', $taxParts), 'F2', 7.5);
+    // Distinct divider rule under the sub-heading
+    if (($theme['header_style'] ?? '') === 'corporate_letterhead') {
+        // PTC: Dual rule (Thick Slate Charcoal bar + Thin Warm Bronze Gold rule)
+        $pdf->setStrokeColorArray($theme['primary']);
+        $pdf->setLineWidth(2.2);
+        $pdf->drawLine($left, 724.0, $left + $width, 724.0);
+
+        $pdf->setStrokeColorArray($theme['accent']);
+        $pdf->setLineWidth(0.8);
+        $pdf->drawLine($left, 721.0, $left + $width, 721.0);
+    } elseif (($theme['header_style'] ?? '') === 'tech_emerald') {
+        // MTC: Crisp Emerald Teal accent line
+        $pdf->setStrokeColorArray($theme['accent']);
+        $pdf->setLineWidth(1.6);
+        $pdf->drawLine($left, 722.0, $left + $width, 722.0);
+    } else {
+        // DPT: High-tech hairline blue rule
+        $pdf->setStrokeColor(0.85, 0.90, 0.95);
+        $pdf->setLineWidth(0.75);
+        $pdf->drawLine($left, 722.0, $left + $width, 722.0);
     }
 
-    // 5. Document Header Box (Right)
-    $boxW = 165.0;
-    $boxX = $left + $width - $boxW - 10.0;
+    // 3. Metadata Section
+    $metaY = 698.0;
+
+    // Left Column: NTN, STR, Client Details
+    $pdf->setFillColorArray($theme['primary']);
+    $pdf->drawText($left, $metaY, 'NTN No.', 'F2', 9.0);
+    $pdf->drawText($left + 65.0, $metaY, ': ' . $companyNtn, 'F1', 9.0);
+
+    $pdf->drawText($left, $metaY - 14.0, 'STR No.', 'F2', 9.0);
+    $pdf->drawText($left + 65.0, $metaY - 14.0, ': ' . $companyStrn, 'F1', 9.0);
+
+    $clientName = !empty($doc['client_name']) ? (string)$doc['client_name'] : 'Valued Customer';
+    $clientCompany = !empty($doc['client_company']) ? (string)$doc['client_company'] : '';
+    $clientPhone = $doc['client_phone'] ?? $doc['client_mobile'] ?? '';
+    $clientAddress = $doc['client_address'] ?? '';
+    $toLabel = ($type === 'INVOICE') ? 'Invoice To' : 'Quotation To';
+
+    $pdf->drawText($left, $metaY - 28.0, $toLabel, 'F2', 9.0);
+    $pdf->drawText($left + 65.0, $metaY - 28.0, ': ' . $clientName . ($clientCompany !== '' ? " ({$clientCompany})" : ''), 'F2', 9.0);
+
+    $clientSub = array_filter([$clientPhone, $clientAddress]);
+    if (!empty($clientSub)) {
+        $pdf->setFillColor(0.35, 0.40, 0.48);
+        $pdf->drawText($left + 65.0, $metaY - 40.0, ': ' . implode(' | ', $clientSub), 'F1', 8.0);
+    }
+
+    // Right Column: Date, EST: # / INV: #
+    $rawDate = $doc['invoice_date'] ?? $doc['estimate_date'] ?? date('Y-m-d');
+    $dateTs = strtotime((string)$rawDate);
+    $formattedDate = $dateTs ? date('d/m/Y', $dateTs) : (string)$rawDate;
+    $docNo = ($type === 'INVOICE') ? ($doc['invoice_no'] ?? 'N/A') : ($doc['estimate_no'] ?? 'N/A');
+    $numLabel = ($type === 'INVOICE') ? 'INV: #' : 'EST: #';
+
+    $rightMetaX = $left + $width - 190.0;
+    $pdf->setFillColorArray($theme['primary']);
+    $pdf->drawText($rightMetaX, $metaY, 'Date', 'F2', 9.0);
+    $pdf->drawText($rightMetaX + 50.0, $metaY, ': ' . $formattedDate, 'F1', 9.0);
+
+    $pdf->drawText($rightMetaX, $metaY - 14.0, $numLabel, 'F2', 9.0);
+    $pdf->drawText($rightMetaX + 50.0, $metaY - 14.0, ': ' . $docNo, 'F2', 9.0);
+
+    // 4. Section Title Banner
+    $bannerY = $metaY - 56.0;
+    $sectionTitle = !empty($doc['title']) ? strtoupper(trim((string)$doc['title'])) : 'ACTIVE COMPONENTS-ZONE-1';
+    $pdf->setFillColorArray($theme['primary']);
+    $pdf->drawRect($left, $bannerY - 16.0, $width, 18.0, true, false);
+
+    if (($theme['header_style'] ?? '') === 'corporate_letterhead') {
+        $pdf->setFillColorArray($theme['accent']);
+        $pdf->drawRect($left, $bannerY - 16.0, 5.0, 18.0, true, false);
+    } elseif (($theme['header_style'] ?? '') === 'tech_emerald') {
+        $pdf->setFillColorArray($theme['secondary']);
+        $pdf->drawRect($left, $bannerY - 16.0, 5.0, 18.0, true, false);
+    }
+
     $pdf->setFillColor(1, 1, 1);
-    $pdf->setStrokeColorArray($theme['border']);
-    $pdf->setLineWidth(0.8);
-    $pdf->drawRect($boxX, $headerBoxY + 8, $boxW, $headerBoxH - 16, true, true);
+    $pdf->drawText($left, $bannerY - 12.0, $sectionTitle, 'F2', 9.5, 'center', $width);
 
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 24, 'TAX SALES INVOICE', 'F2', 10.5);
-
-    $status = strtoupper((string)($inv['status'] ?? 'DRAFT'));
-    $statusColor = $theme['accent'];
-    if ($status === 'PAID') {
-        $statusColor = [0.08, 0.60, 0.28];
-    } elseif ($status === 'PARTIALLY_PAID') {
-        $statusColor = [0.85, 0.50, 0.05];
-    } elseif ($status === 'OVERDUE') {
-        $statusColor = [0.85, 0.15, 0.15];
-    }
-    $pdf->setFillColorArray($statusColor);
-    $pdf->drawText($boxX + $boxW - 60, $headerBoxY + $headerBoxH - 24, '[' . str_replace('_', ' ', $status) . ']', 'F2', 7.5, 'right', 50);
-
-    $pdf->setFillColor(0.2, 0.25, 0.3);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 38, 'Invoice #: ' . ($inv['invoice_no'] ?? 'N/A'), 'F2', 8.5);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 50, 'Date: ' . ($inv['invoice_date'] ?? date('Y-m-d')), 'F1', 8.0);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 62, 'Due Date: ' . ($inv['due_date'] ?? 'On Receipt'), 'F1', 8.0);
-
-    // 6. Billed To Card
-    $billY = 694.0;
-    $billH = 50.0;
-    $pdf->setFillColorArray($theme['light']);
-    $pdf->drawRect($left, $billY - $billH, $width, $billH, true, false);
-    $pdf->setFillColorArray($theme['accent']);
-    $pdf->drawRect($left, $billY - $billH, 3.5, $billH, true, false);
-
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($left + 12, $billY - 14, 'BILLED TO:', 'F2', 8.5);
-
-    $clientName = $inv['client_name'] ?? 'Valued Customer';
-    $clientCompany = $inv['client_company'] ?? '';
-    $clientPhone = $inv['client_phone'] ?? $inv['client_mobile'] ?? '';
-    $clientEmail = $inv['client_email'] ?? '';
-    $clientAddress = $inv['client_address'] ?? '';
-    $clientNtn = $inv['client_ntn'] ?? '';
-
-    $pdf->setFillColor(0.12, 0.15, 0.20);
-    $pdf->drawText($left + 12, $billY - 26, $clientName . ($clientCompany !== '' ? ' (' . $clientCompany . ')' : ''), 'F2', 9.5);
-
-    $clientLine2 = array_filter([$clientPhone, $clientEmail, $clientNtn !== '' ? 'NTN: ' . $clientNtn : '']);
-    $pdf->setFillColor(0.40, 0.45, 0.52);
-    $pdf->drawText($left + 12, $billY - 37, implode('  •  ', $clientLine2), 'F1', 8.0);
-    if ($clientAddress !== '') {
-        $pdf->drawText($left + 12, $billY - 47, $clientAddress, 'F1', 8.0);
-    }
-
-    // 7. Line Items Table
-    $tableTop = $billY - $billH - 12.0;
+    // 5. Line Items Table
+    $tableTop = $bannerY - 20.0;
     $pdf->setY($tableTop);
 
-    $colDesc = 250.0;
-    $colQty = 45.0;
-    $colUnit = 45.0;
-    $colRate = 85.0;
-    $colTotal = $width - $colDesc - $colQty - $colUnit - $colRate;
+    $colNum = 24.0;
+    $colDesc = 165.0;
+    $colModel = 145.0;
+    $colUnit = 35.0;
+    $colQty = 30.0;
+    $colRate = 55.0;
+    $colTotal = $width - $colNum - $colDesc - $colModel - $colUnit - $colQty - $colRate; // 69.28 pt
 
-    $drawTableHeader = function(DpPdfEngine $p) use ($left, $width, $colDesc, $colQty, $colUnit, $colRate, $colTotal, $theme) {
+    $drawTableHeader = function(DpPdfEngine $p) use ($left, $width, $colNum, $colDesc, $colModel, $colUnit, $colQty, $colRate, $colTotal, $theme) {
         $y = $p->getY();
-        $p->setFillColorArray($theme['primary']);
-        $p->drawRect($left, $y - 18, $width, 20, true, false);
+        $p->setFillColorArray($theme['header_bg']);
+        $p->drawRect($left, $y - 18.0, $width, 18.0, true, false);
+
+        if (($theme['header_style'] ?? '') === 'corporate_letterhead') {
+            $p->setStrokeColorArray($theme['accent']);
+            $p->setLineWidth(1.8);
+            $p->drawLine($left, $y, $left + $width, $y);
+        } elseif (($theme['header_style'] ?? '') === 'tech_emerald') {
+            $p->setStrokeColorArray($theme['secondary']);
+            $p->setLineWidth(1.2);
+            $p->drawLine($left, $y - 18.0, $left + $width, $y - 18.0);
+        }
 
         $p->setFillColor(1, 1, 1);
-        $p->drawText($left + 8, $y - 13, 'ITEM DESCRIPTION', 'F2', 8.5);
-        $p->drawText($left + $colDesc, $y - 13, 'QTY', 'F2', 8.5, 'center', $colQty);
-        $p->drawText($left + $colDesc + $colQty, $y - 13, 'UNIT', 'F2', 8.5, 'center', $colUnit);
-        $p->drawText($left + $colDesc + $colQty + $colUnit, $y - 13, 'RATE (PKR)', 'F2', 8.5, 'right', $colRate - 5);
-        $p->drawText($left + $colDesc + $colQty + $colUnit + $colRate, $y - 13, 'AMOUNT (PKR)', 'F2', 8.5, 'right', $colTotal - 8);
-        $p->setY($y - 20);
+        $x = $left;
+        $p->drawText($x, $y - 13.0, '#', 'F2', 8.0, 'center', $colNum);
+        $x += $colNum;
+        $p->drawText($x + 4.0, $y - 13.0, 'Item Description', 'F2', 8.0);
+        $x += $colDesc;
+        $p->drawText($x + 4.0, $y - 13.0, 'Model / Make', 'F2', 8.0);
+        $x += $colModel;
+        $p->drawText($x, $y - 13.0, 'Unit', 'F2', 8.0, 'center', $colUnit);
+        $x += $colUnit;
+        $p->drawText($x, $y - 13.0, 'Qty', 'F2', 8.0, 'center', $colQty);
+        $x += $colQty;
+        $p->drawText($x, $y - 13.0, 'Rate (PKR)', 'F2', 8.0, 'right', $colRate - 3.0);
+        $x += $colRate;
+        $p->drawText($x, $y - 13.0, 'Total (PKR)', 'F2', 8.0, 'right', $colTotal - 4.0);
+
+        $p->setY($y - 18.0);
     };
 
     $drawTableHeader($pdf);
 
-    $items = $inv['items'] ?? [];
+    $items = $doc['items'] ?? [];
     $isOdd = false;
+    $itemIdx = 1;
 
     foreach ($items as $item) {
-        $desc = trim((string)($item['description'] ?? 'Product / Service'));
+        $desc = trim((string)($item['description'] ?? 'Item'));
+        $modelMake = trim((string)($item['model_make'] ?? ''));
+        $unit = (string)($item['unit'] ?? 'No.');
         $qty = (float)($item['quantity'] ?? 1);
-        $unit = (string)($item['unit'] ?? 'pcs');
         $rate = (float)($item['unit_price'] ?? 0);
         $total = (float)($item['total_price'] ?? ($qty * $rate));
 
-        $lines = $pdf->wrapText($desc, $colDesc - 15, 8.5);
-        $rowHeight = max(18.0, count($lines) * 12.0 + 6.0);
+        $descLines = $pdf->wrapText($desc, $colDesc - 10.0, 8.0);
+        $modelLines = $pdf->wrapText($modelMake !== '' ? $modelMake : '-', $colModel - 10.0, 7.5);
+        $maxLines = max(count($descLines), count($modelLines));
+        $rowH = max(18.0, $maxLines * 11.0 + 6.0);
 
-        $pdf->checkPageBreak($rowHeight + 35, $drawTableHeader);
+        $pdf->checkPageBreak($rowH + 30.0, $drawTableHeader);
         $y = $pdf->getY();
 
         if ($isOdd) {
-            $pdf->setFillColorArray($theme['tint']);
-            $pdf->drawRect($left, $y - $rowHeight, $width, $rowHeight, true, false);
+            $pdf->setFillColorArray($theme['row_alt']);
+            $pdf->drawRect($left, $y - $rowH, $width, $rowH, true, false);
         }
         $isOdd = !$isOdd;
 
-        $pdf->setFillColor(0.15, 0.15, 0.18);
-        $textY = $y - 12;
-        foreach ($lines as $line) {
-            $pdf->drawText($left + 8, $textY, $line, 'F1', 8.5);
-            $textY -= 12;
+        $pdf->setFillColor(0.20, 0.25, 0.32);
+
+        // #
+        $x = $left;
+        $pdf->drawText($x, $y - 12.0, (string)$itemIdx, 'F1', 8.0, 'center', $colNum);
+        $x += $colNum;
+
+        // Description
+        $textY = $y - 12.0;
+        foreach ($descLines as $dl) {
+            $pdf->drawText($x + 4.0, $textY, $dl, 'F1', 8.0);
+            $textY -= 11.0;
         }
+        $x += $colDesc;
 
-        $pdf->drawText($left + $colDesc, $y - 12, (string)$qty, 'F1', 8.5, 'center', $colQty);
-        $pdf->drawText($left + $colDesc + $colQty, $y - 12, $unit, 'F1', 8.5, 'center', $colUnit);
-        $pdf->drawText($left + $colDesc + $colQty + $colUnit, $y - 12, number_format($rate, 2), 'F1', 8.5, 'right', $colRate - 5);
-        $pdf->drawText($left + $colDesc + $colQty + $colUnit + $colRate, $y - 12, number_format($total, 2), 'F2', 8.5, 'right', $colTotal - 8);
+        // Model / Make
+        $textY = $y - 12.0;
+        foreach ($modelLines as $ml) {
+            $pdf->drawText($x + 4.0, $textY, $ml, 'F1', 7.5);
+            $textY -= 11.0;
+        }
+        $x += $colModel;
 
-        $pdf->setStrokeColorArray($theme['border']);
+        // Unit
+        $pdf->drawText($x, $y - 12.0, $unit, 'F1', 8.0, 'center', $colUnit);
+        $x += $colUnit;
+
+        // Qty
+        $pdf->drawText($x, $y - 12.0, (string)$qty, 'F2', 8.0, 'center', $colQty);
+        $x += $colQty;
+
+        // Rate
+        $pdf->drawText($x, $y - 12.0, number_format($rate, 2), 'F1', 8.0, 'right', $colRate - 3.0);
+        $x += $colRate;
+
+        // Total
+        $pdf->drawText($x, $y - 12.0, number_format($total, 2), 'F2', 8.0, 'right', $colTotal - 4.0);
+
+        // Grid border
+        $pdf->setStrokeColorArray($theme['row_border']);
         $pdf->setLineWidth(0.4);
-        $pdf->drawLine($left, $y - $rowHeight, $left + $width, $y - $rowHeight);
+        $pdf->drawLine($left, $y - $rowH, $left + $width, $y - $rowH);
 
-        $pdf->setY($y - $rowHeight);
+        $pdf->setY($y - $rowH);
+        $itemIdx++;
     }
 
-    // 8. Totals Breakdown Card
-    $pdf->checkPageBreak(135.0);
-    $y = $pdf->getY() - 10;
+    // 6. Summary Block
+    $pdf->checkPageBreak(120.0);
+    $y = $pdf->getY() - 4.0;
 
-    $summaryW = 215.0;
-    $summaryX = $left + $width - $summaryW;
+    $subtotal = (float)($doc['subtotal'] ?? 0);
+    $taxRate = (float)($doc['tax_rate'] ?? 18);
+    $taxAmount = (float)($doc['tax_amount'] ?? 0);
+    $totalAmount = (float)($doc['total_amount'] ?? ($subtotal + $taxAmount));
 
-    $subtotal = (float)($inv['subtotal'] ?? 0);
-    $discountAmount = (float)($inv['discount_amount'] ?? 0);
-    $taxRate = (float)($inv['tax_rate'] ?? 17);
-    $taxAmount = (float)($inv['tax_amount'] ?? 0);
-    $whtAmount = (float)($inv['withholding_tax_amount'] ?? 0);
-    $fedAmount = (float)($inv['fed_amount'] ?? 0);
-    $totalAmount = (float)($inv['total_amount'] ?? 0);
-    $amountPaid = (float)($inv['amount_paid'] ?? 0);
-    $balanceDue = (float)($inv['balance_due'] ?? max(0, $totalAmount - $amountPaid));
+    // Total (Subtotal)
+    $pdf->setFillColorArray($theme['primary']);
+    $pdf->drawText($left + $width - $colTotal - $colRate - 30.0, $y - 11.0, 'Total', 'F2', 10.0, 'right', 40.0);
+    $pdf->drawText($left + $width - $colTotal, $y - 11.0, number_format($subtotal, 2), 'F2', 9.0, 'right', $colTotal - 4.0);
+    $y -= 16.0;
 
-    $summaryRows = [
-        ['Subtotal:', 'PKR ' . number_format($subtotal, 2), false],
-    ];
-    if ($discountAmount > 0) {
-        $summaryRows[] = ['Discount:', '-PKR ' . number_format($discountAmount, 2), false];
-    }
-    if ($taxAmount > 0) {
-        $summaryRows[] = ["GST ({$taxRate}%):", 'PKR ' . number_format($taxAmount, 2), false];
-    }
-    if ($whtAmount > 0) {
-        $summaryRows[] = ['Withholding Tax:', '-PKR ' . number_format($whtAmount, 2), false];
-    }
-    if ($fedAmount > 0) {
-        $summaryRows[] = ['FED:', 'PKR ' . number_format($fedAmount, 2), false];
-    }
-    $summaryRows[] = ['Total Amount:', 'PKR ' . number_format($totalAmount, 2), true];
-    $summaryRows[] = ['Amount Paid:', 'PKR ' . number_format($amountPaid, 2), false];
-    $summaryRows[] = ['Balance Due:', 'PKR ' . number_format($balanceDue, 2), true];
+    // GST @ Rate%
+    $pdf->setFillColorArray($theme['gst_color'] ?? [0.753, 0.224, 0.169]);
+    $gstLabel = sprintf('GST @ %g%%', $taxRate);
+    $pdf->drawText($left + $width - $colTotal - $colRate - 50.0, $y - 11.0, $gstLabel, 'F2', 9.5, 'right', 60.0);
+    $pdf->drawText($left + $width - $colTotal, $y - 11.0, number_format($taxAmount, 2), 'F2', 9.0, 'right', $colTotal - 4.0);
+    $y -= 16.0;
 
-    foreach ($summaryRows as $sRow) {
-        $label = $sRow[0];
-        $val = $sRow[1];
-        $isBold = $sRow[2];
+    // Grand Total Solid Bar
+    $barW = 230.0;
+    $barX = $left + $width - $barW;
+    $pdf->setFillColorArray($theme['total_bar_bg']);
+    $pdf->drawRect($barX, $y - 16.0, $barW, 19.0, true, false);
+    $pdf->setFillColor(1, 1, 1);
+    $pdf->drawText($barX + 8.0, $y - 12.0, 'GRAND TOTAL (PKR)', 'F2', 10.0);
+    $pdf->drawText($barX, $y - 12.0, number_format($totalAmount, 2), 'F2', 10.5, 'right', $barW - 8.0);
+    $y -= 26.0;
 
-        if ($label === 'Total Amount:') {
-            $pdf->setFillColorArray($theme['primary']);
-            $pdf->drawRect($summaryX, $y - 14, $summaryW, 17, true, false);
-            $pdf->setFillColor(1, 1, 1);
-            $pdf->drawText($summaryX + 6, $y - 11, $label, 'F2', 9.5);
-            $pdf->drawText($summaryX + 6, $y - 11, $val, 'F2', 9.5, 'right', $summaryW - 12);
-            $y -= 20;
-            continue;
-        }
+    // 7. Stamp Box (Right) & Terms (Left)
+    $stampW = 118.0;
+    $stampH = 75.0;
+    $stampX = $left + $width - $stampW;
+    $stampY = $y - $stampH;
 
-        if ($label === 'Balance Due:') {
-            if ($balanceDue <= 0.01) {
-                $pdf->setFillColor(0.90, 0.97, 0.92);
-                $pdf->drawRect($summaryX, $y - 14, $summaryW, 16, true, false);
-                $pdf->setFillColor(0.1, 0.6, 0.2);
-            } else {
-                $pdf->setFillColor(0.99, 0.92, 0.92);
-                $pdf->drawRect($summaryX, $y - 14, $summaryW, 16, true, false);
-                $pdf->setFillColor(0.75, 0.15, 0.15);
-            }
-            $pdf->drawText($summaryX + 6, $y - 11, $label, 'F2', 9.5);
-            $pdf->drawText($summaryX + 6, $y - 11, $val, 'F2', 9.5, 'right', $summaryW - 12);
-            $y -= 19;
-            continue;
-        }
+    if (($theme['stamp_shape'] ?? '') === 'double_rect') {
+        // PTC formal double rectangular stamp box
+        $pdf->setStrokeColorArray($theme['primary']);
+        $pdf->setLineWidth(1.2);
+        $pdf->drawRect($stampX, $stampY, $stampW, $stampH, false, true);
 
-        $pdf->setFillColor(0.35, 0.35, 0.40);
-        $pdf->drawText($summaryX + 6, $y - 11, $label, $isBold ? 'F2' : 'F1', 8.5);
-        $pdf->drawText($summaryX + 6, $y - 11, $val, $isBold ? 'F2' : 'F1', 8.5, 'right', $summaryW - 12);
-        $y -= 15;
+        $pdf->setStrokeColorArray($theme['accent']);
+        $pdf->setLineWidth(0.6);
+        $pdf->drawRect($stampX + 3.0, $stampY + 3.0, $stampW - 6.0, $stampH - 6.0, false, true);
+
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawText($stampX, $stampY + ($stampH / 2.0) + 3.0, 'AUTHORIZED', 'F2', 8.5, 'center', $stampW);
+        $pdf->drawText($stampX, $stampY + ($stampH / 2.0) - 8.0, 'SIGNATURE & STAMP', 'F2', 8.0, 'center', $stampW);
+    } else {
+        // Rounded Stamp Border
+        $pdf->setStrokeColorArray($theme['accent']);
+        $pdf->setLineWidth(1.2);
+        $pdf->drawRoundedRect($stampX, $stampY, $stampW, $stampH, 6.0, false, true);
+
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawText($stampX, $stampY + ($stampH / 2.0) - 4.0, $theme['stamp_label'] ?? 'STAMP', 'F2', 9.5, 'center', $stampW);
     }
 
-    // 9. Payment Instructions & Terms (Left)
-    $termsW = $width - $summaryW - 20.0;
-    $termsY = $pdf->getY() - 15;
-    $pdf->setFillColorArray($theme['light']);
-    $pdf->setStrokeColorArray($theme['border']);
-    $pdf->drawRect($left, $termsY - 55, $termsW, 68, true, true);
+    // Terms / Notes Box (Left)
+    $termsW = $stampX - $left - 15.0;
+    $termsH = $stampH;
+    $termsY = $stampY;
+
+    $pdf->setFillColorArray($theme['terms_bg']);
+    $pdf->setStrokeColorArray($theme['terms_border']);
+    $pdf->setLineWidth(0.6);
+    $pdf->drawRoundedRect($left, $termsY, $termsW, $termsH, 4.0, true, true);
+
+    if (($theme['header_style'] ?? '') === 'corporate_letterhead') {
+        $pdf->setFillColorArray($theme['accent']);
+        $pdf->drawRect($left, $termsY, 4.0, $termsH, true, false);
+    }
 
     $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($left + 8, $termsY + 2, 'PAYMENT TERMS & BANK INSTRUCTIONS', 'F2', 8.5);
+    $termsHeader = $theme['terms_title'] ?? ($type === 'INVOICE' ? 'PAYMENT TERMS & NOTES' : 'TERMS & CONDITIONS');
+    $pdf->drawText($left + 8.0, $termsY + $termsH - 14.0, $termsHeader, 'F2', 8.5);
 
-    $termsText = !empty($inv['terms_conditions']) ? (string)$inv['terms_conditions'] : "1. Payment is due as per agreed billing cycle.\n2. Please quote Invoice Number in online bank transfers.";
-    if (!empty($inv['notes'])) {
-        $termsText .= "\n" . $inv['notes'];
+    $termsRaw = !empty($doc['terms_conditions']) ? (string)$doc['terms_conditions'] : (!empty($doc['notes']) ? (string)$doc['notes'] : "1. Rates are inclusive/exclusive of taxes as indicated.\n2. Work order / PO confirmed in writing.\n3. Goods once sold are subject to manufacturer warranty.");
+    if (!empty($doc['notes']) && $doc['terms_conditions'] !== $doc['notes']) {
+        $termsRaw .= "\n" . $doc['notes'];
     }
-    $termsLines = explode("\n", $termsText);
-    $ty = $termsY - 10;
-    $pdf->setFillColor(0.40, 0.45, 0.50);
+    $termsLines = explode("\n", $termsRaw);
+    $tY = $termsY + $termsH - 26.0;
+    $pdf->setFillColor(0.35, 0.40, 0.48);
     foreach ($termsLines as $tl) {
-        if ($ty < $termsY - 50) break;
-        $pdf->drawText($left + 8, $ty, trim($tl), 'F1', 7.5);
-        $ty -= 11;
+        if ($tY < $termsY + 8.0) break;
+        $pdf->drawText($left + 8.0, $tY, trim($tl), 'F1', 7.5);
+        $tY -= 10.5;
     }
 
     return $pdf->render();
 }
 
+function generate_invoice_pdf(array $inv): string
+{
+    return render_branded_sales_tax_document($inv, 'INVOICE');
+}
+
 function generate_estimate_pdf(array $est): string
 {
-    $companyName = !empty($est['company_name']) ? (string)$est['company_name'] : (getenv('COMPANY_NAME') ?: 'DATAPOINT Technologies');
-    $companyAddress = !empty($est['company_address']) ? (string)$est['company_address'] : (getenv('COMPANY_ADDRESS') ?: 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh');
-    $companyPhone = !empty($est['company_phone']) ? (string)$est['company_phone'] : (getenv('COMPANY_MOBILE') ?: getenv('COMPANY_PHONE') ?: '+923167788990');
-    $companyEmail = !empty($est['company_email']) ? (string)$est['company_email'] : (getenv('COMPANY_EMAIL') ?: 'info@datapointtechnology.com');
-    $companyNtn = !empty($est['company_ntn']) ? (string)$est['company_ntn'] : (getenv('COMPANY_NTN') ?: '');
-    $companyStrn = !empty($est['company_strn']) ? (string)$est['company_strn'] : (getenv('COMPANY_STRN') ?: '');
-    $logoUrl = $est['company_logo'] ?? $est['logo_url'] ?? null;
-
-    $theme = get_company_color_theme($est);
-    $pdf = new DpPdfEngine($theme, $companyName);
-    $left = $pdf->getMarginLeft();
-    $width = $pdf->getPrintableWidth();
-
-    // 1. Top Decorative Brand Bar
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawRect($left, 788, $width, 5, true, false);
-
-    // 2. Header Container Frame (Light theme background)
-    $headerBoxH = 78.0;
-    $headerBoxY = 708.0;
-    $pdf->setFillColorArray($theme['light']);
-    $pdf->setStrokeColorArray($theme['border']);
-    $pdf->setLineWidth(0.8);
-    $pdf->drawRect($left, $headerBoxY, $width, $headerBoxH, true, true);
-
-    // 3. Logo Placement or Monogram Badge
-    $logoResolved = resolve_company_logo_path($logoUrl);
-    $textStartX = $left + 14.0;
-
-    if ($logoResolved) {
-        $logoRes = $pdf->addImage($logoResolved, $left + 12, $headerBoxY + $headerBoxH - 12, 54, 54);
-        if ($logoRes) {
-            $textStartX = $left + 12 + 54 + 14.0;
-        }
-    } else {
-        // Stylish Monogram Badge
-        $pdf->setFillColorArray($theme['accent']);
-        $pdf->drawRect($left + 12, $headerBoxY + 14, 50, 50, true, false);
-        $pdf->setFillColor(1, 1, 1);
-        $pdf->drawText($left + 12, $headerBoxY + 31, $theme['initials'] ?? 'DPT', 'F2', 15, 'center', 50);
-        $textStartX = $left + 12 + 50 + 14.0;
-    }
-
-    // 4. Company Profile Text
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($textStartX, $headerBoxY + $headerBoxH - 20, strtoupper($companyName), 'F2', 13.5);
-    $pdf->setFillColor(0.35, 0.40, 0.48);
-    $pdf->drawText($textStartX, $headerBoxY + $headerBoxH - 34, $companyAddress, 'F1', 8.5);
-
-    $contactStr = array_filter([$companyPhone, $companyEmail]);
-    $pdf->setFillColorArray($theme['accent']);
-    $pdf->drawText($textStartX, $headerBoxY + $headerBoxH - 47, implode('  •  ', $contactStr), 'F2', 8.5);
-
-    if ($companyNtn !== '' || $companyStrn !== '') {
-        $taxParts = [];
-        if ($companyNtn !== '') $taxParts[] = 'NTN: ' . $companyNtn;
-        if ($companyStrn !== '') $taxParts[] = 'STRN: ' . $companyStrn;
-        $pdf->setFillColorArray($theme['badge_bg']);
-        $pdf->drawRect($textStartX, $headerBoxY + 10, 200, 14, true, false);
-        $pdf->setFillColorArray($theme['badge_text']);
-        $pdf->drawText($textStartX + 6, $headerBoxY + 14, implode('  |  ', $taxParts), 'F2', 7.5);
-    }
-
-    // 5. Document Header Box (Right)
-    $boxW = 165.0;
-    $boxX = $left + $width - $boxW - 10.0;
-    $pdf->setFillColor(1, 1, 1);
-    $pdf->setStrokeColorArray($theme['border']);
-    $pdf->setLineWidth(0.8);
-    $pdf->drawRect($boxX, $headerBoxY + 8, $boxW, $headerBoxH - 16, true, true);
-
-    // Card Heading: "ESTIMATE / QUOTATION"
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 24, 'ESTIMATE / QUOTATION', 'F2', 10.0);
-
-    $pdf->setFillColor(0.2, 0.25, 0.3);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 38, 'Estimate #: ' . ($est['estimate_no'] ?? 'N/A'), 'F2', 8.5);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 50, 'Date: ' . ($est['estimate_date'] ?? date('Y-m-d')), 'F1', 8.0);
-    $pdf->drawText($boxX + 10, $headerBoxY + $headerBoxH - 62, 'Valid Until: ' . ($est['valid_until'] ?? '15 Days'), 'F1', 8.0);
-
-    // 6. Proposal Prepared For Card
-    $billY = 694.0;
-    $billH = 50.0;
-    $pdf->setFillColorArray($theme['light']);
-    $pdf->drawRect($left, $billY - $billH, $width, $billH, true, false);
-    $pdf->setFillColorArray($theme['accent']);
-    $pdf->drawRect($left, $billY - $billH, 3.5, $billH, true, false);
-
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($left + 12, $billY - 14, 'PROPOSAL PREPARED FOR:', 'F2', 8.5);
-
-    $clientName = $est['client_name'] ?? 'Valued Customer';
-    $clientCompany = $est['client_company'] ?? '';
-    $clientPhone = $est['client_phone'] ?? '';
-    $clientEmail = $est['client_email'] ?? '';
-    $clientAddress = $est['client_address'] ?? '';
-
-    $pdf->setFillColor(0.12, 0.15, 0.20);
-    $pdf->drawText($left + 12, $billY - 26, $clientName . ($clientCompany !== '' ? ' (' . $clientCompany . ')' : ''), 'F2', 9.5);
-
-    $clientLine2 = array_filter([$clientPhone, $clientEmail]);
-    $pdf->setFillColor(0.40, 0.45, 0.52);
-    $pdf->drawText($left + 12, $billY - 37, implode('  •  ', $clientLine2), 'F1', 8.0);
-    if ($clientAddress !== '') {
-        $pdf->drawText($left + 12, $billY - 47, $clientAddress, 'F1', 8.0);
-    }
-
-    // 7. Line Items Table
-    $tableTop = $billY - $billH - 12.0;
-    $pdf->setY($tableTop);
-
-    $colDesc = 250.0;
-    $colQty = 45.0;
-    $colUnit = 45.0;
-    $colRate = 85.0;
-    $colTotal = $width - $colDesc - $colQty - $colUnit - $colRate;
-
-    $drawTableHeader = function(DpPdfEngine $p) use ($left, $width, $colDesc, $colQty, $colUnit, $colRate, $colTotal, $theme) {
-        $y = $p->getY();
-        $p->setFillColorArray($theme['primary']);
-        $p->drawRect($left, $y - 18, $width, 20, true, false);
-
-        $p->setFillColor(1, 1, 1);
-        $p->drawText($left + 8, $y - 13, 'ITEM & SPECIFICATION', 'F2', 8.5);
-        $p->drawText($left + $colDesc, $y - 13, 'QTY', 'F2', 8.5, 'center', $colQty);
-        $p->drawText($left + $colDesc + $colQty, $y - 13, 'UNIT', 'F2', 8.5, 'center', $colUnit);
-        $p->drawText($left + $colDesc + $colQty + $colUnit, $y - 13, 'RATE (PKR)', 'F2', 8.5, 'right', $colRate - 5);
-        $p->drawText($left + $colDesc + $colQty + $colUnit + $colRate, $y - 13, 'AMOUNT (PKR)', 'F2', 8.5, 'right', $colTotal - 8);
-        $p->setY($y - 20);
-    };
-
-    $drawTableHeader($pdf);
-
-    $items = $est['items'] ?? [];
-    $isOdd = false;
-
-    foreach ($items as $item) {
-        $desc = trim((string)($item['description'] ?? 'Product / Service'));
-        $qty = (float)($item['quantity'] ?? 1);
-        $unit = (string)($item['unit'] ?? 'pcs');
-        $rate = (float)($item['unit_price'] ?? 0);
-        $total = (float)($item['total_price'] ?? ($qty * $rate));
-
-        $lines = $pdf->wrapText($desc, $colDesc - 15, 8.5);
-        $rowHeight = max(18.0, count($lines) * 12.0 + 6.0);
-
-        $pdf->checkPageBreak($rowHeight + 35, $drawTableHeader);
-        $y = $pdf->getY();
-
-        if ($isOdd) {
-            $pdf->setFillColorArray($theme['tint']);
-            $pdf->drawRect($left, $y - $rowHeight, $width, $rowHeight, true, false);
-        }
-        $isOdd = !$isOdd;
-
-        $pdf->setFillColor(0.15, 0.15, 0.18);
-        $textY = $y - 12;
-        foreach ($lines as $line) {
-            $pdf->drawText($left + 8, $textY, $line, 'F1', 8.5);
-            $textY -= 12;
-        }
-
-        $pdf->drawText($left + $colDesc, $y - 12, (string)$qty, 'F1', 8.5, 'center', $colQty);
-        $pdf->drawText($left + $colDesc + $colQty, $y - 12, $unit, 'F1', 8.5, 'center', $colUnit);
-        $pdf->drawText($left + $colDesc + $colQty + $colUnit, $y - 12, number_format($rate, 2), 'F1', 8.5, 'right', $colRate - 5);
-        $pdf->drawText($left + $colDesc + $colQty + $colUnit + $colRate, $y - 12, number_format($total, 2), 'F2', 8.5, 'right', $colTotal - 8);
-
-        $pdf->setStrokeColorArray($theme['border']);
-        $pdf->setLineWidth(0.4);
-        $pdf->drawLine($left, $y - $rowHeight, $left + $width, $y - $rowHeight);
-
-        $pdf->setY($y - $rowHeight);
-    }
-
-    // 8. Totals Breakdown Card
-    $pdf->checkPageBreak(115.0);
-    $y = $pdf->getY() - 10;
-
-    $summaryW = 215.0;
-    $summaryX = $left + $width - $summaryW;
-
-    $subtotal = (float)($est['subtotal'] ?? 0);
-    $discountAmount = (float)($est['discount_amount'] ?? 0);
-    $taxRate = (float)($est['tax_rate'] ?? 17);
-    $taxAmount = (float)($est['tax_amount'] ?? 0);
-    $totalAmount = (float)($est['total_amount'] ?? 0);
-
-    $summaryRows = [
-        ['Subtotal:', 'PKR ' . number_format($subtotal, 2), false],
-    ];
-    if ($discountAmount > 0) {
-        $summaryRows[] = ['Discount:', '-PKR ' . number_format($discountAmount, 2), false];
-    }
-    if ($taxAmount > 0) {
-        $summaryRows[] = ["GST ({$taxRate}%):", 'PKR ' . number_format($taxAmount, 2), false];
-    }
-    $summaryRows[] = ['Grand Total:', 'PKR ' . number_format($totalAmount, 2), true];
-
-    foreach ($summaryRows as $sRow) {
-        $label = $sRow[0];
-        $val = $sRow[1];
-
-        if ($label === 'Grand Total:') {
-            $pdf->setFillColorArray($theme['primary']);
-            $pdf->drawRect($summaryX, $y - 14, $summaryW, 17, true, false);
-            $pdf->setFillColor(1, 1, 1);
-            $pdf->drawText($summaryX + 6, $y - 11, $label, 'F2', 9.5);
-            $pdf->drawText($summaryX + 6, $y - 11, $val, 'F2', 9.5, 'right', $summaryW - 12);
-            $y -= 20;
-            continue;
-        }
-
-        $pdf->setFillColor(0.35, 0.35, 0.40);
-        $pdf->drawText($summaryX + 6, $y - 11, $label, 'F1', 8.5);
-        $pdf->drawText($summaryX + 6, $y - 11, $val, 'F2', 8.5, 'right', $summaryW - 12);
-        $y -= 15;
-    }
-
-    // 9. Terms & Conditions Box (Left)
-    $termsW = $width - $summaryW - 20.0;
-    $termsY = $pdf->getY() - 15;
-    $pdf->setFillColorArray($theme['light']);
-    $pdf->setStrokeColorArray($theme['border']);
-    $pdf->drawRect($left, $termsY - 50, $termsW, 62, true, true);
-
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($left + 8, $termsY + 2, 'QUOTATION TERMS & VALIDITY', 'F2', 8.5);
-
-    $termsText = !empty($est['terms_conditions']) ? (string)$est['terms_conditions'] : "1. Rates are valid for 15 days from estimate date.\n2. Work order must be confirmed in writing.\n3. Applicable taxes will be charged as per tax laws.";
-    $termsLines = explode("\n", $termsText);
-    $ty = $termsY - 10;
-    $pdf->setFillColor(0.40, 0.45, 0.50);
-    foreach ($termsLines as $tl) {
-        if ($ty < $termsY - 45) break;
-        $pdf->drawText($left + 8, $ty, trim($tl), 'F1', 7.5);
-        $ty -= 11;
-    }
-
-    return $pdf->render();
+    return render_branded_sales_tax_document($est, 'ESTIMATE');
 }
 
 function build_pdf_string(array $lines): string

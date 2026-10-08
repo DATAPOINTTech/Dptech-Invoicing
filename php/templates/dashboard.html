@@ -161,17 +161,19 @@
 </div>
 
 <script>
+const token = localStorage.getItem('token') || '';
+const authHeaders = token ? { Authorization: 'Bearer ' + token } : {};
+
 const statusBadge = s => {
     const map = {paid:'badge-green',sent:'badge-blue',approved:'badge-green',draft:'badge-gray',overdue:'badge-red',rejected:'badge-red',converted:'badge-purple',partially_paid:'badge-amber'};
     return `<span class="badge ${map[s]||'badge-gray'}">${s.replace('_',' ')}</span>`;
 };
 $(function() {
-    const token = localStorage.getItem('token');
     if (!token) { window.location.href = '/login'; return; }
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     $('#topbar-greeting').text(`Welcome back, ${user.name || 'User'}`);
 
-    $.ajax({url:'/api/dashboard', headers:{Authorization:'Bearer '+token}})
+    $.ajax({url:'/api/dashboard', headers: authHeaders})
     .done(function(d) {
         $('#stat-clients').text(d.total_clients);
         $('#stat-projects').text(d.active_projects);

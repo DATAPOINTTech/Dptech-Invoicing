@@ -2,36 +2,64 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bootstrap.php';
+// Dynamically resolve directory containing bootstrap.php
+$appRoot = null;
+$appCandidates = [
+    dirname(__DIR__),                                      // standard: php/public -> php/
+    __DIR__ . DIRECTORY_SEPARATOR . 'php',                 // if index.php is at repo root
+    __DIR__,                                               // if bootstrap is in same dir
+    dirname(__DIR__) . DIRECTORY_SEPARATOR . 'app_backend' . DIRECTORY_SEPARATOR . 'php',
+    dirname(__DIR__) . DIRECTORY_SEPARATOR . 'app_backend',
+    dirname(__DIR__) . DIRECTORY_SEPARATOR . 'php',
+];
+
+foreach ($appCandidates as $cand) {
+    if (is_file($cand . DIRECTORY_SEPARATOR . 'bootstrap.php')) {
+        $appRoot = $cand;
+        break;
+    }
+}
+
+if ($appRoot === null) {
+    http_response_code(500);
+    die('Server configuration error: Unable to locate bootstrap.php. Please check backend files.');
+}
+
+require_once $appRoot . DIRECTORY_SEPARATOR . 'bootstrap.php';
 
 // Require all modular route handlers
-require_once dirname(__DIR__) . '/routes/auth.php';
-require_once dirname(__DIR__) . '/routes/dashboard.php';
-require_once dirname(__DIR__) . '/routes/clients.php';
-require_once dirname(__DIR__) . '/routes/suppliers.php';
-require_once dirname(__DIR__) . '/routes/products.php';
-require_once dirname(__DIR__) . '/routes/inventory.php';
-require_once dirname(__DIR__) . '/routes/purchases.php';
-require_once dirname(__DIR__) . '/routes/expenses.php';
-require_once dirname(__DIR__) . '/routes/projects.php';
-require_once dirname(__DIR__) . '/routes/estimates.php';
-require_once dirname(__DIR__) . '/routes/invoices.php';
-require_once dirname(__DIR__) . '/routes/prices.php';
-require_once dirname(__DIR__) . '/routes/reports.php';
-require_once dirname(__DIR__) . '/routes/agent.php';
-require_once dirname(__DIR__) . '/routes/companies.php';
+require_once $appRoot . '/routes/auth.php';
+require_once $appRoot . '/routes/dashboard.php';
+require_once $appRoot . '/routes/clients.php';
+require_once $appRoot . '/routes/suppliers.php';
+require_once $appRoot . '/routes/products.php';
+require_once $appRoot . '/routes/inventory.php';
+require_once $appRoot . '/routes/purchases.php';
+require_once $appRoot . '/routes/expenses.php';
+require_once $appRoot . '/routes/projects.php';
+require_once $appRoot . '/routes/estimates.php';
+require_once $appRoot . '/routes/invoices.php';
+require_once $appRoot . '/routes/prices.php';
+require_once $appRoot . '/routes/reports.php';
+require_once $appRoot . '/routes/agent.php';
+require_once $appRoot . '/routes/companies.php';
+require_once $appRoot . '/routes/whatsapp.php';
 
 function serve_static_asset(string $path): bool
 {
+    global $appRoot;
     if ($path === '/favicon.ico') {
-        $iconPath = __DIR__ . '/static/img/favicon.svg';
-        if (!is_file($iconPath)) {
-            $iconPath = dirname(__DIR__, 2) . '/app/static/img/favicon.svg';
-        }
-        if (is_file($iconPath)) {
-            header('Content-Type: image/svg+xml');
-            readfile($iconPath);
-            exit;
+        $iconCandidates = [
+            __DIR__ . '/static/img/favicon.svg',
+            ($appRoot ?? __DIR__) . '/public/static/img/favicon.svg',
+            __DIR__ . '/php/public/static/img/favicon.svg',
+        ];
+        foreach ($iconCandidates as $iconPath) {
+            if (is_file($iconPath)) {
+                header('Content-Type: image/svg+xml');
+                readfile($iconPath);
+                exit;
+            }
         }
         return false;
     }
@@ -44,7 +72,8 @@ function serve_static_asset(string $path): bool
     $candidates = [
         __DIR__ . '/static/' . $relPath,
         dirname(__DIR__) . '/public/static/' . $relPath,
-        dirname(__DIR__, 2) . '/app/static/' . $relPath,
+        ($appRoot ?? __DIR__) . '/public/static/' . $relPath,
+        __DIR__ . '/php/public/static/' . $relPath,
     ];
 
     foreach ($candidates as $candidate) {
@@ -132,7 +161,7 @@ function handle_request(): never
                 json_response(['detail' => 'No valid file content provided.'], 422);
             }
 
-            $parsed = parse_invoice_file($rawContent, $filename);
+            $parsed = parse_invoice_file($filename, $rawContent, $db);
             json_response($parsed);
         }
 
@@ -152,6 +181,7 @@ function handle_request(): never
         handle_reports_routes($method, $path, $db);
         handle_agent_routes($method, $path, $db);
         handle_companies_routes($method, $path, $db);
+        handle_whatsapp_routes($method, $path, $db);
 
         // 6. Web UI views (renders full Tailwind CSS frontend)
         if ($method === 'GET') {
@@ -179,6 +209,8 @@ function handle_request(): never
                 '/prices' => 'prices.html',
                 '/users' => 'users/list.html',
                 '/companies' => 'companies.html',
+                '/settings' => 'companies.html',
+                '/settings/companies' => 'companies.html',
             ];
 
             if (isset($uiRoutes[$path])) {

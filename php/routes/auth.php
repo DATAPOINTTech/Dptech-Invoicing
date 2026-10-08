@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 function handle_auth_routes(string $method, string $path, PDO $db): bool
 {
-    if ($method === 'POST' && $path === '/api/auth/login') {
+    if ($method === 'POST' && ($path === '/api/auth/login' || $path === '/login')) {
         $payload = request_data();
         $username = trim((string) ($payload['username'] ?? ''));
         $password = (string) ($payload['password'] ?? '');
@@ -35,6 +35,12 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
             'samesite' => 'Lax'
         ]);
         $_COOKIE['token'] = $token;
+
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        if ($path === '/login' && str_contains($accept, 'text/html') && !str_contains($accept, 'application/json')) {
+            header('Location: /dashboard');
+            exit;
+        }
 
         json_response([
             'access_token' => $token,

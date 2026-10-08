@@ -146,9 +146,9 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
 
                 $itemStmt = $db->prepare('
                     INSERT INTO estimate_items (
-                        estimate_id, product_id, description, quantity, unit, unit_price, tax_rate, tax_amount, total_price
+                        estimate_id, product_id, description, model_make, quantity, unit, unit_price, tax_rate, tax_amount, total_price
                     ) VALUES (
-                        :eid, :prid, :desc, :qty, :unit, :price, :tr, :ta, :tp
+                        :eid, :prid, :desc, :mm, :qty, :unit, :price, :tr, :ta, :tp
                     )
                 ');
                 foreach ($calculated as $line) {
@@ -157,6 +157,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         'eid' => $estId,
                         'prid' => !empty($it['product_id']) ? (int) $it['product_id'] : null,
                         'desc' => trim((string) ($it['description'] ?? 'Item')),
+                        'mm' => !empty($it['model_make']) ? trim((string) $it['model_make']) : null,
                         'qty' => (float) ($it['quantity'] ?? 0),
                         'unit' => (string) ($it['unit'] ?? 'pcs'),
                         'price' => (float) ($it['unit_price'] ?? 0),
@@ -272,9 +273,9 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
 
         $itemStmt = $db->prepare('
             INSERT INTO estimate_items (
-                estimate_id, product_id, description, quantity, unit, unit_price, tax_rate, tax_amount, total_price
+                estimate_id, product_id, description, model_make, quantity, unit, unit_price, tax_rate, tax_amount, total_price
             ) VALUES (
-                :eid, :prid, :desc, :qty, :unit, :price, :tr, :ta, :tp
+                :eid, :prid, :desc, :mm, :qty, :unit, :price, :tr, :ta, :tp
             )
         ');
         foreach ($calculated as $line) {
@@ -283,6 +284,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 'eid' => $estimateId,
                 'prid' => !empty($item['product_id']) ? (int) $item['product_id'] : null,
                 'desc' => trim((string) ($item['description'] ?? 'Item')),
+                'mm' => !empty($item['model_make']) ? trim((string) $item['model_make']) : null,
                 'qty' => (float) ($item['quantity'] ?? 0),
                 'unit' => (string) ($item['unit'] ?? 'pcs'),
                 'price' => (float) ($item['unit_price'] ?? 0),
@@ -326,7 +328,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             // If part of a multi-company batch, attach sibling estimates
             if (!empty($est['batch_id'])) {
                 $sibStmt = $db->prepare('
-                    SELECT id, estimate_no, company_name, company_logo, markup_percent, total_amount, status
+                    SELECT id, estimate_no, company_id, company_name, company_logo, markup_percent, total_amount, status
                     FROM estimates
                     WHERE batch_id = :bid
                     ORDER BY markup_percent ASC, id ASC
@@ -363,25 +365,61 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             if (!$est) {
                 json_response(['detail' => 'Estimate not found'], 404);
             }
-            if ($est['status'] !== 'approved') {
-                json_response(['detail' => "Cannot convert estimate with status '{$est['status']}'. Must be approved first."], 400);
+            if ($est['status'] === 'converted') {
+                json_response(['detail' => 'This estimate has already been converted to an invoice.'], 400);
+            }
+            if (in_array($est['status'], ['rejected', 'cancelled'], true)) {
+                json_response(['detail' => "Cannot convert estimate with status '{$est['status']}'."], 400);
+            }
+
+            $itStmt = $db->prepare('SELECT * FROM estimate_items WHERE estimate_id = :id');
+            $itStmt->execute(['id' => $estimateId]);
+            $estItems = $itStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $taxRate = (float) ($est['tax_rate'] ?? 17.0);
+            $discPct = (float) ($est['discount_percent'] ?? 0.0);
+            $subtotal = (float) ($est['subtotal'] ?? 0.0);
+            $discAmt = (float) ($est['discount_amount'] ?? 0.0);
+            $taxAmt = (float) ($est['tax_amount'] ?? 0.0);
+            $totalAmount = (float) ($est['total_amount'] ?? 0.0);
+
+            // If totals are 0 or not calculated but items exist, recalculate accurately
+            if (($totalAmount <= 0.0 || $subtotal <= 0.0) && !empty($estItems)) {
+                $calcLines = [];
+                foreach ($estItems as $ei) {
+                    $qty = (float) ($ei['quantity'] ?? 0);
+                    $price = (float) ($ei['unit_price'] ?? 0);
+                    $calcLines[] = calculate_item_tax($price, $qty, $taxRate, false);
+                }
+                $totals = calculate_invoice_tax($calcLines, $discPct, $taxRate, false, false);
+                $subtotal = $totals['subtotal'];
+                $discAmt = $totals['discount_amount'];
+                $taxAmt = $totals['tax_amount'];
+                $totalAmount = $totals['total_amount'];
             }
 
             $nextInvId = (int) $db->query('SELECT COALESCE(MAX(id), 0) + 1 FROM invoices')->fetchColumn();
             $invNo = sprintf('INV-%s-%05d', date('Ym'), $nextInvId);
             $today = date('Y-m-d');
+            $dueDate = !empty($est['valid_until']) ? (string) $est['valid_until'] : $today;
 
             $insInv = $db->prepare('
                 INSERT INTO invoices (
-                    invoice_no, client_id, estimate_id, project_id, invoice_date, due_date,
+                    invoice_no, client_id, estimate_id, project_id, title, invoice_date, due_date,
                     status, subtotal, discount_percent, discount_amount, tax_rate, tax_amount,
                     withholding_tax_rate, withholding_tax_amount, fed_rate, fed_amount,
-                    total_amount, amount_paid, balance_due, terms_conditions, notes, created_by, created_at, updated_at
+                    total_amount, amount_paid, balance_due, payment_terms, notes, terms_conditions,
+                    company_id, company_name, company_logo, company_phone, company_email,
+                    company_address, company_ntn, company_strn,
+                    created_by, created_at, updated_at
                 ) VALUES (
-                    :no, :cid, :eid, :pid, :idate, :ddate,
+                    :no, :cid, :eid, :pid, :title, :idate, :ddate,
                     :status, :subtotal, :disc_pct, :disc_amt, :tr, :ta,
                     0, 0, 0, 0,
-                    :total, 0, :total, :terms, :notes, :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    :total, 0, :total, :pterms, :notes, :terms,
+                    :coid, :coname, :cologo, :cophone, :coemail,
+                    :coaddr, :conntn, :costrn,
+                    :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
             ');
             $insInv->execute([
@@ -389,48 +427,64 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 'cid' => $est['client_id'],
                 'eid' => $estimateId,
                 'pid' => $est['project_id'],
+                'title' => $est['title'] ?? null,
                 'idate' => $today,
-                'ddate' => $today,
+                'ddate' => $dueDate,
                 'status' => 'draft',
-                'subtotal' => $est['subtotal'],
-                'disc_pct' => $est['discount_percent'],
-                'disc_amt' => $est['discount_amount'],
-                'tr' => $est['tax_rate'],
-                'ta' => $est['tax_amount'],
-                'total' => $est['total_amount'],
-                'terms' => $est['terms_conditions'],
-                'notes' => $est['notes'],
+                'subtotal' => $subtotal,
+                'disc_pct' => $discPct,
+                'disc_amt' => $discAmt,
+                'tr' => $taxRate,
+                'ta' => $taxAmt,
+                'total' => $totalAmount,
+                'pterms' => $est['terms_conditions'] ?? null,
+                'notes' => $est['notes'] ?? null,
+                'terms' => $est['terms_conditions'] ?? null,
+                'coid' => $est['company_id'] ?? null,
+                'coname' => $est['company_name'] ?? null,
+                'cologo' => $est['company_logo'] ?? null,
+                'cophone' => $est['company_phone'] ?? null,
+                'coemail' => $est['company_email'] ?? null,
+                'coaddr' => $est['company_address'] ?? null,
+                'conntn' => $est['company_ntn'] ?? null,
+                'costrn' => $est['company_strn'] ?? null,
                 'uid' => $user->id,
             ]);
             $invoiceId = (int) $db->lastInsertId();
 
-            $itStmt = $db->prepare('SELECT * FROM estimate_items WHERE estimate_id = :id');
-            $itStmt->execute(['id' => $estimateId]);
-            $estItems = $itStmt->fetchAll(PDO::FETCH_ASSOC);
-
             $insItem = $db->prepare('
                 INSERT INTO invoice_items (
-                    invoice_id, product_id, description, quantity, unit, unit_price, tax_rate, tax_amount, total_price
+                    invoice_id, product_id, description, model_make, quantity, unit, unit_price, tax_rate, tax_amount, total_price
                 ) VALUES (
-                    :iid, :prid, :desc, :qty, :unit, :price, :tr, :ta, :tp
+                    :iid, :prid, :desc, :mm, :qty, :unit, :price, :tr, :ta, :tp
                 )
             ');
             foreach ($estItems as $ei) {
+                $qty = (float) ($ei['quantity'] ?? 0);
+                $price = (float) ($ei['unit_price'] ?? 0);
+                $itemTax = (float) ($ei['tax_amount'] ?? 0);
+                $itemTotal = (float) ($ei['total_price'] ?? 0);
+                if ($itemTotal <= 0 && $price > 0 && $qty > 0) {
+                    $itemTax = round(($price * $qty) * ($taxRate / 100.0), 2);
+                    $itemTotal = round(($price * $qty) + $itemTax, 2);
+                }
+
                 $insItem->execute([
                     'iid' => $invoiceId,
                     'prid' => $ei['product_id'],
                     'desc' => $ei['description'],
-                    'qty' => $ei['quantity'],
-                    'unit' => $ei['unit'],
-                    'price' => $ei['unit_price'],
-                    'tr' => $ei['tax_rate'],
-                    'ta' => $ei['tax_amount'],
-                    'tp' => $ei['total_price'],
+                    'mm' => $ei['model_make'] ?? null,
+                    'qty' => $qty,
+                    'unit' => $ei['unit'] ?? 'pcs',
+                    'price' => $price,
+                    'tr' => $taxRate,
+                    'ta' => $itemTax,
+                    'tp' => $itemTotal,
                 ]);
 
-                if ($ei['product_id']) {
+                if (!empty($ei['product_id'])) {
                     try {
-                        update_stock($db, (int) $ei['product_id'], (float) $ei['quantity'], MovementType::SALE_OUT, 'invoice', $invoiceId, "Invoice {$invNo}", $user->id);
+                        update_stock($db, (int) $ei['product_id'], $qty, MovementType::SALE_OUT, 'invoice', $invoiceId, "Invoice {$invNo}", $user->id);
                     } catch (Exception $e) {
                         // Stock log
                     }
@@ -440,7 +494,15 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             $updEst = $db->prepare('UPDATE estimates SET status = :st, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
             $updEst->execute(['st' => 'converted', 'id' => $estimateId]);
 
-            json_response(['message' => 'Invoice created', 'invoice_id' => $invoiceId, 'invoice_no' => $invNo]);
+            json_response([
+                'message' => 'Invoice created successfully',
+                'invoice_id' => $invoiceId,
+                'invoice_no' => $invNo,
+                'total_amount' => $totalAmount,
+                'subtotal' => $subtotal,
+                'balance_due' => $totalAmount,
+                'amount_paid' => 0.0,
+            ]);
         }
 
         if ($sub === '/pdf' && $method === 'GET') {
@@ -512,9 +574,9 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
 
                 $insItem = $db->prepare('
                     INSERT INTO estimate_items (
-                        estimate_id, product_id, description, quantity, unit, unit_price, tax_rate, tax_amount, total_price
+                        estimate_id, product_id, description, model_make, quantity, unit, unit_price, tax_rate, tax_amount, total_price
                     ) VALUES (
-                        :eid, :prid, :desc, :qty, :unit, :price, :tr, :ta, :tp
+                        :eid, :prid, :desc, :mm, :qty, :unit, :price, :tr, :ta, :tp
                     )
                 ');
 
@@ -524,6 +586,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         'eid' => $estimateId,
                         'prid' => !empty($item['product_id']) ? (int) $item['product_id'] : null,
                         'desc' => $item['description'],
+                        'mm' => !empty($item['model_make']) ? trim((string) $item['model_make']) : null,
                         'qty' => (float) ($item['quantity'] ?? 0),
                         'unit' => (string) ($item['unit'] ?? 'pcs'),
                         'price' => (float) ($item['unit_price'] ?? 0),

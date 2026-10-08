@@ -30,31 +30,37 @@
         </div>
 
         <div class="flex justify-center">
-            <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style="width: 210mm; max-width: 100%;">
+            <div id="estimate-sheet" class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden transition-all duration-300" style="width: 210mm; max-width: 100%;">
+                <!-- Dynamic Company Theme Accent Stripe -->
+                <div id="est-theme-stripe" class="h-2.5 w-full bg-gradient-to-r from-blue-700 via-sky-600 to-cyan-400"></div>
+
                 <div class="p-8">
                     <!-- Company Header & Estimate Metadata -->
-                    <div class="flex justify-between items-start border-b border-gray-200 pb-6 mb-6">
-                        <div class="flex items-start gap-4">
-                            <div class="w-16 h-16 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                    <div id="est-header-divider" class="flex justify-between items-start border-b border-gray-200 pb-6 mb-6 transition-all">
+                        <div class="flex items-center gap-5">
+                            <div id="est-logo-container" class="w-28 h-28 rounded-2xl border border-gray-200 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-md p-2">
                                 <img id="est-co-logo" src="/static/img/logo.png" alt="Company Logo" class="max-w-full max-h-full object-contain">
                             </div>
                             <div>
-                                <h1 class="text-2xl font-extrabold text-gray-900" id="est-co-name">{{ company }}</h1>
-                                <p class="text-xs text-gray-500 mt-1" id="est-co-details"></p>
-                                <p class="text-xs text-gray-500 font-medium" id="est-co-tax"></p>
+                                <h1 class="text-3xl font-black text-gray-900 tracking-tight" id="est-co-name">{{ company }}</h1>
+                                <p class="text-xs font-semibold mt-1 tracking-wide" id="est-co-slogan">Offering complete Suite of IT and Security solutions</p>
+                                <p class="text-xs font-medium text-slate-600 mt-1 max-w-xl leading-relaxed" id="est-co-details"></p>
+                                <div class="flex items-center gap-2 mt-1.5" id="est-co-tax-container">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700 font-mono" id="est-co-tax"></span>
+                                </div>
                             </div>
                         </div>
                         <div class="text-right">
-                            <h2 class="text-2xl font-bold text-gray-800" id="est-no"></h2>
+                            <h2 class="text-2xl font-black text-gray-900 uppercase tracking-tight" id="est-doc-title">QUOTATION</h2>
+                            <p class="text-base font-extrabold text-gray-800 font-mono mt-0.5" id="est-no"></p>
                             <p class="text-xs text-gray-500 mt-1" id="est-dates"></p>
-                            <div class="mt-2" id="est-markup-badge"></div>
                         </div>
                     </div>
 
                     <!-- Client and Status -->
-                    <div class="flex justify-between items-start mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div id="client-panel" class="flex justify-between items-start mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100 transition-all">
                         <div class="w-1/2">
-                            <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Prepared For Client</h3>
+                            <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider" id="to-label">Quotation To</h3>
                             <p class="font-bold text-gray-900 text-base mt-0.5" id="client-name"></p>
                             <p class="text-xs text-gray-600 mt-0.5" id="client-info"></p>
                         </div>
@@ -64,11 +70,17 @@
                         </div>
                     </div>
 
+                    <!-- Section Title Banner -->
+                    <div id="section-banner" class="mb-4 py-2 px-4 rounded-lg font-bold text-xs uppercase tracking-wider text-center shadow-sm transition-all">
+                        <span id="section-banner-text">ACTIVE COMPONENTS-ZONE-1</span>
+                    </div>
+
                     <!-- Items Table -->
-                    <table class="w-full mb-6">
+                    <table class="w-full mb-6 overflow-hidden rounded-lg">
                         <thead>
-                            <tr class="bg-gray-100 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase">
+                            <tr id="table-head-row" class="bg-slate-900 text-white text-xs font-bold uppercase transition-all">
                                 <th class="text-left px-4 py-3">Description</th>
+                                <th class="text-left px-4 py-3">Model / Make</th>
                                 <th class="text-right px-4 py-3">Qty</th>
                                 <th class="text-right px-4 py-3">Unit</th>
                                 <th class="text-right px-4 py-3">Unit Price</th>
@@ -78,8 +90,16 @@
                         <tbody id="items-body" class="divide-y divide-gray-100 text-sm"></tbody>
                     </table>
 
-                    <!-- Financial Summary -->
-                    <div class="flex justify-end border-t border-gray-200 pt-4">
+                    <!-- Financial Summary & Stamp Box -->
+                    <div class="flex justify-between items-end border-t border-gray-200 pt-5">
+                        <!-- Left: Authentic Stamp & Signature Box -->
+                        <div id="stamp-container" class="w-52 h-28 rounded-xl flex flex-col items-center justify-center p-2 text-center transition-all">
+                            <i class="fas fa-stamp text-lg mb-1 opacity-60"></i>
+                            <span id="stamp-title" class="text-xs font-extrabold uppercase tracking-wider">STAMP</span>
+                            <span class="text-[9px] opacity-75 mt-0.5">Authorized Signature</span>
+                        </div>
+
+                        <!-- Right: Financial Summary -->
                         <div class="w-80 space-y-2">
                             <div class="flex justify-between text-sm text-gray-600">
                                 <span>Subtotal:</span>
@@ -91,9 +111,9 @@
                             </div>
                             <div class="flex justify-between text-sm text-gray-600">
                                 <span>Tax (<span id="tax-percent-label">17</span>% GST):</span>
-                                <span>PKR <span id="est-tax" class="font-semibold text-gray-800">0.00</span></span>
+                                <span id="gst-label-color" class="font-bold text-red-600">PKR <span id="est-tax">0.00</span></span>
                             </div>
-                            <div class="flex justify-between text-lg font-bold text-gray-900 border-t border-gray-200 pt-2">
+                            <div id="grand-total-card" class="flex justify-between text-base font-extrabold p-3.5 rounded-xl shadow-sm text-white bg-slate-900 transition-all">
                                 <span>Grand Total:</span>
                                 <span>PKR <span id="est-total">0.00</span></span>
                             </div>
@@ -101,12 +121,12 @@
                     </div>
 
                     <!-- Terms & Conditions -->
-                    <div class="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200" id="terms-section">
-                        <h4 class="font-bold text-xs text-gray-700 uppercase tracking-wider mb-2">Terms &amp; Conditions</h4>
-                        <div class="text-xs text-gray-600 space-y-1" id="est-terms"></div>
+                    <div class="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 transition-all" id="terms-section">
+                        <h4 class="font-bold text-xs uppercase tracking-wider mb-2" id="terms-title">Terms &amp; Conditions</h4>
+                        <div class="text-xs space-y-1" id="est-terms"></div>
                     </div>
 
-                    <div class="mt-8 text-center text-xs text-gray-400 border-t border-gray-200 pt-4">
+                    <div class="mt-8 text-center text-xs text-gray-400 border-t border-gray-200 pt-4" id="footer-caption">
                         This is a computer-generated quotation estimate. Prices and terms are subject to the conditions listed above.
                     </div>
                 </div>
@@ -124,13 +144,131 @@ function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
 }
 
+// Multi-Company Visual Themes Preset
+const companyThemes = {
+    technocrates: {
+        stripe: 'bg-gradient-to-r from-stone-900 via-amber-800 to-amber-600',
+        docTitle: 'COMMERCIAL QUOTATION',
+        slogan: 'General Order Suppliers, Engineering Works & Technical Services',
+        sloganCls: 'text-amber-800 font-semibold',
+        docTitleCls: 'text-stone-900 font-serif',
+        headerBorderCls: 'border-b-2 border-stone-800',
+        clientPanelCls: 'bg-stone-50 border-amber-200/80',
+        sectionBannerCls: 'bg-stone-800 text-amber-200 border-l-4 border-amber-600',
+        tableHeadCls: 'bg-stone-900 text-amber-300 border-b-2 border-amber-600',
+        tableRowHover: 'hover:bg-amber-50/30',
+        grandTotalCls: 'bg-gradient-to-r from-stone-900 via-amber-900 to-amber-950 text-amber-200 border border-amber-700/50',
+        stampCls: 'border-2 border-stone-800 text-stone-900 font-serif bg-amber-50/20',
+        stampLabel: 'AUTHORIZED SIGNATURE & STAMP',
+        termsCls: 'bg-stone-50 border-amber-300/80 text-stone-800 border-l-4 border-l-amber-600',
+        termsTitle: 'TERMS & TECHNICAL SPECIFICATIONS',
+        termsTitleCls: 'text-stone-900 font-bold',
+        badgeBg: 'bg-amber-100 text-amber-900'
+    },
+    cybernet: {
+        stripe: 'bg-gradient-to-r from-emerald-900 via-teal-700 to-emerald-500',
+        docTitle: 'PROFORMA QUOTATION',
+        slogan: 'Telecommunications, Network Infrastructure & Electronic Systems',
+        sloganCls: 'text-emerald-700 font-semibold',
+        docTitleCls: 'text-emerald-950 tracking-wider',
+        headerBorderCls: 'border-b-2 border-emerald-800',
+        clientPanelCls: 'bg-emerald-50/40 border-emerald-200',
+        sectionBannerCls: 'bg-emerald-900 text-emerald-100 border-l-4 border-teal-500',
+        tableHeadCls: 'bg-emerald-900 text-emerald-200 border-b-2 border-emerald-500',
+        tableRowHover: 'hover:bg-emerald-50/30',
+        grandTotalCls: 'bg-gradient-to-r from-emerald-950 to-teal-900 text-emerald-100 border border-emerald-700/50',
+        stampCls: 'border-2 border-emerald-600 text-emerald-800 rounded-2xl bg-emerald-50/20',
+        stampLabel: 'VERIFIED & STAMPED',
+        termsCls: 'bg-emerald-50/40 border-emerald-200 text-emerald-950 border-l-4 border-l-emerald-600',
+        termsTitle: 'COMMERCIAL TERMS & WARRANTY',
+        termsTitleCls: 'text-emerald-900 font-bold',
+        badgeBg: 'bg-emerald-100 text-emerald-900'
+    },
+    datapoint: {
+        stripe: 'bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-500',
+        docTitle: 'QUOTATION',
+        slogan: 'Offering complete Suite of IT and Security solutions',
+        sloganCls: 'text-sky-600 font-semibold',
+        docTitleCls: 'text-slate-900',
+        headerBorderCls: 'border-b border-gray-200',
+        clientPanelCls: 'bg-slate-50 border-slate-100',
+        sectionBannerCls: 'bg-blue-900 text-white',
+        tableHeadCls: 'bg-slate-900 text-cyan-200 border-b border-cyan-500',
+        tableRowHover: 'hover:bg-slate-50',
+        grandTotalCls: 'bg-gradient-to-r from-slate-900 to-blue-950 text-white shadow-sm',
+        stampCls: 'border-2 border-blue-600 text-blue-800 rounded-xl bg-blue-50/20',
+        stampLabel: 'STAMP',
+        termsCls: 'bg-slate-50 border-blue-100 text-slate-700',
+        termsTitle: 'TERMS & CONDITIONS',
+        termsTitleCls: 'text-slate-900 font-bold',
+        badgeBg: 'bg-cyan-100 text-cyan-900'
+    }
+};
+
+function getCompanyThemeKey(e) {
+    const cid = parseInt(e.company_id || 1);
+    const code = String(e.company_code || '').toUpperCase();
+    const name = String(e.company_name || '').toLowerCase();
+    const markup = parseFloat(e.markup_percent || 0);
+
+    if (cid === 2 || code === 'PTC' || name.includes('technocrates') || name.includes('services') || (Math.abs(markup - 2.0) < 0.1 && !name.includes('datapoint'))) {
+        return 'technocrates';
+    }
+    if (cid === 3 || code === 'MTC' || name.includes('cybernet') || name.includes('electronics') || (Math.abs(markup - 3.0) < 0.1 && !name.includes('datapoint'))) {
+        return 'cybernet';
+    }
+    return 'datapoint';
+}
+
+function applyTheme(themeKey) {
+    const t = companyThemes[themeKey] || companyThemes.datapoint;
+
+    // Top Stripe
+    $('#est-theme-stripe').attr('class', 'h-2.5 w-full ' + t.stripe);
+
+    // Slogan & Titles
+    $('#est-co-slogan').text(t.slogan).attr('class', 'text-xs tracking-wide ' + t.sloganCls);
+    $('#est-doc-title').text(t.docTitle).attr('class', 'text-2xl font-black uppercase tracking-tight ' + t.docTitleCls);
+
+    // Header divider
+    $('#est-header-divider').attr('class', 'flex justify-between items-start pb-6 mb-6 transition-all ' + t.headerBorderCls);
+
+    // Client panel
+    $('#client-panel').attr('class', 'flex justify-between items-start mb-6 p-4 rounded-xl border transition-all ' + t.clientPanelCls);
+
+    // Section Banner
+    $('#section-banner').attr('class', 'mb-4 py-2 px-4 rounded-lg font-bold text-xs uppercase tracking-wider text-center shadow-sm transition-all ' + t.sectionBannerCls);
+
+    // Table Header
+    $('#table-head-row').attr('class', 'text-xs font-bold uppercase transition-all ' + t.tableHeadCls);
+
+    // Grand Total Card
+    $('#grand-total-card').attr('class', 'flex justify-between text-base font-extrabold p-3.5 rounded-xl shadow-sm transition-all ' + t.grandTotalCls);
+
+    // Stamp Box
+    $('#stamp-container').attr('class', 'w-52 h-28 flex flex-col items-center justify-center p-2 text-center transition-all ' + t.stampCls);
+    $('#stamp-title').text(t.stampLabel);
+
+    // Terms Box
+    $('#terms-section').attr('class', 'mt-8 p-4 rounded-xl border transition-all ' + t.termsCls);
+    $('#terms-title').text(t.termsTitle).attr('class', 'font-bold text-xs uppercase tracking-wider mb-2 ' + t.termsTitleCls);
+}
+
 $.ajax({
     url: '/api/estimates/' + eid,
     method: 'GET',
     headers: { Authorization: 'Bearer ' + token }
 }).done(function(e) {
+    const themeKey = getCompanyThemeKey(e);
+    applyTheme(themeKey);
+
     $('#est-no').text(e.estimate_no);
     $('#est-dates').text(`Date: ${e.estimate_date} | Valid: ${e.valid_until || '15 Days'}`);
+
+    // Section title
+    if (e.title && e.title.trim() !== '') {
+        $('#section-banner-text').text(e.title.trim());
+    }
 
     // Company profile display
     const coName = e.company_name || 'DATAPOINT Technologies';
@@ -153,34 +291,23 @@ $.ajax({
         `);
     }
 
-    // Markup badge
-    const markup = parseFloat(e.markup_percent) || 0;
-    if (markup === 0) {
-        $('#est-markup-badge').html('<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Base Rates (0%)</span>');
-    } else if (markup === 2) {
-        $('#est-markup-badge').html('<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">+2.0% Comparative Rate</span>');
-    } else if (markup === 3) {
-        $('#est-markup-badge').html('<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">+3.0% Comparative Rate</span>');
-    } else {
-        $('#est-markup-badge').html(`<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">+${markup}% Comparative Rate</span>`);
-    }
-
     // Multi-company sibling switcher
     if (e.sibling_estimates && e.sibling_estimates.length > 1) {
         $('#multi-switcher').removeClass('hidden');
         const siblingButtons = e.sibling_estimates.map(sib => {
             const isCurrent = sib.id == eid;
-            const mk = parseFloat(sib.markup_percent) || 0;
-            const tag = mk === 0 ? 'Base (0%)' : `+${mk}%`;
+            const tKey = getCompanyThemeKey(sib);
+            const dotColor = tKey === 'technocrates' ? 'bg-amber-400' : (tKey === 'cybernet' ? 'bg-emerald-400' : 'bg-cyan-400');
             const cls = isCurrent
-                ? 'bg-cyan-400 text-slate-900 font-extrabold border-cyan-300'
+                ? 'bg-white text-slate-900 font-extrabold border-white shadow-md'
                 : 'bg-white/10 hover:bg-white/20 text-white font-semibold border-white/20';
 
             return `
-                <a href="/estimates/${sib.id}" class="px-3.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5 ${cls}">
+                <a href="/estimates/${sib.id}" class="px-3.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-2 ${cls}">
+                    <span class="w-2.5 h-2.5 rounded-full ${dotColor} shrink-0"></span>
                     <span>${esc(sib.company_name)}</span>
-                    <span class="text-[10px] opacity-80">(${tag}: PKR ${Number(sib.total_amount).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
-                    ${isCurrent ? '<i class="fas fa-check-circle ml-0.5"></i>' : ''}
+                    <span class="text-[10px] opacity-80">(PKR ${Number(sib.total_amount).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
+                    ${isCurrent ? '<i class="fas fa-check-circle ml-0.5 text-emerald-600"></i>' : ''}
                 </a>
             `;
         }).join('');
@@ -200,10 +327,13 @@ $.ajax({
     $('#client-name').text(e.client_name || e.client?.name || 'Valued Client');
     const cinfo = [e.client_company, e.client_phone, e.client_email, e.client_address].filter(Boolean).join(' • ');
     $('#client-info').text(cinfo);
+    currentClientPhone = e.client_phone || e.client_mobile || e.client?.phone || e.client?.mobile || '';
 
+    const t = companyThemes[themeKey] || companyThemes.datapoint;
     $('#items-body').html((e.items || []).map(i => `
-        <tr class="hover:bg-slate-50">
+        <tr class="transition-colors ${t.tableRowHover}">
             <td class="px-4 py-3 text-gray-800 font-medium">${esc(i.description)}</td>
+            <td class="px-4 py-3 text-gray-600">${esc(i.model_make || '-')}</td>
             <td class="px-4 py-3 text-right text-gray-600">${i.quantity}</td>
             <td class="px-4 py-3 text-right text-gray-500">${esc(i.unit || 'pcs')}</td>
             <td class="px-4 py-3 text-right text-gray-600 font-mono">PKR ${Number(i.unit_price).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
@@ -229,6 +359,9 @@ $.ajax({
         <a href="/api/estimates/${eid}/pdf?token=${encodeURIComponent(token)}" target="_blank" class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-1.5">
             <i class="fas fa-file-pdf"></i> Download PDF
         </a>
+        <button id="whatsapp-est-btn" onclick="sendEstimateWhatsappDirect()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-1.5">
+            <i class="fab fa-whatsapp text-base"></i> Send WhatsApp
+        </button>
         <button onclick="window.print()" class="bg-white hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold border shadow-sm transition-all flex items-center gap-1.5">
             <i class="fas fa-print"></i> Print
         </button>
@@ -242,13 +375,21 @@ $.ajax({
             <button onclick="approve(${eid})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-1.5">
                 <i class="fas fa-check"></i> Approve
             </button>
+            <button onclick="convert(${eid})" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-1.5">
+                <i class="fas fa-exchange-alt"></i> Convert to Invoice
+            </button>
         `;
-    }
-    if (e.status === 'approved') {
+    } else if (e.status === 'approved' || e.status === 'sent') {
         actions += `
             <button onclick="convert(${eid})" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-1.5">
                 <i class="fas fa-exchange-alt"></i> Convert to Invoice
             </button>
+        `;
+    } else if (e.status === 'converted') {
+        actions += `
+            <a href="/invoices" class="bg-purple-50 text-purple-700 border border-purple-200 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-1.5">
+                <i class="fas fa-file-invoice"></i> View Invoices
+            </a>
         `;
     }
     $('#action-buttons').html(actions);
@@ -272,6 +413,31 @@ function convert(id) {
             })
             .fail(x => alert('Error: ' + (x.responseJSON?.detail || 'Failed to convert')));
     }
+}
+
+let currentClientPhone = '';
+
+function sendEstimateWhatsappDirect() {
+    const phone = prompt('Enter or confirm client WhatsApp mobile number (e.g. 03167788990 or +923167788990):', currentClientPhone || '');
+    if (!phone) return;
+
+    const btn = $('#whatsapp-est-btn');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Sending...');
+
+    $.ajax({
+        url: '/api/estimates/' + eid + '/whatsapp',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ recipient_phone: phone }),
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(res) {
+        alert(res.message || 'Quotation PDF sent via WhatsApp successfully!');
+        location.reload();
+    }).fail(function(err) {
+        alert('Failed to send WhatsApp: ' + (err.responseJSON?.detail || 'Unknown error. Ensure WhatsApp is linked on Dashboard.'));
+    }).always(function() {
+        btn.prop('disabled', false).html('<i class="fab fa-whatsapp text-base"></i> Send WhatsApp');
+    });
 }
 </script>
 {% endblock %}

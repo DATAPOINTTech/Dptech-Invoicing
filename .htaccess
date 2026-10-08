@@ -5,16 +5,24 @@
     # Prevent directory listing
     Options -Indexes
 
-    # Block sensitive files
-    RewriteRule ^(\.env|\.git|.*\.db|.*\.sqlite) - [F,L,NC]
+    # Block access to sensitive files and directories
+    RewriteRule ^(\.env|\.git|.*\.db|.*\.sqlite|composer\.(json|lock)|Dockerfile|docker-compose\.yml|Procfile) - [F,L,NC]
 
-    # Pass Authorization Header to PHP (Essential for cPanel / Apache JWT auth)
+    # Forward Authorization header to PHP (Crucial for Apache / cPanel / LiteSpeed JWT authentication)
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # Serve static assets directly if in root or in php/public/static
+    RewriteCond %{REQUEST_URI} ^/static/(.*)$
+    RewriteCond %{DOCUMENT_ROOT}/php/public/static/%1 -f
+    RewriteRule ^static/(.*)$ php/public/static/$1 [L]
+
     # Serve existing files and directories directly
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route all requests through index.php
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
@@ -33,3 +41,4 @@
     ExpiresByType text/css "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
 </IfModule>
+

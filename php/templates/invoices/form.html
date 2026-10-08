@@ -19,6 +19,7 @@
                         <select id="client_id" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select></div>
                     <div><label class="block text-sm font-medium text-gray-700">Invoice Date</label><input type="date" id="invoice_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
                     <div><label class="block text-sm font-medium text-gray-700">Due Date</label><input type="date" id="due_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
+                    <div class="col-span-3"><label class="block text-sm font-medium text-gray-700">Title / Section Banner</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., ACTIVE COMPONENTS-ZONE-1"></div>
                 </div>
                 <div class="flex gap-4 items-center">
                     <div class="flex items-center gap-2">
@@ -95,7 +96,7 @@
 <script>
 const token=localStorage.getItem('token');if(!token)window.location.href='/login';
 let itemCount=0;
-const invoiceId = {{ invoice_id|tojson }};
+const invoiceId = {% if invoice_id %}{{ invoice_id }}{% else %}null{% endif %};
 let printInvoiceAfterSave=false, printInvoiceWindow=null;
 function openInvoicePdfForPrint(id){
     $.ajax({url:'/api/invoices/'+id+'/pdf',method:'GET',xhrFields:{responseType:'blob'},headers:{Authorization:'Bearer '+token}})
@@ -104,15 +105,17 @@ function openInvoicePdfForPrint(id){
 }
 
 function addItem(data){
-    const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-7 gap-2 items-end">
-        <div class="col-span-2"><label class="text-xs text-gray-500">Item Name</label><input type="text" name="desc" class="w-full px-2 py-1.5 border rounded text-sm" placeholder="Item name" value="${data?.description||''}"></div>
-        <div><label class="text-xs text-gray-500">Qty</label><input type="number" name="qty" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm qty-input" value="${data?.quantity||1}"></div>
-        <div><label class="text-xs text-gray-500">Unit</label><select name="unit" class="w-full px-2 py-1.5 border rounded text-sm"><option value="pcs" ${data?.unit==='pcs'?'selected':''}>Pcs</option><option value="service" ${data?.unit==='service'?'selected':''}>Service</option><option value="meter" ${data?.unit==='meter'?'selected':''}>Meter</option><option value="box" ${data?.unit==='box'?'selected':''}>Box</option><option value="kg" ${data?.unit==='kg'?'selected':''}>Kg</option><option value="set" ${data?.unit==='set'?'selected':''}>Set</option><option value="roll" ${data?.unit==='roll'?'selected':''}>Roll</option><option value="foot" ${data?.unit==='foot'?'selected':''}>Foot</option><option value="hour" ${data?.unit==='hour'?'selected':''}>Hour</option><option value="day" ${data?.unit==='day'?'selected':''}>Day</option><option value="liter" ${data?.unit==='liter'?'selected':''}>Liter</option></select></div>
-        <div><label class="text-xs text-gray-500">Unit Price</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded text-sm price-input" value="${data?.unit_price||0}"></div>
-        <div><label class="text-xs text-gray-500">Total</label><input type="text" name="row-total" readonly class="w-full px-2 py-1.5 bg-gray-50 border rounded text-sm" value="0.00"></div>
-        <div><button type="button" onclick="this.closest('.item-row').remove();calcTotal();" class="text-red-500 text-sm"><i class="fas fa-times"></i></button></div>
+    const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-12 gap-2 items-end bg-gray-50/40">
+        <div class="col-span-12 md:col-span-4"><label class="text-xs font-semibold text-gray-600">Item Description *</label><input type="text" name="desc" class="w-full px-2.5 py-1.5 border rounded-lg text-sm bg-white" placeholder="Item name & description" value="${esc(data?.description||'')}" required></div>
+        <div class="col-span-12 md:col-span-3"><label class="text-xs font-semibold text-gray-600">Model / Make</label><input type="text" name="model_make" class="w-full px-2.5 py-1.5 border rounded-lg text-sm bg-white" placeholder="Model / Make" value="${esc(data?.model_make||'')}"></div>
+        <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Qty</label><input type="number" name="qty" step="any" min="0.01" class="w-full px-2 py-1.5 border rounded-lg text-sm bg-white qty-input text-center" value="${data?.quantity||1}"></div>
+        <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Unit</label><select name="unit" class="w-full px-1.5 py-1.5 border rounded-lg text-sm bg-white text-center"><option value="pcs" ${data?.unit==='pcs'?'selected':''}>pcs</option><option value="No." ${data?.unit==='No.'?'selected':''}>No.</option><option value="service" ${data?.unit==='service'?'selected':''}>service</option><option value="meter" ${data?.unit==='meter'?'selected':''}>meter</option><option value="box" ${data?.unit==='box'?'selected':''}>box</option><option value="set" ${data?.unit==='set'?'selected':''}>set</option><option value="roll" ${data?.unit==='roll'?'selected':''}>roll</option><option value="hour" ${data?.unit==='hour'?'selected':''}>hour</option><option value="day" ${data?.unit==='day'?'selected':''}>day</option><option value="job" ${data?.unit==='job'?'selected':''}>job</option></select></div>
+        <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Rate</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded-lg text-sm bg-white price-input text-right" value="${data?.unit_price||0}"></div>
+        <div class="col-span-10 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Total</label><input type="text" name="row-total" readonly class="w-full px-1.5 py-1.5 bg-gray-100 border rounded-lg text-sm text-right font-medium" value="0.00"></div>
+        <div class="col-span-2 md:col-span-1 text-center"><button type="button" onclick="this.closest('.item-row').remove();calcTotal();" class="text-red-400 hover:text-red-600 py-2"><i class="fas fa-trash"></i></button></div>
     </div>`;
     $('#items-container').append(html);
+    calcTotal();
 }
 function calcTotal(){
     let subtotal=0;$('.item-row').each(function(){const qty=parseFloat($(this).find('[name=qty]').val())||0,price=parseFloat($(this).find('[name=price]').val())||0,rowTotal=qty*price;$(this).find('[name=row-total]').val(rowTotal.toFixed(2));subtotal+=rowTotal;});
@@ -176,7 +179,19 @@ function hideNewClient(){
     if($('#client_id').val()==='new') $('#client_id').val('');
 }
 function applyImportedDraft(draft){
-    if(draft.client_id) $('#client_id').val(String(draft.client_id));
+    if(draft.client_id) {
+        $('#client_id').val(String(draft.client_id));
+    } else if(draft.client_name) {
+        const cname = draft.client_name.toLowerCase().trim();
+        $('#client_id option').each(function(){
+            const opt = $(this).text().toLowerCase();
+            if(opt && cname && (opt.includes(cname) || cname.includes(opt.split(' ')[0]))){
+                $('#client_id').val($(this).val());
+                return false;
+            }
+        });
+    }
+    if(draft.title) $('#title').val(draft.title);
     if(draft.invoice_date) $('#invoice_date').val(draft.invoice_date);
     if(draft.due_date) $('#due_date').val(draft.due_date);
     if(draft.tax_rate!==null && draft.tax_rate!==undefined) $('#tax_rate').val(draft.tax_rate);
@@ -184,9 +199,13 @@ function applyImportedDraft(draft){
     if(draft.notes) $('#notes').val(draft.notes);
     if((draft.items||[]).length){ $('#items-container').empty(); draft.items.forEach(addItem); }
     calcTotal();
-    const warnings=draft.warnings||[];
-    $('#import-status').text(warnings.length ? warnings.join(' ') : 'Invoice data imported - please review it.');
-    if(warnings.length) alert('Import completed.\n\n'+warnings.join('\n'));
+    const warnings = draft.warnings || [];
+    if((draft.items||[]).length > 0) {
+        $('#import-status').text('Invoice data imported (' + draft.items.length + ' items) — please review before saving.');
+    } else {
+        $('#import-status').text(warnings.length ? warnings.join(' ') : 'Invoice data imported — please add items.');
+        if(warnings.length) alert('Import completed with notes:\n\n' + warnings.join('\n'));
+    }
 }
 $('#new-client-form').submit(function(e){
     e.preventDefault();
@@ -225,6 +244,7 @@ $(function(){
                 $('#client_id').val(inv.client?.id||inv.client_id);
                 $('#invoice_date').val(inv.invoice_date);
                 $('#due_date').val(inv.due_date);
+                $('#title').val(inv.title || '');
                 $('#discount').val(inv.discount_percent);
                 $('#payment_terms').val(inv.payment_terms||'');
                 $('#notes').val(inv.notes||'');
@@ -259,8 +279,35 @@ $(function(){
     $('#invoice-form').submit(function(e){e.preventDefault();
         if($('#client_id').val()==='new'){ showNewClient(); return; }
         const tr=parseFloat($('#tax_rate').val())||0;
-        const items=[];$('.item-row').each(function(){items.push({description:$(this).find('[name=desc]').val(),quantity:parseFloat($(this).find('[name=qty]').val())||0,unit:$(this).find('[name=unit]').val(),unit_price:parseFloat($(this).find('[name=price]').val())||0,tax_rate:tr});});
-        const data={client_id:parseInt($('#client_id').val()),invoice_date:$('#invoice_date').val(),due_date:$('#due_date').val()||null,discount_percent:parseFloat($('#discount').val())||0,tax_rate:tr,apply_wht:$('#apply_wht').is(':checked'),apply_fed:$('#apply_fed').is(':checked'),payment_terms:$('#payment_terms').val(),notes:$('#notes').val(),items};
+        const items=[];$('.item-row').each(function(){
+            const desc = $(this).find('[name=desc]').val().trim();
+            if (!desc) return;
+            items.push({
+                description: desc,
+                model_make: $(this).find('[name=model_make]').val().trim(),
+                quantity: parseFloat($(this).find('[name=qty]').val())||0,
+                unit: $(this).find('[name=unit]').val(),
+                unit_price: parseFloat($(this).find('[name=price]').val())||0,
+                tax_rate: tr
+            });
+        });
+        if (!items.length) {
+            alert('Please add at least one item with a description.');
+            return;
+        }
+        const data={
+            client_id:parseInt($('#client_id').val()),
+            invoice_date:$('#invoice_date').val(),
+            due_date:$('#due_date').val()||null,
+            title:$('#title').val().trim()||null,
+            discount_percent:parseFloat($('#discount').val())||0,
+            tax_rate:tr,
+            apply_wht:$('#apply_wht').is(':checked'),
+            apply_fed:$('#apply_fed').is(':checked'),
+            payment_terms:$('#payment_terms').val(),
+            notes:$('#notes').val(),
+            items
+        };
         const url = invoiceId ? '/api/invoices/'+invoiceId : '/api/invoices';
         const method = invoiceId ? 'PUT' : 'POST';
         $.ajax({url:url,method:method,contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(r){if(printInvoiceAfterSave){openInvoicePdfForPrint(r.id);printInvoiceAfterSave=false;}window.location.href='/invoices/'+r.id;}).fail(function(x){printInvoiceAfterSave=false;alert('Error: '+(x.responseJSON?.detail||'Unknown'));});

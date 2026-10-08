@@ -78,36 +78,36 @@ $companies = [
         'terms' => "1. Payment: Net 30 days from invoice date.\n2. Prices are subject to prevailing government taxes.\n3. Validity: 15 days from issuance."
     ],
     [
-        'name' => 'TechPoint Solutions',
-        'code' => 'TPS',
+        'name' => 'Pakistan Technocrates Works & Services',
+        'code' => 'PTC',
         'markup_percent' => 2.0,
         'is_default' => 0,
         'sort_order' => 2,
-        'logo_url' => '/static/img/logo.png',
-        'email' => 'sales@techpoint.example.com',
+        'logo_url' => '/static/uploads/logo_6ac6793528d74.png',
+        'email' => 'contact@paktechnocrates.com',
         'phone' => '+92 21 34567891',
         'mobile' => '+92 300 2345678',
         'address' => 'Suite 204, Commercial Zone, Qasimabad',
         'city' => 'Hyderabad',
-        'ntn' => '8203945-6',
-        'strn' => '17-00-8203-945-22',
-        'terms' => "1. Payment: Within 15 days upon milestone completion.\n2. Deliverables covered under 1-year standard warranty.\n3. Validity: 15 days."
+        'ntn' => '2345678-9',
+        'strn' => '17-00-2345-678-90',
+        'terms' => "1. Payment: Within 15 days upon milestone completion.\n2. Supplies strictly in compliance with engineering specifications.\n3. Validity: 15 days."
     ],
     [
-        'name' => 'Apex Data Systems',
-        'code' => 'ADS',
+        'name' => 'M tech Cybernet and Electronics',
+        'code' => 'MTC',
         'markup_percent' => 3.0,
         'is_default' => 0,
         'sort_order' => 3,
-        'logo_url' => '/static/img/logo.png',
-        'email' => 'billing@apexdata.example.com',
+        'logo_url' => '/static/uploads/logo_6ac6794d40860.png',
+        'email' => 'sales@mtechcybernet.com',
         'phone' => '+92 21 34567892',
         'mobile' => '+92 300 3456789',
         'address' => 'Floor 3, Executive Tower, Auto Bhan Road',
         'city' => 'Hyderabad',
-        'ntn' => '9314056-7',
-        'strn' => '17-00-9314-056-33',
-        'terms' => "1. Payment due upon delivery and acceptance.\n2. All supplies strictly verified against manufacturer datasheets.\n3. Validity: 15 days."
+        'ntn' => '3456789-0',
+        'strn' => '17-00-3456-789-01',
+        'terms' => "1. Payment due upon delivery and acceptance.\n2. Telecommunications and hardware covered under standard warranty.\n3. Validity: 15 days."
     ]
 ];
 
@@ -147,26 +147,8 @@ echo "     - Username: {$adminUsername}\n";
 echo "     - Email:    {$adminEmail}\n";
 echo "     - Role:     admin (Unrestricted Granular Permission Authority)\n";
 
-echo "\n4. Cleaning temporary upload files...\n";
-$uploadDir = dirname(__DIR__) . '/public/static/uploads';
-if (is_dir($uploadDir)) {
-    $files = glob($uploadDir . '/*');
-    $removedCount = 0;
-    foreach ($files as $file) {
-        if (is_file($file) && !str_ends_with($file, '.gitkeep')) {
-            unlink($file);
-            $removedCount++;
-        }
-    }
-    echo "   + Cleaned {$removedCount} temporary upload file(s).\n";
-}
-
-// Copy SQLite DB to root if root path is referenced by legacy scripts
-$rootDbPath = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'dptech.db';
-$storageDb = default_php_database_path();
-if (is_file($storageDb)) {
-    @copy($storageDb, $rootDbPath);
-}
+echo "\n4. Seeding Products & Live Price List Catalog...\n";
+require_once __DIR__ . '/seed_catalog.php';
 
 echo "\n========================================================\n";
 echo "  PRODUCTION DATABASE RESET COMPLETED SUCCESSFULLY!     \n";

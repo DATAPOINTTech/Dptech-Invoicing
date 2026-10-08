@@ -28,7 +28,7 @@
 </div>
 <script>
 const token=localStorage.getItem('token');if(!token)window.location.href='/login';
-const expenseId = {{ expense_id|tojson }};
+const expenseId = {% if expense_id %}{{ expense_id }}{% else %}null{% endif %};
 
 $('#expense-form').submit(function(e){e.preventDefault();
     const data={description:$('#description').val(),category:$('#category').val(),amount:parseFloat($('#amount').val())||0,tax_amount:parseFloat($('#tax_amount').val())||0,expense_date:$('#expense_date').val(),payment_method:$('#payment_method').val()||null,vendor_name:$('#vendor_name').val()||null,receipt_ref:$('#receipt_ref').val()||null,notes:$('#notes').val()||null};

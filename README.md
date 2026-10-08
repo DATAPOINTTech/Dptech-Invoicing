@@ -1,288 +1,105 @@
-# DATAPOINT Invoicing System
+# DATAPOINT Business Management & Invoicing System (PHP)
 
-Business management system with invoicing, estimates, inventory, expense tracking, and AI support agent.
-
-## Quick Start
-
-```bash
-pip install -r requirements.txt
-python run.py
-```
-
-Visit `http://localhost:8000` — register an account on the login page to get started.
-
-## Deploy to Cloud
-
-### Railway / Render / Heroku
-
-1. Push this repo to GitHub
-2. Connect your cloud provider to the repo
-3. Set these environment variables:
-
-```
-SECRET_KEY=<generate-a-random-key>
-DATABASE_URL=postgresql://user:pass@host:5432/dbname
-```
-
-The app uses `uvicorn` via the `Procfile` — no additional config needed.
+A high-performance, zero-external-dependency enterprise invoicing, multi-company quoting, inventory control, and payment ledger application built in native PHP.
 
 ---
 
-### AWS EC2 (Manual Deployment)
+## Key Features
 
-#### 1. Launch EC2 Instance
+- **Multi-Company Quotations & Invoicing:** Issue estimates and sales tax invoices across multiple brand profiles with custom markups and color themes.
+- **Sales Tax Invoices:** Official PDF invoices with FBR compliant layout, NTN/STRN badges, automatic tax & withholding calculations.
+- **Payment Ledger:** Record full or partial payments with method, reference, and date tracking. Automatic balance due recalculation.
+- **Inventory & Stock Management:** Automated stock tracking with movement logs on invoice generation.
+- **Client & Supplier Management:** Comprehensive directory with NTN, STRN, contact, and billing metadata.
+- **Direct SMTP Email Dispatch:** Native SSL/TLS authenticated email delivery with graphical PDF attachments.
+- **Live Price Scraper:** Web scraping utility to fetch latest component market prices.
+- **Zero Heavy Dependencies:** Runs entirely on native PHP 8.1+ with PDO and standard extensions.
 
-- **AMI:** Amazon Linux 2023 (or Ubuntu 22.04)
-- **Instance type:** `t2.micro` (free tier) or `t3.medium` for production
-- **Storage:** 20+ GB gp3
-- **Security group rules:**
+---
 
-| Type | Protocol | Port | Source |
-|------|----------|------|--------|
-| SSH | TCP | 22 | Your IP |
-| HTTP | TCP | 80 | 0.0.0.0/0 |
-| HTTPS | TCP | 443 | 0.0.0.0/0 |
+## Quick Start (Local Development)
 
-#### 2. Connect & Update
+### Prerequisites
 
-```bash
-ssh -i your-key.pem ec2-user@<public-ip>
+- PHP 8.1 or higher (PHP 8.2 or 8.3 recommended)
+- Standard PHP extensions: `pdo`, `pdo_sqlite`, `openssl`, `curl`, `mbstring`, `fileinfo`
 
-sudo dnf update -y                                    # Amazon Linux
-sudo dnf install -y git nginx postgresql15-server     # PostgreSQL optional
-```
+### Run Application
 
-#### 3. Install Python & Dependencies
+Start the local development server:
 
 ```bash
-sudo dnf install -y python3.11 python3.11-pip
-python3.11 -m venv /home/ec2-user/venv
+php run.php
 ```
 
-#### 4. Set Up Database
-
-Choose **one** of the following options:
-
-<details>
-<summary><b>Option A — Aurora RDS (Recommended for Production)</b></summary>
-
-Create an Aurora PostgreSQL cluster via AWS Console:
-
-1. Go to **RDS** → **Create database**
-2. Engine: **Amazon Aurora (PostgreSQL Compatible)**
-3. Capacity: **Provisioned** (`db.t3.medium`) or **Serverless v2** (min 0.5, max 2 ACU)
-4. Cluster identifier: `dptech-invoicing-db`
-5. Master username: `postgres`, set a strong password
-6. Initial database name: `dptech_db`
-7. VPC security group: create new or use existing
-
-Add inbound rule to the security group:
-
-| Type | Protocol | Port | Source |
-|------|----------|------|--------|
-| PostgreSQL | TCP | 5432 | EC2 security group ID (e.g., `sg-xxxxx`) |
-
-Get the **writer endpoint** from the RDS console, then connect from EC2 to create the app user:
+Or run via PHP built-in server:
 
 ```bash
-sudo dnf install -y postgresql15
-psql -h <writer-endpoint> -U postgres -d dptech_db -W
+php -S 0.0.0.0:8000 -t php/public php/public/index.php
 ```
 
-```sql
-CREATE USER dptech WITH PASSWORD '<your-db-password>';
-GRANT ALL PRIVILEGES ON DATABASE dptech_db TO dptech;
-GRANT ALL ON SCHEMA public TO dptech;
-\q
-```
+Visit **`http://localhost:8000`** in your browser.
 
-Connection string for `.env`:
-```
-DATABASE_URL=postgresql://dptech:<your-db-password>@<writer-endpoint>:5432/dptech_db
-```
+### Default Admin Credentials
 
-</details>
+- **Username:** `admin` (or `info@datapointtechnology.com`)
+- **Password:** `admin123`
 
-<details>
-<summary><b>Option B — PostgreSQL on EC2 (Simpler/Cheaper)</b></summary>
+---
+
+## Deployment Options
+
+### 1. cPanel Shared / VPS Hosting (Recommended)
+
+1. Upload the files or deploy from git via cPanel Git Version Control.
+2. Ensure the Document Root points to `php/public`.
+3. To deploy database and configurations, refer to the ready-made backup package in `cpanel_backup/` or unzip `cpanel_backup.zip`.
+4. Import `cpanel_backup/cpanel_database.sql` into your cPanel MySQL database via phpMyAdmin.
+5. Copy `cpanel_backup/.env.cpanel` to `.env` and set your database connection and SMTP details.
+
+### 2. Docker Deployment
 
 ```bash
-sudo dnf install -y postgresql15-server
-sudo postgresql-setup --initdb
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Create database and user
-sudo -u postgres psql -c "CREATE USER dptech WITH PASSWORD '<your-db-password>';"
-sudo -u postgres psql -c "CREATE DATABASE dptech_db OWNER dptech;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE dptech_db TO dptech;"
+docker-compose up -d --build
 ```
 
-</details>
+Access the application at `http://localhost:8080`.
 
-#### 5. Clone the Repository
+### 3. Cloud / PaaS (Railway / Render / Heroku)
 
-```bash
-cd /home/ec2-user
-git clone https://github.com/your-org/dptech-invoicing.git
-cd dptech-invoicing
+Deploy via the included `Procfile`:
+```
+web: php -S 0.0.0.0:$PORT -t php/public php/public/index.php
 ```
 
-#### 6. Configure Environment
-
-```bash
-cp .env.example .env
+Set environment variables in your cloud dashboard:
 ```
-
-Edit `.env` — **at minimum** set:
-
-```
-SECRET_KEY=<your-generated-random-key>
-DATABASE_URL=<your-database-connection-string>
-COMPANY_NAME=DATAPOINT Technologies
-COMPANY_NTN=XXXXXXXXXXXXX
-COMPANY_STRN=XXXXXXXXXXXXX
-SALES_TAX_RATE=18.0
-```
-
-> **Database connection string:**
-> - **Aurora RDS:** `postgresql://dptech:<your-db-password>@<writer-endpoint>:5432/dptech_db`
-> - **Local on EC2:** `postgresql://dptech:<your-db-password>@localhost:5432/dptech_db`
-
-> Generate a strong `SECRET_KEY`:
-> ```bash
-> python3.11 -c "import secrets; print(secrets.token_urlsafe(50))"
-> ```
-
-#### 7. Install Python Packages
-
-```bash
-source /home/ec2-user/venv/bin/activate
-pip install -r requirements.txt
-pip install gunicorn uvicorn          # Production server
-```
-
-#### 8. Test the App
-
-```bash
-python run.py
-```
-
-Visit `http://<public-ip>:8000`. Press `Ctrl+C` to stop.
-
-#### 9. Run with systemd (Auto-start on Boot)
-
-Create service file:
-
-```bash
-sudo nano /etc/systemd/system/dptech.service
-```
-
-```ini
-[Unit]
-Description=DATAPOINT Invoicing API
-After=network.target postgresql.service
-
-[Service]
-User=ec2-user
-WorkingDirectory=/home/ec2-user/dptech-invoicing
-Environment="PATH=/home/ec2-user/venv/bin"
-ExecStart=/home/ec2-user/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable dptech
-sudo systemctl start dptech
-sudo systemctl status dptech          # Verify
-```
-
-#### 10. Set Up Nginx Reverse Proxy
-
-```bash
-sudo nano /etc/nginx/conf.d/dptech.conf
-```
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com <public-ip>;
-
-    client_max_body_size 10M;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /static/ {
-        alias /home/ec2-user/dptech-invoicing/app/static/;
-        expires 30d;
-    }
-}
-```
-
-Remove default Nginx config and restart:
-
-```bash
-sudo rm -f /etc/nginx/conf.d/default.conf
-sudo nginx -t                    # Test config
-sudo systemctl enable nginx
-sudo systemctl restart nginx
-```
-
-#### 11. SSL with Let's Encrypt (HTTPS)
-
-```bash
-sudo dnf install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-```
-
-Certbot auto-updates the Nginx config. Certificates renew automatically via systemd timer.
-
-#### 12. Health Check
-
-```bash
-curl http://localhost:8000/        # From EC2
-curl https://your-domain.com/      # From anywhere
-```
-
-Check logs:
-
-```bash
-sudo journalctl -u dptech -f       # App logs
-sudo tail -f /var/log/nginx/access.log
+DATABASE_URL=sqlite:///./php/storage/dptech.db
+SECRET_KEY=<your-random-secret-key>
 ```
 
 ---
 
-### Environment Variables
+## Project Structure
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | No | `sqlite:///./dptech.db` | Use PostgreSQL in production |
-| `SECRET_KEY` | **Yes** | none | JWT signing key — must be set in production |
-| `PORT` | No | `8000` | Server port (set automatically by cloud) |
-| `COMPANY_NAME` | No | DATAPOINT Technologies | Company name on invoices |
-| `EMAIL_HOST` | No | - | SMTP server for email sending |
-| `WHATSAPP_API_KEY` | No | - | Meta WhatsApp API key |
+```text
+├── php/
+│   ├── public/              # Document root (index.php, static assets, logos, favicon)
+│   ├── routes/              # Modular route handlers (invoices, estimates, auth, clients, etc.)
+│   ├── services/            # Core business logic (pdf_service, communication, inventory, scraper)
+│   ├── templates/           # Server-side HTML views and responsive UI components
+│   ├── storage/             # Application database (dptech.db) and file uploads
+│   └── bootstrap.php        # Application bootstrap, routing, and database connection
+├── cpanel_backup/           # Ready-to-deploy cPanel MySQL dump and config template
+├── run.php                  # Local development server runner
+├── index.php                # Root entry point forwarding to php/public/index.php
+├── Dockerfile               # Production PHP 8.3 Apache container definition
+└── docker-compose.yml       # Containerized environment orchestration
+```
 
-See `.env.example` for all options.
+---
 
-## Tech Stack
+## License & Support
 
-- **Backend:** FastAPI + SQLAlchemy
-- **Frontend:** Jinja2 + TailwindCSS + jQuery
-- **Database:** SQLite (dev) / PostgreSQL (production)
-- **Auth:** JWT with bcrypt
-- **PDF:** ReportLab
+Developed for **DATAPOINT Technologies**. All rights reserved.
+For inquiries, contact: `info@datapointtechnology.com`.

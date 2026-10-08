@@ -27,10 +27,10 @@ function load(){const s=$('#status-filter').val();$.ajax({url:'/api/invoices'+(s
     if(!invs.length){$('#invoices-body').html('<tr><td colspan="7" class="text-center py-8 text-slate-400">No invoices found</td></tr>');return;}
     $('#invoices-body').html(invs.map(i=>`<tr>
         <td class="font-medium text-slate-800">${i.invoice_no}</td>
-        <td>${i.client_name}</td>
-        <td class="text-slate-500">${i.invoice_date}</td>
-        <td class="text-right font-medium">PKR ${i.total_amount?.toLocaleString()}</td>
-        <td class="text-right ${i.balance_due>0?'text-red-600 font-semibold':'text-green-600'}">PKR ${i.balance_due?.toLocaleString()}</td>
+        <td>${i.client_name || '-'}</td>
+        <td class="text-slate-500">${i.invoice_date || '-'}</td>
+        <td class="text-right font-medium">PKR ${Number(i.total_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="text-right ${Number(i.balance_due || 0)>0?'text-red-600 font-semibold':'text-green-600'}">PKR ${Number(i.balance_due || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         <td class="text-center">${statusBadge(i.status)}</td>
         <td class="text-right">
             <div class="flex gap-2 justify-end">

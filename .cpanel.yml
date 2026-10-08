@@ -1,5 +1,9 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/datapointtechnol/invoicing.datapointtechnology.com/
+    - export DEPLOYPATH=/home/datapointtechnol/public_html/
     - /bin/cp -R * $DEPLOYPATH
+    - export APPPATH=/home/datapointtechnol/app_backend/
+    - export PUBLICPATH=/home/datapointtechnol/public_html/
+    - /bin/cp -R * $APPPATH
+    - /bin/cp -R public/* $PUBLICPATH

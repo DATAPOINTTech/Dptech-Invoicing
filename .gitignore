@@ -1,17 +1,48 @@
+# Environment & Sensitive
+.env
+.env.local
+!.env.example
+!.env.production
+!.cpanel.yml
+
+# Python artifacts
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
 build/
-.env
-dptech.db
-*.db
-pdf_output/
-server.log
-server.err
 .venv/
 venv/
 env/
-*.pyc
+
+# Node.js & WhatsApp Service
+node_modules/
+whatsapp-service/node_modules/
+whatsapp-service/auth_info/
+*.log
+whatsapp-service/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Databases & Backups
+*.db
+*.sqlite
+*.sqlite3
+*.db.backup*
+php/storage/*.db
+php/storage/*.db*
+!php/storage/.gitkeep
+Cpanel-RSAkey/backup/
+*.tar.gz
+*.tar
+*.zip
+*.bak
+
+# Temporary test outputs
+php/tests/*.pdf
+pdf_output/
+server.log
+server.err
 .DS_Store
-alembic/versions/*.py
+Thumbs.db

@@ -127,9 +127,16 @@ function db_table_exists(PDO $db, string $table): bool
     $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
     if ($driver === 'sqlite') {
         $stmt = $db->prepare("SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name = :name");
-    } else {
-        $stmt = $db->prepare("SELECT 1 FROM information_schema.tables WHERE table_name = :name");
+        $stmt->execute(['name' => $table]);
+        return (bool) $stmt->fetchColumn();
     }
+    if ($driver === 'mysql') {
+        $stmt = $db->prepare("SELECT 1 FROM information_schema.tables WHERE table_name = :name AND table_schema = DATABASE()");
+        $stmt->execute(['name' => $table]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    $stmt = $db->prepare("SELECT 1 FROM information_schema.tables WHERE table_name = :name");
     $stmt->execute(['name' => $table]);
     return (bool) $stmt->fetchColumn();
 }
@@ -370,6 +377,7 @@ CREATE TABLE IF NOT EXISTS estimate_items (
 	estimate_id INTEGER NOT NULL,
 	product_id INTEGER,
 	description VARCHAR(500) NOT NULL,
+	model_make VARCHAR(300),
 	quantity FLOAT NOT NULL,
 	unit VARCHAR(20) DEFAULT 'pcs',
 	unit_price FLOAT NOT NULL,
@@ -414,6 +422,7 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 	invoice_id INTEGER NOT NULL,
 	product_id INTEGER,
 	description VARCHAR(500) NOT NULL,
+	model_make VARCHAR(300),
 	quantity FLOAT NOT NULL,
 	unit VARCHAR(20) DEFAULT 'pcs',
 	unit_price FLOAT NOT NULL,
@@ -432,6 +441,35 @@ CREATE TABLE IF NOT EXISTS payments (
 	reference_no VARCHAR(100),
 	notes TEXT,
 	created_by INTEGER,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+SQL,
+        'agent_conversations' => <<<'SQL'
+CREATE TABLE IF NOT EXISTS agent_conversations (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	channel VARCHAR(20) DEFAULT 'web',
+	sender_phone VARCHAR(50),
+	sender_name VARCHAR(100),
+	client_id INTEGER,
+	last_message TEXT,
+	unread_count INTEGER DEFAULT 0,
+	status VARCHAR(20) DEFAULT 'active',
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+SQL,
+        'agent_messages' => <<<'SQL'
+CREATE TABLE IF NOT EXISTS agent_messages (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	conversation_id INTEGER NOT NULL,
+	sender_type VARCHAR(20) NOT NULL,
+	sender_name VARCHAR(100),
+	message TEXT NOT NULL,
+	message_type VARCHAR(20) DEFAULT 'text',
+	document_url VARCHAR(500),
+	document_name VARCHAR(200),
+	is_whatsapp BOOLEAN DEFAULT 0,
+	whatsapp_msg_id VARCHAR(100),
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 SQL,
@@ -469,12 +507,9 @@ CREATE TABLE IF NOT EXISTS companies (
 );
 SQL);
 
-    // 2. Add multi-company columns to estimates if missing
+    // 2. Add multi-company columns to estimates and invoices if missing
     $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
     if ($driver === 'sqlite') {
-        $cols = $db->query('PRAGMA table_info(estimates)')->fetchAll(PDO::FETCH_ASSOC);
-        $colNames = array_column($cols, 'name');
-
         $neededCols = [
             'company_id' => 'INTEGER',
             'company_name' => 'VARCHAR(200)',
@@ -488,13 +523,61 @@ SQL);
             'markup_percent' => 'FLOAT DEFAULT 0.0',
         ];
 
-        foreach ($neededCols as $col => $type) {
-            if (!in_array($col, $colNames, true)) {
-                try {
-                    $db->exec("ALTER TABLE estimates ADD COLUMN {$col} {$type}");
-                } catch (Throwable $e) {
-                    // Column might already exist
+        foreach (['estimates', 'invoices'] as $tbl) {
+            if (!db_table_exists($db, $tbl)) {
+                continue;
+            }
+            $cols = $db->query("PRAGMA table_info({$tbl})")->fetchAll(PDO::FETCH_ASSOC);
+            $colNames = array_column($cols, 'name');
+
+            foreach ($neededCols as $col => $type) {
+                if ($tbl === 'invoices' && ($col === 'batch_id' || $col === 'markup_percent')) {
+                    continue;
                 }
+                if (!in_array($col, $colNames, true)) {
+                    try {
+                        $db->exec("ALTER TABLE {$tbl} ADD COLUMN {$col} {$type}");
+                    } catch (Throwable $e) {
+                        // Column might already exist
+                    }
+                }
+            }
+        }
+
+        // Add model_make to item tables
+        foreach (['estimate_items', 'invoice_items'] as $itemTbl) {
+            if (db_table_exists($db, $itemTbl)) {
+                $cols = $db->query("PRAGMA table_info({$itemTbl})")->fetchAll(PDO::FETCH_ASSOC);
+                $colNames = array_column($cols, 'name');
+                if (!in_array('model_make', $colNames, true)) {
+                    try {
+                        $db->exec("ALTER TABLE {$itemTbl} ADD COLUMN model_make VARCHAR(300)");
+                    } catch (Throwable $e) {}
+                }
+            }
+        }
+
+        // Add website & whatsapp to companies table
+        if (db_table_exists($db, 'companies')) {
+            $cols = $db->query("PRAGMA table_info(companies)")->fetchAll(PDO::FETCH_ASSOC);
+            $colNames = array_column($cols, 'name');
+            foreach (['website' => 'VARCHAR(100)', 'whatsapp' => 'VARCHAR(50)'] as $c => $t) {
+                if (!in_array($c, $colNames, true)) {
+                    try {
+                        $db->exec("ALTER TABLE companies ADD COLUMN {$c} {$t}");
+                    } catch (Throwable $e) {}
+                }
+            }
+        }
+
+        // Add title to invoices table
+        if (db_table_exists($db, 'invoices')) {
+            $cols = $db->query("PRAGMA table_info(invoices)")->fetchAll(PDO::FETCH_ASSOC);
+            $colNames = array_column($cols, 'name');
+            if (!in_array('title', $colNames, true)) {
+                try {
+                    $db->exec("ALTER TABLE invoices ADD COLUMN title VARCHAR(200)");
+                } catch (Throwable $e) {}
             }
         }
     }
@@ -622,8 +705,34 @@ function request_json(): array
 
 function request_path(): string
 {
-    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-    return is_string($path) && $path !== '' ? $path : '/';
+    $rawUri = $_SERVER['REQUEST_URI'] ?? '/';
+    $path = parse_url($rawUri, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        $path = '/';
+    }
+
+    // Strip /index.php prefix if passed through rewrite or direct file access
+    if (str_starts_with($path, '/index.php/')) {
+        $path = substr($path, 10);
+    } elseif ($path === '/index.php') {
+        $path = '/';
+    }
+
+    // Strip /php/public prefix if directly requested
+    if (str_starts_with($path, '/php/public/')) {
+        $path = substr($path, strlen('/php/public'));
+    } elseif ($path === '/php/public') {
+        $path = '/';
+    }
+
+    // Strip script base directory if hosted in a subdirectory (e.g. /subfolder/login)
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $scriptDir = dirname($scriptName);
+    if ($scriptDir !== '/' && $scriptDir !== '.' && $scriptDir !== '' && str_starts_with($path, $scriptDir . '/')) {
+        $path = substr($path, strlen($scriptDir));
+    }
+
+    return $path !== '' ? $path : '/';
 }
 
 function request_method(): string
@@ -633,9 +742,13 @@ function request_method(): string
 
 function bearer_token(): ?string
 {
-    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
     if ($header === '' && function_exists('getallheaders')) {
         $headers = getallheaders();
+        $header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    }
+    if ($header === '' && function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
         $header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
     }
     if (preg_match('/^Bearer\s+(.+)$/i', trim($header), $matches)) {
@@ -697,14 +810,9 @@ function require_permission_for(PDO $db, object $user, string $module, string $a
 
 function find_template_file(string $name): string
 {
-    $candidates = [
-        PHP_APP_ROOT . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . $name,
-        dirname(PHP_APP_ROOT) . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . $name,
-    ];
-    foreach ($candidates as $path) {
-        if (is_file($path)) {
-            return $path;
-        }
+    $path = PHP_APP_ROOT . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . $name;
+    if (is_file($path)) {
+        return $path;
     }
     throw new RuntimeException("Template not found: {$name}");
 }
@@ -769,6 +877,13 @@ function render_template(string $templateName, array $context = []): never
         $var = $m[1];
         $val = resolve_context_var($var, $context);
         return !empty($val) ? $m[2] : '';
+    }, $content);
+
+    // Interpolate {{ variable|tojson }}
+    $content = preg_replace_callback('/{{\s*([a-zA-Z0-9_\.]+)\s*\|\s*tojson\s*}}/', function ($m) use ($context) {
+        $var = $m[1];
+        $val = resolve_context_var($var, $context);
+        return json_encode($val, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }, $content);
 
     // Interpolate {{ variable }}

@@ -23,7 +23,7 @@
                             <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-200 text-indigo-900">3 Companies Active</span>
                         </div>
                         <p class="text-xs text-indigo-800 mt-0.5" id="company-summary-line">
-                            Co 1: <strong id="sum-co1">Loading...</strong> (0%) • Co 2: <strong id="sum-co2">Loading...</strong> (+2%) • Co 3: <strong id="sum-co3">Loading...</strong> (+3%)
+                            Co 1: <strong id="sum-co1">Loading...</strong> • Co 2: <strong id="sum-co2">Loading...</strong> • Co 3: <strong id="sum-co3">Loading...</strong>
                         </p>
                     </div>
                 </div>
@@ -54,7 +54,19 @@
                 </div>
 
                 <div class="border-t pt-4">
-                    <h3 class="font-semibold text-gray-800 mb-3">Items & Base Rates</h3>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold text-gray-800">Items & Base Rates</h3>
+                        <div class="text-xs text-gray-400 italic">Includes Description, Model / Make, Qty, Unit, Rate</div>
+                    </div>
+                    <div class="grid grid-cols-12 gap-2 text-[11px] font-bold text-gray-500 uppercase px-2 mb-1.5 hidden md:grid">
+                        <div class="col-span-3">Product</div>
+                        <div class="col-span-3">Item Description *</div>
+                        <div class="col-span-2">Model / Make</div>
+                        <div class="col-span-1 text-center">Qty</div>
+                        <div class="col-span-1 text-center">Unit</div>
+                        <div class="col-span-1 text-right">Rate</div>
+                        <div class="col-span-1 text-center">Del</div>
+                    </div>
                     <div id="items-container"></div>
                     <div class="flex items-center gap-4 mt-2">
                         <button type="button" onclick="addItem()" class="text-cyan-600 text-sm font-medium"><i class="fas fa-plus mr-1"></i>Add Item</button>
@@ -99,7 +111,7 @@
                                     <span>3-Company Comparative Quotation Set</span>
                                     <span class="px-1.5 py-0.2 rounded text-[10px] bg-indigo-200 text-indigo-900 font-bold">Standard</span>
                                 </p>
-                                <p class="text-[11px] text-indigo-700/80 mt-0.5">Creates 3 synchronized estimates filed into each company's folder with base 0%, +2%, and +3% markups.</p>
+                                <p class="text-[11px] text-indigo-700/80 mt-0.5">Creates 3 synchronized estimates filed into each company's folder.</p>
                             </div>
                         </label>
 
@@ -124,9 +136,9 @@
                                     <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
                                     <p class="text-xs font-bold text-gray-800 truncate" id="mc-co1-name">DATAPOINT Technologies</p>
                                 </div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Base (0%)</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Option 1</span>
                             </div>
-                            <p class="text-[11px] text-gray-500">Fixed rate quotation</p>
+                            <p class="text-[11px] text-gray-500">Quotation</p>
                             <p class="text-base font-extrabold text-gray-900 mt-2">PKR <span id="mc-co1-total">0.00</span></p>
                         </div>
 
@@ -136,9 +148,9 @@
                                     <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">2</span>
                                     <p class="text-xs font-bold text-gray-800 truncate" id="mc-co2-name">TechPoint Solutions</p>
                                 </div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">+2.0%</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Option 2</span>
                             </div>
-                            <p class="text-[11px] text-blue-700">Item rates increased by 2%</p>
+                            <p class="text-[11px] text-blue-700">Quotation</p>
                             <p class="text-base font-extrabold text-blue-900 mt-2">PKR <span id="mc-co2-total">0.00</span></p>
                         </div>
 
@@ -148,9 +160,9 @@
                                     <span class="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">3</span>
                                     <p class="text-xs font-bold text-gray-800 truncate" id="mc-co3-name">Apex Data Systems</p>
                                 </div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">+3.0%</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">Option 3</span>
                             </div>
-                            <p class="text-[11px] text-purple-700">Item rates increased by 3%</p>
+                            <p class="text-[11px] text-purple-700">Quotation</p>
                             <p class="text-base font-extrabold text-purple-900 mt-2">PKR <span id="mc-co3-total">0.00</span></p>
                         </div>
                     </div>
@@ -164,11 +176,11 @@
                                 </div>
                                 <div>
                                     <h4 class="text-xs font-bold text-slate-900" id="sc-name">Company Name</h4>
-                                    <p class="text-[11px] text-slate-500" id="sc-markup-text">Markup: 0%</p>
+                                    <p class="text-[11px] text-slate-500" id="sc-markup-text">Selected Company</p>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <p class="text-[11px] text-slate-500">Quotation Total with Markup</p>
+                                <p class="text-[11px] text-slate-500">Quotation Total</p>
                                 <p class="text-base font-extrabold text-indigo-950">PKR <span id="sc-total">0.00</span></p>
                             </div>
                         </div>
@@ -299,23 +311,27 @@ function addItem(item = {}) {
     const opts = productList.map(p => `<option value="${p.id}" ${item.product_id == p.id ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(p.unit_price).toLocaleString()}</option>`).join('');
     const isCustom = !item.product_id && (item.description || !productList.length);
     const html = `
-    <div class="item-row grid grid-cols-12 gap-3 mb-3 items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100">
-        <div class="col-span-4">
-            <select name="product" class="product-select w-full px-3 py-2 border rounded-lg text-sm bg-white">
+    <div class="item-row grid grid-cols-12 gap-2 mb-2.5 items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+        <div class="col-span-12 md:col-span-3">
+            <select name="product" class="product-select w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white">
                 <option value="">Select Product...</option>
                 ${opts}
                 <option value="custom" ${isCustom ? 'selected' : ''}>Custom Item</option>
             </select>
         </div>
-        <div class="col-span-3">
-            <input type="text" name="desc" class="w-full px-3 py-2 border rounded-lg text-sm bg-white" placeholder="Description" value="${esc(item.description || '')}" required>
+        <div class="col-span-12 md:col-span-3">
+            <input type="text" name="desc" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Description *" value="${esc(item.description || '')}" required>
         </div>
-        <div class="col-span-1">
-            <input type="number" name="qty" class="qty-input w-full px-2 py-2 border rounded-lg text-sm bg-white" placeholder="Qty" value="${item.quantity || 1}" min="0.01" step="any" required>
+        <div class="col-span-12 md:col-span-2">
+            <input type="text" name="model_make" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Model / Make" value="${esc(item.model_make || '')}">
         </div>
-        <div class="col-span-1">
-            <select name="unit" class="w-full px-1 py-2 border rounded-lg text-sm bg-white">
+        <div class="col-span-4 md:col-span-1">
+            <input type="number" name="qty" class="qty-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-center" placeholder="Qty" value="${item.quantity || 1}" min="0.01" step="any" required>
+        </div>
+        <div class="col-span-4 md:col-span-1">
+            <select name="unit" class="w-full px-1 py-1.5 border rounded-lg text-xs bg-white text-center">
                 <option value="pcs" ${item.unit==='pcs'?'selected':''}>pcs</option>
+                <option value="No." ${item.unit==='No.'?'selected':''}>No.</option>
                 <option value="set" ${item.unit==='set'?'selected':''}>set</option>
                 <option value="meter" ${item.unit==='meter'?'selected':''}>meter</option>
                 <option value="month" ${item.unit==='month'?'selected':''}>month</option>
@@ -323,8 +339,8 @@ function addItem(item = {}) {
                 <option value="job" ${item.unit==='job'?'selected':''}>job</option>
             </select>
         </div>
-        <div class="col-span-2">
-            <input type="number" name="price" class="price-input w-full px-3 py-2 border rounded-lg text-sm bg-white" placeholder="Price" value="${item.unit_price || 0}" step="0.01" required>
+        <div class="col-span-3 md:col-span-1">
+            <input type="number" name="price" class="price-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-right" placeholder="Price" value="${item.unit_price || 0}" step="0.01" required>
         </div>
         <div class="col-span-1 text-center">
             <button type="button" onclick="$(this).closest('.item-row').remove(); calcTotal();" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
@@ -380,7 +396,7 @@ function calcTotal() {
         $('#sc-total').text(totSC.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         $('#sc-name').text(selCo.name);
         $('#sc-logo').attr('src', selCo.logo_url || '/static/img/logo.png');
-        $('#sc-markup-text').text(`Markup: ${scMarkup > 0 ? '+' + scMarkup + '%' : '0% Base'}`);
+        $('#sc-markup-text').text(selCo.city ? selCo.city : 'Selected Company');
     }
 }
 
@@ -403,9 +419,7 @@ function loadCompaniesSummary() {
         // Populate single company folder select dropdown
         let opts = '';
         configuredCompanies.forEach(c => {
-            const m = parseFloat(c.markup_percent) || 0;
-            const tag = m === 0 ? '0% Base' : `+${m}% Markup`;
-            opts += `<option value="${c.id}">${esc(c.name)} (${tag})</option>`;
+            opts += `<option value="${c.id}">${esc(c.name)}</option>`;
         });
         $('#single_company_id').html(opts);
 
@@ -425,9 +439,9 @@ function showCompanySetupModal() {
     $.ajax({ url: '/api/companies', method: 'GET', headers: authHeaders }).done(function(cos) {
         configuredCompanies = Array.isArray(cos) ? cos : [];
         const defaults = [
-            { name: 'DATAPOINT Technologies', markup: 0, badge: 'Company 1 (0% Base)' },
-            { name: 'TechPoint Solutions', markup: 2, badge: 'Company 2 (+2% Markup)' },
-            { name: 'Apex Data Systems', markup: 3, badge: 'Company 3 (+3% Markup)' }
+            { name: 'DATAPOINT Technologies', markup: 0, badge: 'Company 1' },
+            { name: 'TechPoint Solutions', markup: 2, badge: 'Company 2' },
+            { name: 'Apex Data Systems', markup: 3, badge: 'Company 3' }
         ];
         while (configuredCompanies.length < 3) {
             const idx = configuredCompanies.length;
@@ -444,7 +458,6 @@ function showCompanySetupModal() {
             <div class="border border-gray-200 rounded-xl p-3 bg-gray-50 modal-co-card" data-idx="${idx}">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-bold text-indigo-900">${defaults[idx].badge}</span>
-                    <span class="text-[11px] font-bold text-gray-500">${idx===0?'Base':'+'+(co.markup_percent||(idx===1?2:3))+'%'}</span>
                 </div>
                 <input type="hidden" class="m-co-id" value="${co.id || ''}">
                 <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200">
@@ -664,6 +677,39 @@ $(function() {
     }
 
     loadProducts(function() {
+function applyImportedDraft(draft) {
+    if (draft.client_id) {
+        $('#client_id').val(String(draft.client_id));
+    } else if (draft.client_name) {
+        const cname = draft.client_name.toLowerCase().trim();
+        $('#client_id option').each(function() {
+            const opt = $(this).text().toLowerCase();
+            if (opt && cname && (opt.includes(cname) || cname.includes(opt.split(' ')[0]))) {
+                $('#client_id').val($(this).val());
+                return false;
+            }
+        });
+    }
+    if (draft.title) $('#title').val(draft.title);
+    if (draft.estimate_date || draft.invoice_date) $('#estimate_date').val(draft.estimate_date || draft.invoice_date);
+    if (draft.valid_until || draft.due_date) $('#valid_until').val(draft.valid_until || draft.due_date);
+    if (draft.tax_rate !== null && draft.tax_rate !== undefined) $('#tax_rate').val(draft.tax_rate);
+    if (draft.terms_conditions || draft.payment_terms) $('#terms').val(draft.terms_conditions || draft.payment_terms);
+    if (draft.notes) $('#notes').val(draft.notes);
+    if ((draft.items || []).length) {
+        $('#items-container').empty();
+        draft.items.forEach(addItem);
+    }
+    calcTotal();
+    const warnings = draft.warnings || [];
+    if ((draft.items || []).length > 0) {
+        $('#import-status').text('Estimate data imported (' + draft.items.length + ' items) — please review before saving.');
+    } else {
+        $('#import-status').text(warnings.length ? warnings.join(' ') : 'Estimate data imported — please add items.');
+        if (warnings.length) alert('Import completed with notes:\n\n' + warnings.join('\n'));
+    }
+}
+
         if (estimateId) {
             loadClients(function() {
                 $.ajax({ url: '/api/estimates/' + estimateId, method: 'GET', headers: authHeaders }).done(function(est) {
@@ -681,7 +727,36 @@ $(function() {
                 });
             });
         } else {
-            loadClients();
+            loadClients(function() {
+                $('#estimate-import-file').on('change', function() {
+                    const file = this.files && this.files[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) {
+                        alert('Maximum import file size is 10 MB.');
+                        this.value = '';
+                        return;
+                    }
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    $('#import-status').text('Reading estimate...');
+                    $.ajax({
+                        url: '/api/estimates/import',
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: authHeaders
+                    })
+                    .done(applyImportedDraft)
+                    .fail(function(x) {
+                        $('#import-status').text('');
+                        alert('Import failed: ' + (x.responseJSON?.detail || 'Unknown error'));
+                    })
+                    .always(function() {
+                        $('#estimate-import-file').val('');
+                    });
+                });
+            });
             addItem();
         }
     });
@@ -743,6 +818,7 @@ $(function() {
             items.push({
                 product_id: (pv && pv !== 'custom') ? parseInt(pv) : null,
                 description: desc,
+                model_make: $(this).find('[name=model_make]').val().trim(),
                 quantity: parseFloat($(this).find('[name=qty]').val()) || 1,
                 unit: $(this).find('[name=unit]').val() || 'pcs',
                 unit_price: parseFloat($(this).find('[name=price]').val()) || 0,
@@ -787,15 +863,11 @@ $(function() {
             headers: authHeaders
         }).done(function(r) {
             if (isMulti && r.estimates && r.estimates.length) {
-                const markupColors = ['bg-emerald-100 text-emerald-800', 'bg-blue-100 text-blue-800', 'bg-purple-100 text-purple-800'];
                 const listHtml = r.estimates.map((est, i) => `
                     <div class="flex items-center justify-between p-3.5 bg-gray-50 border border-gray-200 rounded-xl">
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="font-bold text-sm text-gray-800">${esc(est.company_name)}</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${markupColors[i] || 'bg-gray-200 text-gray-800'}">
-                                    ${est.markup_percent ? '+' + est.markup_percent + '%' : 'Base (0%)'}
-                                </span>
                             </div>
                             <p class="text-xs text-gray-500 mt-0.5">Estimate #: <strong>${esc(est.estimate_no)}</strong> • Total: <strong>PKR ${Number(est.total_amount).toLocaleString(undefined,{minimumFractionDigits:2})}</strong></p>
                         </div>

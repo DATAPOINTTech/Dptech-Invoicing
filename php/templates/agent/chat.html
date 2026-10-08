@@ -1,85 +1,698 @@
 {% extends "base.html" %}
-{% block title %}AI Agent - {{ company }}{% endblock %}
+{% block title %}AI Agent & WhatsApp Sync - {{ company }}{% endblock %}
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
     <main class="flex-1 ml-64 p-6">
-        <div class="max-w-4xl mx-auto">
-            <h1 class="text-2xl font-bold text-gray-800 mb-6"><i class="fas fa-robot text-cyan-600 mr-2"></i>DATAPOINT Support Agent</h1>
+        <div class="max-w-5xl mx-auto">
+            <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-robot text-cyan-600"></i> DATAPOINT Support Agent
+                    </h1>
+                    <p class="text-xs text-gray-500 mt-0.5">Unified AI Support Assistant &amp; Live WhatsApp Customer Sync</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="global-sync-indicator" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1.5 shadow-sm">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> WhatsApp Synced
+                    </span>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Main Chat Console (Synced with WhatsApp & Direct Assistant) -->
                 <div class="lg:col-span-2">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div class="bg-gradient-to-r from-cyan-500 to-blue-600 p-4 text-white">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center"><i class="fas fa-headset text-2xl"></i></div>
-                                <div><h3 class="font-semibold">Support Assistant</h3><p class="text-sm text-white/70">Online - Ask me anything!</p></div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[650px]">
+                        <!-- Top Header with Tab Switcher -->
+                        <div class="bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-600 p-3 text-white flex-shrink-0">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg shadow-inner">
+                                        <i class="fas fa-robot" id="chat-mode-icon"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-sm" id="chat-mode-title">Support Assistant</h3>
+                                        <p class="text-[11px] text-white/80" id="chat-mode-subtitle">Online &bull; Ready to help</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center bg-black/25 p-1 rounded-lg text-xs font-semibold backdrop-blur-sm">
+                                    <button type="button" onclick="switchChatMode('assistant')" id="tab-btn-assistant" class="px-3 py-1.5 rounded-md bg-white text-cyan-900 shadow-sm transition-all flex items-center gap-1.5">
+                                        <i class="fas fa-brain"></i> Assistant
+                                    </button>
+                                    <button type="button" onclick="switchChatMode('whatsapp')" id="tab-btn-whatsapp" class="px-3 py-1.5 rounded-md text-white/90 hover:text-white transition-all flex items-center gap-1.5 relative">
+                                        <i class="fab fa-whatsapp text-emerald-300"></i> WhatsApp Sync
+                                        <span id="wa-tab-unread-pill" class="hidden px-1.5 py-0.2 rounded-full text-[9px] bg-rose-500 text-white font-extrabold animate-pulse">0</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div id="chat-messages" class="h-96 overflow-y-auto p-4 space-y-4 bg-dptech-50"></div>
-                        <div class="p-4 border-t border-gray-100">
+
+                        <!-- WhatsApp Client Selector Bar (Visible when in WhatsApp Sync Mode) -->
+                        <div id="wa-sync-selector-bar" class="hidden bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap flex-shrink-0">
+                            <div class="flex-1 min-w-[200px] flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                    <i class="fab fa-whatsapp text-emerald-500"></i> Client:
+                                </span>
+                                <select id="wa-conversation-select" onchange="onSelectWhatsAppConversation()" class="flex-1 text-xs font-semibold px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                    <option value="">Loading WhatsApp conversations...</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="wa-active-phone-badge" class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                                    <i class="fas fa-phone-alt text-[9px]"></i> <span id="wa-active-phone-text">Select Client</span>
+                                </span>
+                                <button type="button" onclick="loadConversations(true)" title="Force sync from WhatsApp" class="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-slate-600 hover:text-slate-800 text-xs font-semibold transition-all flex items-center gap-1">
+                                    <i class="fas fa-sync-alt" id="sync-spin-icon"></i> <span>Sync</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Message Log Container -->
+                        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-dptech-50"></div>
+
+                        <!-- Typing / Response Bar -->
+                        <div class="p-3 border-t border-gray-100 bg-white flex-shrink-0">
                             <form id="chat-form" class="flex gap-2">
-                                <input type="text" id="chat-input" class="flex-1 px-4 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Type your question or use mic..." autofocus>
+                                <input type="text" id="chat-input" class="flex-1 px-4 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none transition-all" placeholder="Type your question or request..." autofocus>
                                 <button type="button" id="mic-btn" title="Speak your question" class="bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 px-3 py-2.5 rounded-lg text-sm transition-all"><i class="fas fa-microphone"></i></button>
-                                <button type="submit" class="bg-cyan-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-cyan-700"><i class="fas fa-paper-plane"></i></button>
+                                <button type="submit" id="chat-send-btn" class="bg-cyan-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-cyan-700 flex items-center gap-1.5 transition-all">
+                                    <i class="fas fa-paper-plane"></i> <span id="send-btn-label">Send</span>
+                                </button>
                             </form>
-                            <p id="mic-status" class="text-xs text-gray-400 mt-1 hidden">🎙️ Listening... speak now</p>
+                            <div class="flex items-center justify-between mt-1 text-[11px] text-gray-400">
+                                <span id="chat-input-helper">Direct AI Support &bull; Type invoice or estimate number to generate &amp; send PDF</span>
+                                <p id="mic-status" class="hidden text-rose-500 font-semibold">🎙️ Listening... speak now</p>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Right Sidebar: WhatsApp Status & Quick Actions -->
                 <div class="space-y-4">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <h3 class="font-semibold text-gray-800 mb-3">Quick Questions</h3>
-                        <div class="space-y-2">
-                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">Send latest invoice on WhatsApp</button>
-                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">How do I pay my invoice?</button>
-                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">What is the tax rate?</button>
-                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">What products do you offer?</button>
-                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">What is your return policy?</button>
-                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-sm text-gray-700 transition-all">Contact information</button>
+                    <!-- WhatsApp Baileys Status & Link Panel -->
+                    <div id="wa-agent-panel" class="bg-white rounded-xl shadow-sm border border-emerald-200 p-4">
+                        <div class="flex items-center justify-between pb-3 border-b border-emerald-100">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-sm shadow-sm">
+                                    <i class="fab fa-whatsapp"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xs font-bold text-slate-800">WhatsApp Sales Agent</h3>
+                                    <p class="text-[10px] text-slate-500">Baileys Multi-Device</p>
+                                </div>
+                            </div>
+                            <span id="wa-agent-chat-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span> Checking...
+                            </span>
+                        </div>
+
+                        <!-- Waiting for QR Scan -->
+                        <div id="wa-agent-qr-section" class="pt-3 text-center hidden">
+                            <p class="text-[11px] text-slate-600 mb-2">Scan with WhatsApp on your phone to link the 24/7 sales agent:</p>
+                            <div class="inline-block relative bg-white p-2 rounded-xl border border-emerald-100 shadow-sm mx-auto">
+                                <img id="wa-agent-qr-img" src="" alt="WhatsApp QR Code" class="w-44 h-44 object-contain mx-auto rounded">
+                                <div id="wa-agent-qr-loader" class="absolute inset-0 bg-white/90 flex flex-col items-center justify-center gap-1.5 rounded-xl">
+                                    <i class="fas fa-spinner fa-spin text-xl text-emerald-500"></i>
+                                    <span class="text-[10px] font-semibold text-slate-600">Loading QR...</span>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2">WhatsApp &rarr; Linked Devices &rarr; Link a Device</p>
+                        </div>
+
+                        <!-- Connected Status -->
+                        <div id="wa-agent-connected-section" class="pt-3">
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 mb-2.5">
+                                <p class="text-[10px] font-bold text-emerald-800 uppercase flex items-center justify-between">
+                                    <span>Connected Phone</span>
+                                    <span class="text-[9px] bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded font-extrabold">ONLINE</span>
+                                </p>
+                                <p class="text-xs font-extrabold text-slate-800" id="wa-agent-phone">+92 316 7788990</p>
+                                <p class="text-[10px] text-slate-500 truncate" id="wa-agent-name">DATAPOINT Technologies</p>
+                            </div>
+                            <div class="flex items-center justify-between text-xs pt-1">
+                                <span class="text-slate-600 text-[11px]">Auto-Responder:</span>
+                                <span id="wa-agent-auto-badge" class="px-2 py-0.2 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">Active</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Answers pricing &amp; sends invoice/quote PDFs 24/7 on WhatsApp.</p>
+                            <div class="flex gap-2 mt-3 pt-2 border-t border-slate-100">
+                                <button type="button" onclick="toggleSalesAgentChat()" id="wa-agent-chat-toggle" class="flex-1 py-1 px-2 text-[11px] font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded border border-indigo-200">
+                                    Toggle Agent
+                                </button>
+                                <button type="button" onclick="cleanWhatsAppKeys()" id="wa-agent-chat-refresh" class="py-1 px-2 text-[11px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 rounded border border-amber-200" title="Fix encryption keys / bad MAC without logout">
+                                    Refresh Keys
+                                </button>
+                                <button type="button" onclick="disconnectWhatsAppChat()" class="py-1 px-2 text-[11px] font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 rounded border border-rose-200">
+                                    Unlink
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Service Offline -->
+                        <div id="wa-agent-offline-section" class="pt-3 hidden text-center">
+                            <p class="text-xs font-semibold text-rose-600">WhatsApp microservice is offline</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Please ensure port 3001 is running.</p>
                         </div>
                     </div>
+
+                    <!-- Quick Actions & Product Queries -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <h3 class="font-semibold text-gray-800 mb-3">Voice Quotation</h3>
-                        <p class="text-sm text-gray-500 mb-3">Describe what you need and get a quotation instantly.</p>
+                        <h3 class="font-semibold text-gray-800 mb-2.5 text-xs uppercase tracking-wider text-slate-500">Quick Actions</h3>
+                        <div class="space-y-1.5">
+                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-xs font-medium text-gray-700 transition-all flex items-center gap-2">
+                                <span>🚀</span> <span>Send latest invoice on WhatsApp</span>
+                            </button>
+                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-xs font-medium text-gray-700 transition-all flex items-center gap-2">
+                                <span>📋</span> <span>Send latest quotation on WhatsApp</span>
+                            </button>
+                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-xs font-medium text-gray-700 transition-all flex items-center gap-2">
+                                <span>📹</span> <span>Show CCTV products and prices</span>
+                            </button>
+                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-xs font-medium text-gray-700 transition-all flex items-center gap-2">
+                                <span>🌐</span> <span>Show Networking products and prices</span>
+                            </button>
+                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-xs font-medium text-gray-700 transition-all flex items-center gap-2">
+                                <span>💻</span> <span>Show Laptops &amp; Desktops prices</span>
+                            </button>
+                            <button class="quick-q w-full text-left px-3 py-2 bg-dptech-50 hover:bg-cyan-50 rounded-lg text-xs font-medium text-gray-700 transition-all flex items-center gap-2">
+                                <span>💳</span> <span>How do I pay my invoice?</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Voice Quotation Generator -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2 text-xs uppercase tracking-wider text-slate-500">Voice Quotation</h3>
+                        <p class="text-[11px] text-gray-500 mb-2.5">Speak requirements to generate an itemized estimate.</p>
                         <form id="voice-form" class="space-y-2">
-                            <textarea id="voice-input" rows="3" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="e.g., I need 5 computers with i7 processors and 3 printers..."></textarea>
-                            <button type="button" id="voice-mic-btn" class="w-full bg-gray-100 hover:bg-red-100 text-gray-700 py-2 rounded-lg text-sm font-semibold transition-all"><i class="fas fa-microphone mr-2"></i>Speak Your Requirements</button>
+                            <textarea id="voice-input" rows="2" class="w-full px-3 py-2 border rounded-lg text-xs" placeholder="e.g., I need 5 computers with i7 processors and 2 switches..."></textarea>
+                            <button type="button" id="voice-mic-btn" class="w-full bg-gray-100 hover:bg-red-100 text-gray-700 py-1.5 rounded-lg text-xs font-semibold transition-all"><i class="fas fa-microphone mr-1.5"></i>Speak Requirements</button>
                             <p id="voice-mic-status" class="text-xs text-gray-400 hidden">🎙️ Listening... speak now</p>
-                            <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-purple-700"><i class="fas fa-paper-plane mr-2"></i>Generate Quotation</button>
+                            <button type="submit" class="w-full bg-purple-600 text-white py-1.5 rounded-lg text-xs font-semibold hover:bg-purple-700"><i class="fas fa-paper-plane mr-1.5"></i>Generate Estimate</button>
                         </form>
-                        <div id="voice-result" class="mt-3 hidden"></div>
+                        <div id="voice-result" class="mt-2.5 hidden"></div>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 </div>
+
 <script>
-const token=localStorage.getItem('token');
-if(!token)window.location.href='/login';
-const authHeaders={Authorization:'Bearer '+token};
-function addMessage(text, isUser=false){
-    const div=$('<div>').addClass('flex '+(isUser?'justify-end':'justify-start'));
-    const bubble=$('<div>').addClass('max-w-[75%] px-4 py-2.5 rounded-2xl text-sm '+(isUser?'bg-cyan-600 text-white rounded-br-sm':'bg-white text-gray-700 border rounded-bl-sm shadow-sm'));
-    bubble.text(text);div.append(bubble);$('#chat-messages').append(div);$('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/login';
+const authHeaders = { Authorization: 'Bearer ' + token };
+
+let currentMode = 'assistant'; // 'assistant' | 'whatsapp'
+let activeConversationId = 0;
+let conversationsList = [];
+let lastPolledMsgId = 0;
+let syncPollTimer = null;
+let assistantMessages = [];
+
+// --- Mode Switching (Assistant vs WhatsApp Sync) ---
+function switchChatMode(mode) {
+    currentMode = mode;
+    if (mode === 'assistant') {
+        $('#tab-btn-assistant').attr('class', 'px-3 py-1.5 rounded-md bg-white text-cyan-900 shadow-sm transition-all flex items-center gap-1.5 font-bold');
+        $('#tab-btn-whatsapp').attr('class', 'px-3 py-1.5 rounded-md text-white/90 hover:text-white transition-all flex items-center gap-1.5');
+        $('#chat-mode-icon').attr('class', 'fas fa-robot');
+        $('#chat-mode-title').text('Support Assistant');
+        $('#chat-mode-subtitle').text('Online &bull; Internal AI &amp; Direct Quotation Dispatch');
+        $('#wa-sync-selector-bar').addClass('hidden');
+        $('#chat-input').attr('placeholder', 'Type your question or request (e.g., "Send latest invoice on WhatsApp")...');
+        $('#chat-input-helper').text('Direct AI Support • Type invoice or estimate number to generate & send PDF');
+        $('#chat-send-btn').attr('class', 'bg-cyan-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-cyan-700 flex items-center gap-1.5');
+        $('#send-btn-label').text('Send');
+
+        loadAssistantMessages();
+    } else {
+        $('#tab-btn-assistant').attr('class', 'px-3 py-1.5 rounded-md text-white/90 hover:text-white transition-all flex items-center gap-1.5');
+        $('#tab-btn-whatsapp').attr('class', 'px-3 py-1.5 rounded-md bg-emerald-500 text-white shadow-sm transition-all flex items-center gap-1.5 font-bold');
+        $('#chat-mode-icon').attr('class', 'fab fa-whatsapp');
+        $('#chat-mode-title').text('WhatsApp Client Live Stream');
+        $('#chat-mode-subtitle').text('Synchronized with Baileys WhatsApp Service');
+        $('#wa-sync-selector-bar').removeClass('hidden');
+        $('#chat-send-btn').attr('class', 'bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 flex items-center gap-1.5');
+        $('#send-btn-label').text('Reply to Client');
+
+        loadConversations();
+    }
 }
-$('#chat-form').submit(function(e){e.preventDefault();const msg=$('#chat-input').val().trim();if(!msg)return;addMessage(msg,true);$('#chat-input').val('');
-    $.post({url:'/api/agent/chat',contentType:'application/json',data:JSON.stringify({message:msg}),headers:authHeaders}).done(function(r){addMessage(r.response);}).fail(function(x){addMessage((x.status===401?'Please log in again. ':'')+'Sorry, I encountered an error. Please try again.');});
+
+// --- Load Conversations for WhatsApp Sync Tab ---
+function loadConversations(forceSelect = false) {
+    $('#sync-spin-icon').addClass('fa-spin');
+    $.ajax({
+        url: '/api/agent/conversations',
+        method: 'GET',
+        headers: authHeaders
+    }).done(function(r) {
+        conversationsList = r.conversations || [];
+        updateConversationSelectUI(forceSelect);
+    }).always(function() {
+        $('#sync-spin-icon').removeClass('fa-spin');
+    });
+}
+
+function updateConversationSelectUI(forceSelect = false) {
+    const sel = $('#wa-conversation-select');
+    sel.empty();
+
+    if (conversationsList.length === 0) {
+        sel.append('<option value="">No WhatsApp conversations recorded yet</option>');
+        $('#chat-messages').html('<div class="text-center py-12 text-slate-400 text-xs"><i class="fab fa-whatsapp text-3xl mb-2 text-emerald-400 block"></i>No client messages received yet on WhatsApp.<br>When a customer messages +923167788990, it will sync here automatically!</div>');
+        $('#wa-active-phone-text').text('No active client');
+        return;
+    }
+
+    let unreadTotal = 0;
+    conversationsList.forEach(c => {
+        unreadTotal += (c.unread_count || 0);
+        const name = c.sender_name || ('Client +' + c.sender_phone);
+        const phone = c.sender_phone ? (' (+' + c.sender_phone + ')') : '';
+        const unreadTag = c.unread_count > 0 ? ` [${c.unread_count} new]` : '';
+        const opt = $('<option>').val(c.id).text(`${name}${phone}${unreadTag}`);
+        sel.append(opt);
+    });
+
+    if (unreadTotal > 0) {
+        $('#wa-tab-unread-pill').removeClass('hidden').text(unreadTotal);
+    } else {
+        $('#wa-tab-unread-pill').addClass('hidden');
+    }
+
+    // Set active conversation if not set
+    if (!activeConversationId || forceSelect || !conversationsList.some(c => c.id == activeConversationId)) {
+        activeConversationId = conversationsList[0].id;
+    }
+    sel.val(activeConversationId);
+    onSelectWhatsAppConversation();
+}
+
+function onSelectWhatsAppConversation() {
+    const selectedId = parseInt($('#wa-conversation-select').val());
+    if (!selectedId) return;
+    activeConversationId = selectedId;
+
+    const conv = conversationsList.find(c => c.id == selectedId);
+    if (conv) {
+        const phone = conv.sender_phone ? ('+' + conv.sender_phone) : 'Client';
+        $('#wa-active-phone-text').text(phone);
+        $('#chat-input').attr('placeholder', `Reply to ${conv.sender_name || phone} on WhatsApp...`);
+        $('#chat-input-helper').text(`Connected via Baileys WhatsApp • Message will be delivered to ${phone}`);
+    }
+
+    loadConversationMessages(selectedId);
+}
+
+// --- Load Conversation Messages ---
+function loadConversationMessages(convId) {
+    $.ajax({
+        url: `/api/agent/conversations/${convId}/messages`,
+        method: 'GET',
+        headers: authHeaders
+    }).done(function(r) {
+        $('#chat-messages').empty();
+        const msgs = r.messages || [];
+        lastPolledMsgId = msgs.length > 0 ? msgs[msgs.length - 1].id : 0;
+
+        if (msgs.length === 0) {
+            $('#chat-messages').html('<div class="text-center py-8 text-slate-400 text-xs">No messages yet in this conversation.</div>');
+            return;
+        }
+
+        msgs.forEach(m => renderSyncedMessage(m));
+        scrollChatToBottom();
+    });
+}
+
+function loadAssistantMessages() {
+    $.ajax({
+        url: '/api/agent/conversations/0/messages',
+        method: 'GET',
+        headers: authHeaders
+    }).done(function(r) {
+        $('#chat-messages').empty();
+        const msgs = r.messages || [];
+        lastPolledMsgId = msgs.length > 0 ? msgs[msgs.length - 1].id : 0;
+
+        if (msgs.length === 0) {
+            renderMessageBubble('👋 Assalam-o-Alaikum! Welcome to DATAPOINT Technologies Support. How can I assist you today?', false);
+            return;
+        }
+
+        msgs.forEach(m => {
+            const isUser = m.sender_type === 'client' || m.sender_type === 'agent';
+            renderMessageBubble(m.message, isUser, m);
+        });
+        scrollChatToBottom();
+    }).fail(function() {
+        $('#chat-messages').empty();
+        renderMessageBubble('👋 Assalam-o-Alaikum! Welcome to DATAPOINT Technologies Support. How can I assist you today?', false);
+    });
+}
+
+// --- Render Message Bubbles ---
+function renderSyncedMessage(msg) {
+    const isOutbound = (msg.sender_type === 'bot' || msg.sender_type === 'agent');
+    const isClient = msg.sender_type === 'client';
+    const isAgentHuman = msg.sender_type === 'agent';
+
+    const div = $('<div>').addClass('flex ' + (isOutbound ? 'justify-end' : 'justify-start'));
+    const bubble = $('<div>').addClass('max-w-[85%] px-4 py-3 rounded-2xl text-xs leading-relaxed shadow-sm');
+
+    if (isClient) {
+        bubble.addClass('bg-white text-slate-800 border border-slate-200 rounded-bl-sm');
+        bubble.append(`<div class="flex items-center gap-1.5 text-[10px] text-emerald-600 font-extrabold uppercase tracking-wide mb-1"><i class="fab fa-whatsapp text-xs"></i> <span>${msg.sender_name || 'Client'}</span></div>`);
+    } else if (isAgentHuman) {
+        bubble.addClass('bg-cyan-600 text-white rounded-br-sm');
+        bubble.append(`<div class="flex items-center gap-1.5 text-[10px] text-cyan-100 font-bold mb-1"><i class="fas fa-user-shield"></i> <span>Support Agent (You)</span></div>`);
+    } else {
+        // Bot automated reply
+        bubble.addClass('bg-slate-100 text-slate-800 border border-slate-200 rounded-br-sm');
+        bubble.append(`<div class="flex items-center gap-1.5 text-[10px] text-indigo-700 font-bold mb-1"><i class="fas fa-robot"></i> <span>Automated Sales Agent</span></div>`);
+    }
+
+    // Body content with markdown support
+    const bodyDiv = $('<div>');
+    if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+        bodyDiv.html(marked.parse(msg.message || ''));
+    } else {
+        bodyDiv.html((msg.message || '').replace(/\n/g, '<br>'));
+    }
+    bodyDiv.find('table').addClass('min-w-full my-2 border border-slate-200 text-xs text-left rounded-lg overflow-hidden').find('th').addClass('bg-slate-200 px-2.5 py-1.5 font-bold text-slate-700 border-b').end().find('td').addClass('px-2.5 py-1.5 border-b border-slate-100');
+    bodyDiv.find('a').addClass('font-bold underline');
+
+    bubble.append(bodyDiv);
+
+    // If PDF document attached
+    if (msg.message_type === 'invoice' || msg.message_type === 'quotation' || msg.document_name) {
+        const docName = msg.document_name || (msg.message_type === 'invoice' ? 'Invoice.pdf' : 'Quotation.pdf');
+        const docUrl = msg.document_url || (msg.message_type === 'invoice' ? '/api/invoices/latest/pdf' : '/api/estimates/latest/pdf');
+        const docCard = $(`
+            <div class="mt-2.5 p-2 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 truncate">
+                    <i class="fas fa-file-pdf text-rose-500 text-lg"></i>
+                    <span class="font-bold text-indigo-900 text-xs truncate">${docName}</span>
+                </div>
+                <a href="${docUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold shadow-sm whitespace-nowrap">
+                    <i class="fas fa-download mr-1"></i> View PDF
+                </a>
+            </div>
+        `);
+        bubble.append(docCard);
+    }
+
+    // Timestamp
+    if (msg.created_at) {
+        const timeStr = msg.created_at.length >= 16 ? msg.created_at.substring(11, 16) : '';
+        bubble.append(`<div class="text-[9px] text-right mt-1 opacity-60">${timeStr}</div>`);
+    }
+
+    div.append(bubble);
+    $('#chat-messages').append(div);
+}
+
+function renderMessageBubble(text, isUser = false, msgMeta = null) {
+    const div = $('<div>').addClass('flex ' + (isUser ? 'justify-end' : 'justify-start'));
+    const bubble = $('<div>').addClass('max-w-[85%] px-4 py-3 rounded-2xl text-xs leading-relaxed ' + (isUser ? 'bg-cyan-600 text-white rounded-br-sm shadow-sm' : 'bg-white text-gray-800 border border-slate-200 rounded-bl-sm shadow-sm prose prose-sm max-w-none'));
+
+    if (isUser) {
+        bubble.text(text);
+    } else {
+        if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+            bubble.html(marked.parse(text));
+        } else {
+            bubble.html(text.replace(/\n/g, '<br>'));
+        }
+        bubble.find('table').addClass('min-w-full my-2 border border-slate-200 text-xs text-left rounded-lg overflow-hidden').find('th').addClass('bg-slate-100 px-3 py-2 font-bold text-slate-700 border-b').end().find('td').addClass('px-3 py-2 border-b border-slate-100');
+        bubble.find('a').addClass('text-cyan-600 hover:text-cyan-800 font-bold underline');
+    }
+
+    div.append(bubble);
+    $('#chat-messages').append(div);
+    scrollChatToBottom();
+}
+
+function scrollChatToBottom() {
+    const box = $('#chat-messages')[0];
+    if (box) box.scrollTop = box.scrollHeight;
+}
+
+// --- Submit Chat Form ---
+$('#chat-form').submit(function(e) {
+    e.preventDefault();
+    const msg = $('#chat-input').val().trim();
+    if (!msg) return;
+
+    $('#chat-input').val('');
+
+    if (currentMode === 'assistant') {
+        // Direct Assistant Mode
+        renderMessageBubble(msg, true);
+        $.ajax({
+            url: '/api/agent/chat',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ message: msg }),
+            headers: authHeaders
+        }).done(function(r) {
+            renderMessageBubble(r.response, false);
+        }).fail(function(x) {
+            renderMessageBubble((x.status === 401 ? 'Please log in again. ' : '') + 'Sorry, I encountered an error. Please try again.', false);
+        });
+    } else {
+        // WhatsApp Sync Mode: Reply directly to active WhatsApp client
+        if (!activeConversationId) {
+            alert('Please select an active WhatsApp client conversation first.');
+            return;
+        }
+
+        renderSyncedMessage({
+            sender_type: 'agent',
+            sender_name: 'You',
+            message: msg,
+            message_type: 'text',
+            created_at: new Date().toISOString()
+        });
+        scrollChatToBottom();
+
+        $.ajax({
+            url: `/api/agent/conversations/${activeConversationId}/reply`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ message: msg }),
+            headers: authHeaders
+        }).done(function(res) {
+            if (res.whatsapp_dispatched) {
+                // Flash success notice
+                $('#wa-conv-status-badge').attr('class', 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500 text-white flex items-center gap-1')
+                    .html('<i class="fas fa-check"></i> Delivered to WhatsApp');
+                setTimeout(() => {
+                    $('#wa-conv-status-badge').attr('class', 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1')
+                        .html('<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live Synced');
+                }, 3000);
+            }
+        }).fail(function(x) {
+            alert('Reply failed: ' + (x.responseJSON?.detail || 'Unknown error'));
+        });
+    }
 });
-$('.quick-q').click(function(){const txt=$(this).text();$('#chat-input').val(txt);$('#chat-form').submit();});
-$('#voice-form').submit(function(e){e.preventDefault();const txt=$('#voice-input').val().trim();if(!txt)return;
-    addMessage(txt, true);
-    $.post({url:'/api/agent/voice-quotation',contentType:'application/json',data:JSON.stringify({text:txt}),headers:authHeaders}).done(function(r){
-        addMessage(r.message);
-        $('#voice-result').removeClass('hidden').html(`<div class="bg-purple-50 rounded-lg p-3 text-sm text-purple-800"><strong>${r.type}:</strong> ${r.message}</div>`);
+
+// --- Quick Questions Click ---
+$('.quick-q').click(function() {
+    const txt = $(this).find('span:last').text().trim();
+    if (currentMode !== 'assistant') {
+        switchChatMode('assistant');
+    }
+    $('#chat-input').val(txt);
+    $('#chat-form').submit();
+});
+
+// --- Voice Quotation Form ---
+$('#voice-form').submit(function(e) {
+    e.preventDefault();
+    const txt = $('#voice-input').val().trim();
+    if (!txt) return;
+
+    if (currentMode !== 'assistant') {
+        switchChatMode('assistant');
+    }
+    renderMessageBubble(txt, true);
+
+    $.ajax({
+        url: '/api/agent/voice-quotation',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ transcript: txt }),
+        headers: authHeaders
+    }).done(function(r) {
+        renderMessageBubble(r.transcript + `\n\n**Generated Estimate Total:** PKR ${r.total_amount}`, false);
+        $('#voice-result').removeClass('hidden').html(`<div class="bg-purple-50 rounded-lg p-2.5 text-xs text-purple-900 border border-purple-200"><strong>Status:</strong> ${r.status} &bull; Total: <strong>PKR ${r.total_amount}</strong></div>`);
         $('#voice-input').val('');
-    }).fail(function(){addMessage('Sorry, could not process your voice request. Please try again.');});
+    }).fail(function() {
+        renderMessageBubble('Sorry, could not process your voice quotation request. Please try again.', false);
+    });
 });
-addMessage('👋 Assalam-o-Alaikum! Welcome to DATAPOINT Technologies Support. How can I assist you today?');
+
+// --- Real-time Background Polling for WhatsApp & Agent Sync ---
+function pollSyncUpdates() {
+    const queryConvId = (currentMode === 'whatsapp' && activeConversationId > 0) ? activeConversationId : 0;
+    $.ajax({
+        url: `/api/agent/sync-poll?last_msg_id=${lastPolledMsgId}&conv_id=${queryConvId}`,
+        method: 'GET',
+        headers: authHeaders,
+        timeout: 4000
+    }).done(function(data) {
+        const newMsgs = data.new_messages || [];
+        if (newMsgs.length > 0) {
+            newMsgs.forEach(m => {
+                if (m.id > lastPolledMsgId) {
+                    lastPolledMsgId = m.id;
+                    if (currentMode === 'whatsapp' && m.conversation_id == activeConversationId) {
+                        renderSyncedMessage(m);
+                    } else if (currentMode === 'assistant' && m.conversation_id == 0) {
+                        renderMessageBubble(m.message, m.sender_type === 'client' || m.sender_type === 'agent', m);
+                    }
+                }
+            });
+            scrollChatToBottom();
+            // Refresh conversation list to get latest messages and badges
+            loadConversations(false);
+        }
+
+        if (data.unread_total > 0) {
+            $('#wa-tab-unread-pill').removeClass('hidden').text(data.unread_total);
+        } else {
+            $('#wa-tab-unread-pill').addClass('hidden');
+        }
+    }).always(function() {
+        clearTimeout(syncPollTimer);
+        syncPollTimer = setTimeout(pollSyncUpdates, 3500);
+    });
+}
+
+// --- WhatsApp Baileys Status & QR Code Polling ---
+let waStatusTimer = null;
+function refreshWhatsAppChatStatus() {
+    $.ajax({
+        url: '/api/whatsapp/status',
+        method: 'GET',
+        headers: authHeaders,
+        timeout: 5000
+    }).done(function(res) {
+        updateWhatsAppChatUI(res);
+    }).fail(function() {
+        $('#wa-agent-chat-badge').attr('class', 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700')
+            .text('Service Offline');
+        $('#wa-agent-qr-section').addClass('hidden');
+        $('#wa-agent-connected-section').addClass('hidden');
+        $('#wa-agent-offline-section').removeClass('hidden');
+        clearTimeout(waStatusTimer);
+        waStatusTimer = setTimeout(refreshWhatsAppChatStatus, 10000);
+    });
+}
+
+function updateWhatsAppChatUI(data) {
+    const state = data.state;
+    if (state === 'scan_qr' || state === 'connecting' || state === 'disconnected') {
+        $('#wa-agent-chat-badge').attr('class', 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1')
+            .html('<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span> QR Scan Required');
+        $('#wa-agent-qr-section').removeClass('hidden');
+        $('#wa-agent-connected-section').addClass('hidden');
+        $('#wa-agent-offline-section').addClass('hidden');
+        $('#global-sync-indicator').attr('class', 'px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 flex items-center gap-1.5 shadow-sm')
+            .html('<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> QR Scan Required');
+
+        if (data.qr) {
+            $('#wa-agent-qr-img').attr('src', data.qr).removeClass('hidden');
+            $('#wa-agent-qr-loader').addClass('hidden');
+        } else {
+            $('#wa-agent-qr-loader').removeClass('hidden');
+        }
+    } else if (state === 'connected') {
+        $('#wa-agent-chat-badge').attr('class', 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1')
+            .html('<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Connected');
+        $('#wa-agent-qr-section').addClass('hidden');
+        $('#wa-agent-connected-section').removeClass('hidden');
+        $('#wa-agent-offline-section').addClass('hidden');
+        $('#global-sync-indicator').attr('class', 'px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1.5 shadow-sm')
+            .html('<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> WhatsApp Synced');
+
+        if (data.user) {
+            $('#wa-agent-phone').text('+' + data.user.phone);
+            $('#wa-agent-name').text(data.user.name || 'DATAPOINT Technologies');
+        }
+
+        const agentActive = data.salesAgentEnabled !== false;
+        $('#wa-agent-auto-badge')
+            .attr('class', agentActive ? 'px-2 py-0.2 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800' : 'px-2 py-0.2 rounded text-[10px] font-bold bg-slate-200 text-slate-700')
+            .text(agentActive ? 'Active' : 'Disabled');
+        $('#wa-agent-chat-toggle').text(agentActive ? 'Disable Agent' : 'Enable Agent');
+    } else {
+        $('#wa-agent-chat-badge').attr('class', 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700')
+            .text('Service Offline');
+        $('#wa-agent-qr-section').addClass('hidden');
+        $('#wa-agent-connected-section').addClass('hidden');
+        $('#wa-agent-offline-section').removeClass('hidden');
+        $('#global-sync-indicator').attr('class', 'px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 flex items-center gap-1.5 shadow-sm')
+            .html('<span class="w-2 h-2 rounded-full bg-rose-500"></span> WhatsApp Offline');
+    }
+
+    clearTimeout(waStatusTimer);
+    const interval = (state === 'connected') ? 15000 : 3500;
+    waStatusTimer = setTimeout(refreshWhatsAppChatStatus, interval);
+}
+
+function toggleSalesAgentChat() {
+    $.ajax({
+        url: '/api/whatsapp/agent/toggle',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({}),
+        headers: authHeaders
+    }).done(function() {
+        refreshWhatsAppChatStatus();
+    });
+}
+
+function cleanWhatsAppKeys() {
+    const btn = $('#wa-agent-chat-refresh');
+    const oldText = btn.text();
+    btn.text('Refreshing...').prop('disabled', true);
+    $.ajax({
+        url: '/api/whatsapp/clean-sessions',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({}),
+        headers: authHeaders
+    }).done(function() {
+        alert('Encryption session keys refreshed successfully. WhatsApp ready!');
+        refreshWhatsAppChatStatus();
+    }).fail(function(x) {
+        alert('Refresh failed: ' + (x.responseJSON?.detail || 'Unknown error'));
+    }).always(function() {
+        btn.text(oldText).prop('disabled', false);
+    });
+}
+
+function disconnectWhatsAppChat() {
+    if (!confirm('Unlink this WhatsApp account from the AI Sales Agent?')) return;
+    $.ajax({
+        url: '/api/whatsapp/disconnect',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({}),
+        headers: authHeaders
+    }).done(function() {
+        refreshWhatsAppChatStatus();
+    }).fail(function(x) {
+        alert('Disconnect failed: ' + (x.responseJSON?.detail || 'Unknown error'));
+    });
+}
 
 // --- Web Speech API ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
 function startRecognition(onResult, statusEl, btnEl) {
     if (!SpeechRecognition) {
         alert('Voice input is not supported in this browser. Please use Chrome or Edge.');
@@ -107,7 +720,6 @@ function startRecognition(onResult, statusEl, btnEl) {
     recognition.start();
 }
 
-// Mic button for chat input
 $('#mic-btn').click(function() {
     startRecognition(
         function(transcript) {
@@ -119,7 +731,6 @@ $('#mic-btn').click(function() {
     );
 });
 
-// Mic button for voice quotation textarea — auto-submits after speech
 $('#voice-mic-btn').click(function() {
     startRecognition(
         function(transcript) {
@@ -129,6 +740,14 @@ $('#voice-mic-btn').click(function() {
         $('#voice-mic-status'),
         $('#voice-mic-btn')
     );
+});
+
+// --- Page Init ---
+$(function() {
+    loadAssistantMessages();
+    loadConversations();
+    refreshWhatsAppChatStatus();
+    pollSyncUpdates();
 });
 </script>
 {% endblock %}

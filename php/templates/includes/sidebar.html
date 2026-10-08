@@ -1,12 +1,12 @@
 <aside class="fixed inset-y-0 left-0 w-64 z-30 flex flex-col" id="sidebar" style="background:#0f172a">
     <!-- Logo -->
-    <div class="flex items-center gap-3 px-5 py-5 border-b border-slate-700/50">
-        <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow">
-            <img src="/static/img/logo.png" alt="Logo" class="w-7 h-7 object-contain">
+    <div class="flex items-center gap-3.5 px-4 py-4 border-b border-slate-700/60 bg-slate-900/40">
+        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md p-1 border border-slate-700/40">
+            <img src="/static/img/logo.png" alt="Logo" class="max-w-full max-h-full object-contain">
         </div>
-        <div>
-            <p class="text-white font-bold text-sm leading-tight">DATAPOINT</p>
-            <p class="text-slate-400 text-xs">Invoicing System</p>
+        <div class="min-w-0">
+            <p class="text-white font-extrabold text-base tracking-wide leading-tight truncate">DATAPOINT</p>
+            <p class="text-cyan-400 text-[11px] font-semibold tracking-wider uppercase mt-0.5">Invoicing Suite</p>
         </div>
     </div>
 
@@ -40,15 +40,15 @@
                 <!-- All Estimates Link -->
                 <a href="/estimates" class="company-folder-link flex items-center justify-between px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-md transition-colors" data-cid="">
                     <span class="truncate flex items-center gap-1.5">
-                        <i class="fas fa-folder text-slate-400 text-[11px]"></i>
-                        <span>All Folders</span>
+                        <i class="fas fa-layer-group text-slate-400 text-[11px]"></i>
+                        <span>All Estimates</span>
                     </span>
                     <span class="text-[10px] bg-slate-800/90 text-slate-400 px-1.5 py-0.2 rounded font-mono" id="sb-est-count-all">...</span>
                 </a>
 
                 <!-- Container dynamically populated with company names from DB -->
                 <div id="sidebar-company-links" class="space-y-1">
-                    <div class="px-2 py-1 text-[11px] text-slate-500 italic"><i class="fas fa-spinner fa-spin mr-1"></i> Loading companies...</div>
+                    <div class="px-2 py-1 text-[11px] text-slate-500 italic"><i class="fas fa-spinner fa-spin mr-1"></i> Loading company folders...</div>
                 </div>
 
                 <!-- Quick New Estimate Link -->
@@ -192,16 +192,6 @@ $(function() {
             companies.forEach(function(co, index) {
                 const count = parseInt(co.estimates_count || 0);
                 totalEstimates += count;
-                const markup = parseFloat(co.markup_percent || 0);
-
-                let badge = '<span class="text-[9px] font-bold px-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/40">0%</span>';
-                if (markup === 2) {
-                    badge = '<span class="text-[9px] font-bold px-1 rounded bg-blue-950 text-blue-400 border border-blue-800/40">+2%</span>';
-                } else if (markup === 3) {
-                    badge = '<span class="text-[9px] font-bold px-1 rounded bg-purple-950 text-purple-400 border border-purple-800/40">+3%</span>';
-                } else if (markup > 0) {
-                    badge = `<span class="text-[9px] font-bold px-1 rounded bg-amber-950 text-amber-400 border border-amber-800/40">+${markup}%</span>`;
-                }
 
                 const isActive = isEstimates && currentCid && String(currentCid) === String(co.id);
                 const activeStyle = isActive 
@@ -215,13 +205,12 @@ $(function() {
                     <a href="/estimates?company_id=${encodeURIComponent(co.id)}" 
                        class="company-folder-link flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors ${activeStyle}"
                        data-cid="${esc(co.id)}"
-                       title="${esc(co.name)} (Markup: ${markup}%)">
+                       title="${esc(co.name)}">
                         <span class="truncate flex items-center gap-1.5 mr-1 min-w-0">
                             <i class="fas ${folderIcon} text-[11px] shrink-0"></i>
                             <span class="truncate">${esc(co.name)}</span>
                         </span>
                         <span class="flex items-center gap-1 shrink-0">
-                            ${badge}
                             <span class="text-[10px] bg-slate-800/90 text-slate-400 px-1.5 py-0.2 rounded font-mono">${count}</span>
                         </span>
                     </a>

@@ -5,101 +5,517 @@
     {% include "includes/sidebar.html" %}
     <main class="flex-1 ml-64 p-6">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Invoice Detail</h1>
+            <div>
+                <a href="/invoices" class="text-sm text-gray-500 hover:text-gray-700 mb-1 inline-block"><i class="fas fa-arrow-left mr-1"></i> Back to Invoices</a>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                    Invoice <span id="inv-header-no" class="text-cyan-700"></span>
+                </h1>
+            </div>
             <div class="flex gap-2" id="action-buttons">
-                <a href="/api/invoices/{{ invoice_id }}/pdf" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100"><i class="fas fa-file-pdf mr-2"></i>PDF</a>
-                <a href="/invoices/{{ invoice_id }}/edit" id="edit-btn" class="bg-amber-50 text-amber-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-100 hidden"><i class="fas fa-edit mr-2"></i>Edit</a>
-                <button id="delete-btn" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 hidden"><i class="fas fa-trash mr-2"></i>Delete</button>
+                <a id="pdf-btn" href="/api/invoices/{{ invoice_id }}/pdf" target="_blank" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 flex items-center gap-2"><i class="fas fa-file-pdf"></i> PDF</a>
+                <button id="whatsapp-quick-btn" onclick="sendInvoiceWhatsappDirect()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm"><i class="fab fa-whatsapp text-lg"></i> Send WhatsApp</button>
+                <a href="/invoices/{{ invoice_id }}/edit" id="edit-btn" class="bg-amber-50 text-amber-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-100 hidden flex items-center gap-2"><i class="fas fa-edit"></i> Edit</a>
+                <button id="delete-btn" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 hidden flex items-center gap-2"><i class="fas fa-trash"></i> Delete</button>
             </div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2">
+            <div class="lg:col-span-2 space-y-6">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <div class="flex justify-between items-start mb-6">
                         <div>
-                            <h2 class="text-xl font-bold text-gray-800" id="inv-no"></h2>
-                            <p class="text-gray-500 text-sm" id="inv-dates"></p>
+                            <div class="flex items-center gap-3">
+                                <h2 class="text-xl font-bold text-gray-800" id="inv-no"></h2>
+                                <span id="inv-company-badge" class="px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700"></span>
+                            </div>
+                            <p class="text-gray-500 text-sm mt-1" id="inv-dates"></p>
+                            <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide mt-1" id="inv-title" style="display:none"></p>
                         </div>
-                        <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold"></span>
+                        <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold capitalize"></span>
                     </div>
-                    <div class="mb-6 p-4 bg-dptech-50 rounded-lg">
-                        <p class="font-semibold text-gray-800" id="client-name"></p>
-                        <p class="text-sm text-gray-500" id="client-info"></p>
+
+                    <div class="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Billed To</p>
+                                <p class="font-bold text-gray-900 text-base" id="client-name"></p>
+                                <p class="text-sm text-gray-600 mt-0.5" id="client-info"></p>
+                                <p class="text-xs text-gray-500 mt-0.5" id="client-addr"></p>
+                            </div>
+                        </div>
                     </div>
-                    <table class="w-full mb-6"><thead><tr class="bg-dptech-50"><th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Item Name</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Qty</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Unit</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Unit Price</th><th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Total</th></tr></thead><tbody id="items-body"></tbody></table>
-                    <div class="border-t pt-4 text-right space-y-1">
-                        <p class="text-sm text-gray-600">Subtotal: PKR <span id="inv-subtotal"></span></p>
-                        <p class="text-sm text-gray-600" id="inv-discount-row">Discount: <span id="inv-discount"></span></p>
-                        <p class="text-sm text-gray-600">GST (18%): PKR <span id="inv-tax"></span></p>
-                        <p class="text-sm text-gray-600" id="inv-wht-row" style="display:none">WHT: -PKR <span id="inv-wht"></span></p>
-                        <p class="text-sm text-gray-600" id="inv-fed-row" style="display:none">FED: PKR <span id="inv-fed"></span></p>
-                        <p class="text-xl font-bold text-gray-800">Total: PKR <span id="inv-total"></span></p>
-                        <hr class="my-2">
-                        <p class="text-sm">Paid: PKR <span id="inv-paid" class="text-green-600 font-semibold"></span></p>
-                        <p class="text-sm font-bold">Balance Due: PKR <span id="inv-balance" class="text-red-600"></span></p>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full mb-6">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-gray-100">
+                                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Item Description</th>
+                                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Model / Make</th>
+                                    <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Qty</th>
+                                    <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Unit</th>
+                                    <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Unit Price</th>
+                                    <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Total (PKR)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="border-t pt-4 flex justify-between items-start">
+                        <div class="max-w-xs text-xs text-gray-500 space-y-1" id="terms-notes-box">
+                            <p id="inv-payment-terms" class="font-medium text-gray-700"></p>
+                            <p id="inv-notes" class="italic"></p>
+                        </div>
+                        <div class="w-72 space-y-1.5 text-right">
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>Subtotal:</span>
+                                <span>PKR <span id="inv-subtotal" class="font-medium">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between text-sm text-amber-700" id="inv-discount-row" style="display:none">
+                                <span>Discount:</span>
+                                <span><span id="inv-discount"></span></span>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600" id="inv-tax-row">
+                                <span id="inv-tax-label">GST:</span>
+                                <span>PKR <span id="inv-tax" class="font-medium">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600" id="inv-wht-row" style="display:none">
+                                <span>WHT:</span>
+                                <span>-PKR <span id="inv-wht" class="font-medium">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600" id="inv-fed-row" style="display:none">
+                                <span>FED:</span>
+                                <span>PKR <span id="inv-fed" class="font-medium">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between text-lg font-bold text-gray-900 border-t pt-2 mt-2">
+                                <span>Grand Total:</span>
+                                <span>PKR <span id="inv-total">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between text-sm font-semibold text-emerald-600">
+                                <span>Amount Paid:</span>
+                                <span>PKR <span id="inv-paid">0.00</span></span>
+                            </div>
+                            <div class="flex justify-between text-base font-bold text-red-600 border-t border-dashed pt-1.5">
+                                <span>Balance Due:</span>
+                                <span>PKR <span id="inv-balance">0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment History Table Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center justify-between">
+                        <span class="flex items-center gap-2"><i class="fas fa-history text-slate-400"></i> Recorded Payments</span>
+                        <span id="payments-count-badge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-semibold">0 payments</span>
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-gray-100 text-xs text-gray-500 uppercase">
+                                    <th class="text-left px-3 py-2">Date</th>
+                                    <th class="text-left px-3 py-2">Method</th>
+                                    <th class="text-left px-3 py-2">Reference / Notes</th>
+                                    <th class="text-right px-3 py-2">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="payments-history-body">
+                                <tr><td colspan="4" class="text-center py-4 text-gray-400 text-xs">No payments recorded yet.</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
-            <div class="space-y-4">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <h3 class="font-semibold text-gray-800 mb-3">Payment</h3>
-                    <form id="payment-form" class="space-y-2">
-                        <input type="number" step="0.01" id="pay-amount" placeholder="Amount" class="w-full px-3 py-2 border rounded-lg text-sm" required>
-                        <button type="submit" class="w-full bg-green-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-green-600"><i class="fas fa-check mr-2"></i>Record Payment</button>
+
+            <!-- Right Column: Record Payment & Send -->
+            <div class="space-y-6">
+                <!-- Record Payment Box -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" id="payment-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-money-bill-wave text-emerald-500"></i> Record Payment
+                        </h3>
+                        <span id="pay-status-pill" class="text-xs font-semibold px-2 py-0.5 rounded"></span>
+                    </div>
+
+                    <div id="fully-paid-message" class="hidden p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-medium mb-3 flex items-center gap-2">
+                        <i class="fas fa-check-circle text-emerald-600 text-base"></i>
+                        <span>This invoice is fully paid. No further payment is required.</span>
+                    </div>
+
+                    <form id="payment-form" class="space-y-3">
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-xs font-medium text-gray-600">Payment Amount (PKR) *</label>
+                                <button type="button" id="pay-full-btn" class="text-xs text-cyan-600 hover:text-cyan-700 font-semibold underline">Pay Full Balance</button>
+                            </div>
+                            <input type="number" step="0.01" min="0.01" id="pay-amount" placeholder="0.00" class="w-full px-3 py-2 border rounded-lg text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none" required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs font-medium text-gray-600 block mb-1">Date</label>
+                                <input type="date" id="pay-date" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-gray-600 block mb-1">Method</label>
+                                <select id="pay-method" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="Online Transfer">Online Transfer</option>
+                                    <option value="Pay Order">Pay Order</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-gray-600 block mb-1">Reference / Cheque #</label>
+                            <input type="text" id="pay-ref" placeholder="Optional transaction ID or cheque no." class="w-full px-3 py-2 border rounded-lg text-xs outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-gray-600 block mb-1">Notes</label>
+                            <input type="text" id="pay-notes" placeholder="Optional notes" class="w-full px-3 py-2 border rounded-lg text-xs outline-none">
+                        </div>
+                        <button type="submit" id="pay-submit-btn" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-700 shadow-sm transition flex items-center justify-center gap-2">
+                            <i class="fas fa-check"></i> Save Payment
+                        </button>
                     </form>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <h3 class="font-semibold text-gray-800 mb-3">Send Invoice</h3>
-                    <form id="send-form" class="space-y-2">
-                        <input type="email" id="send-email" placeholder="Email address" class="w-full px-3 py-2 border rounded-lg text-sm">
-                        <input type="text" id="send-whatsapp" placeholder="WhatsApp number" class="w-full px-3 py-2 border rounded-lg text-sm">
-                        <textarea id="send-msg" rows="2" placeholder="Message (optional)" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea>
-                        <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-600"><i class="fas fa-paper-plane mr-2"></i>Send</button>
+
+                <!-- Send Invoice Box -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-paper-plane text-blue-500"></i> Dispatch Invoice
+                    </h3>
+                    <form id="send-form" class="space-y-3">
+                        <div>
+                            <label class="text-xs font-medium text-gray-600 block mb-1">Email Address</label>
+                            <input type="email" id="send-email" placeholder="client@example.com" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-gray-600 block mb-1">WhatsApp Mobile</label>
+                            <input type="text" id="send-whatsapp" placeholder="+923001234567" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-gray-600 block mb-1">Message (optional)</label>
+                            <textarea id="send-msg" rows="2" placeholder="Attached is your sales invoice." class="w-full px-3 py-2 border rounded-lg text-xs outline-none"></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition flex items-center justify-center gap-2">
+                            <i class="fas fa-paper-plane"></i> Send to Client
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
     </main>
 </div>
+
 <script>
-const token=localStorage.getItem('token');if(!token)window.location.href='/login';
-const iid={{ invoice_id }};
-function loadInvoice(){
-    $.ajax({url:'/api/invoices/'+iid,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(inv){
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/login';
+const iid = {{ invoice_id }};
+let currentInvoiceBalance = 0;
+
+function fmt(n) {
+    return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function loadInvoice() {
+    $.ajax({
+        url: '/api/invoices/' + iid,
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(inv) {
+        $('#inv-header-no').text(inv.invoice_no);
         $('#inv-no').text(inv.invoice_no);
-        $('#inv-dates').text(`Date: ${inv.invoice_date} | Due: ${inv.due_date||'N/A'}`);
-        const sc={'paid':'bg-green-100 text-green-700','sent':'bg-blue-100 text-blue-700','overdue':'bg-red-100 text-red-700','partially_paid':'bg-amber-100 text-amber-700','draft':'bg-gray-100 text-gray-600','cancelled':'bg-red-100 text-red-700'};
-        $('#inv-status-badge').text(inv.status.replace('_',' ')).addClass(sc[inv.status]||'bg-gray-100');
-        if(!['paid','cancelled'].includes(inv.status)){$('#edit-btn').removeClass('hidden');}
-        if(inv.status==='cancelled'){$('#delete-btn').removeClass('hidden');}
-        $('#client-name').text(inv.client?.name||'');
-        $('#client-info').text(`${inv.client?.company||''} | NTN: ${inv.client?.ntn||'N/A'} | ${inv.client?.phone||''}`.trim());
-        $('#items-body').html((inv.items||[]).map(i=>`<tr class="border-b border-gray-50"><td class="px-4 py-3">${i.description}</td><td class="px-4 py-3 text-right">${i.quantity}</td><td class="px-4 py-3 text-right">${i.unit}</td><td class="px-4 py-3 text-right">PKR ${i.unit_price?.toFixed(2)}</td><td class="px-4 py-3 text-right font-medium">PKR ${i.total_price?.toFixed(2)}</td></tr>`).join(''));
-        $('#inv-subtotal').text(inv.subtotal?.toFixed(2));
-        if(inv.discount_amount>0){$('#inv-discount').text(`${inv.discount_percent}% (-PKR ${inv.discount_amount?.toFixed(2)})`);}else{$('#inv-discount-row').hide();}
-        $('#inv-tax').text(inv.tax_amount?.toFixed(2));
-        if(inv.wht_amount>0){$('#inv-wht-row').show();$('#inv-wht').text(inv.wht_amount?.toFixed(2));}
-        if(inv.fed_amount>0){$('#inv-fed-row').show();$('#inv-fed').text(inv.fed_amount?.toFixed(2));}
-        $('#inv-total').text(inv.total_amount?.toLocaleString());
-        $('#inv-paid').text(inv.amount_paid?.toFixed(2)||'0.00');
-        $('#inv-balance').text(inv.balance_due?.toLocaleString());
-        if(inv.client){$('#send-email').val(inv.client.email||'');}
-    });
-    $('#delete-btn').on('click',function(){
-        if(confirm('Permanently delete this cancelled invoice? This cannot be undone.')){
-            $.ajax({url:'/api/invoices/'+iid+'/delete',method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){alert('Invoice deleted');window.location.href='/invoices';}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+        $('#inv-dates').text(`Invoice Date: ${inv.invoice_date || 'N/A'} | Due Date: ${inv.due_date || 'N/A'}`);
+
+        if (inv.company_name) {
+            $('#inv-company-badge').text(inv.company_name).show();
+        } else {
+            $('#inv-company-badge').hide();
         }
+
+        if (inv.title) {
+            $('#inv-title').text(inv.title).show();
+        } else {
+            $('#inv-title').hide();
+        }
+
+        const sc = {
+            'paid': 'bg-emerald-100 text-emerald-800',
+            'sent': 'bg-blue-100 text-blue-800',
+            'overdue': 'bg-red-100 text-red-800',
+            'partially_paid': 'bg-amber-100 text-amber-800',
+            'draft': 'bg-slate-100 text-slate-700',
+            'cancelled': 'bg-rose-100 text-rose-800'
+        };
+        const statusText = (inv.status || 'draft').replace(/_/g, ' ');
+        $('#inv-status-badge').text(statusText).attr('class', 'px-3 py-1 rounded-full text-xs font-semibold capitalize ' + (sc[inv.status] || 'bg-slate-100 text-slate-700'));
+
+        if (!['paid', 'cancelled'].includes(inv.status)) {
+            $('#edit-btn').removeClass('hidden');
+        } else {
+            $('#edit-btn').addClass('hidden');
+        }
+        if (inv.status === 'cancelled') {
+            $('#delete-btn').removeClass('hidden');
+        } else {
+            $('#delete-btn').addClass('hidden');
+        }
+
+        // Client info
+        const cName = inv.client_name || inv.client?.name || 'Walk-in / Cash Customer';
+        const cComp = inv.client_company || inv.client?.company || '';
+        const cNtn = inv.client_ntn || inv.client?.ntn || '';
+        const cPhone = inv.client_phone || inv.client_mobile || inv.client?.phone || '';
+        const cAddr = inv.client_address || inv.client?.address || '';
+
+        $('#client-name').text(cName);
+        const infoParts = [];
+        if (cComp) infoParts.push(cComp);
+        if (cNtn) infoParts.push('NTN: ' + cNtn);
+        if (cPhone) infoParts.push(cPhone);
+        $('#client-info').text(infoParts.join(' | '));
+        $('#client-addr').text(cAddr);
+
+        // Pre-fill email/phone in send form
+        $('#send-email').val(inv.client_email || inv.client?.email || '');
+        $('#send-whatsapp').val(inv.client_mobile || inv.client_phone || inv.client?.mobile || '');
+
+        // Items body
+        const items = inv.items || [];
+        if (items.length) {
+            $('#items-body').html(items.map(i => {
+                const up = Number(i.unit_price || 0);
+                const tp = Number(i.total_price || 0);
+                const q = Number(i.quantity || 0);
+                return `<tr class="border-b border-gray-100 hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium text-gray-800">${i.description || 'Item'}</td>
+                    <td class="px-4 py-3 text-gray-600">${i.model_make || '-'}</td>
+                    <td class="px-4 py-3 text-right text-gray-600">${q}</td>
+                    <td class="px-4 py-3 text-right text-gray-500">${i.unit || 'pcs'}</td>
+                    <td class="px-4 py-3 text-right text-gray-600">PKR ${fmt(up)}</td>
+                    <td class="px-4 py-3 text-right font-semibold text-gray-900">PKR ${fmt(tp)}</td>
+                </tr>`;
+            }).join(''));
+        } else {
+            $('#items-body').html('<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">No items in this invoice</td></tr>');
+        }
+
+        // Totals
+        const subtotal = Number(inv.subtotal || 0);
+        const discAmt = Number(inv.discount_amount || 0);
+        const discPct = Number(inv.discount_percent || 0);
+        const taxRate = Number(inv.tax_rate || 0);
+        const taxAmt = Number(inv.tax_amount || 0);
+        const whtAmt = Number(inv.withholding_tax_amount || 0);
+        const fedAmt = Number(inv.fed_amount || 0);
+        const total = Number(inv.total_amount || 0);
+        const paid = Number(inv.amount_paid || 0);
+        const balance = (inv.balance_due !== undefined && inv.balance_due !== null) ? Number(inv.balance_due) : Math.max(0, total - paid);
+
+        currentInvoiceBalance = balance;
+
+        $('#inv-subtotal').text(fmt(subtotal));
+
+        if (discAmt > 0) {
+            $('#inv-discount-row').show();
+            $('#inv-discount').text(`${discPct}% (-PKR ${fmt(discAmt)})`);
+        } else {
+            $('#inv-discount-row').hide();
+        }
+
+        $('#inv-tax-label').text(`GST (${taxRate}%):`);
+        $('#inv-tax').text(fmt(taxAmt));
+
+        if (whtAmt > 0) {
+            $('#inv-wht-row').show();
+            $('#inv-wht').text(fmt(whtAmt));
+        } else {
+            $('#inv-wht-row').hide();
+        }
+
+        if (fedAmt > 0) {
+            $('#inv-fed-row').show();
+            $('#inv-fed').text(fmt(fedAmt));
+        } else {
+            $('#inv-fed-row').hide();
+        }
+
+        $('#inv-total').text(fmt(total));
+        $('#inv-paid').text(fmt(paid));
+        $('#inv-balance').text(fmt(balance));
+
+        // Terms and Notes
+        if (inv.payment_terms) {
+            $('#inv-payment-terms').text('Terms: ' + inv.payment_terms).show();
+        } else {
+            $('#inv-payment-terms').hide();
+        }
+        if (inv.notes) {
+            $('#inv-notes').text('Note: ' + inv.notes).show();
+        } else {
+            $('#inv-notes').hide();
+        }
+
+        // PDF button href with token
+        $('#pdf-btn').attr('href', `/api/invoices/${iid}/pdf?token=${encodeURIComponent(token)}`);
+
+        // Payment status state
+        if (balance <= 0.001) {
+            $('#fully-paid-message').removeClass('hidden');
+            $('#pay-submit-btn').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            $('#pay-amount').prop('disabled', true);
+            $('#pay-status-pill').text('PAID IN FULL').attr('class', 'text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800');
+        } else {
+            $('#fully-paid-message').addClass('hidden');
+            $('#pay-submit-btn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+            $('#pay-amount').prop('disabled', false);
+            $('#pay-amount').val(balance.toFixed(2));
+            $('#pay-status-pill').text(`DUE: PKR ${fmt(balance)}`).attr('class', 'text-xs font-semibold px-2 py-0.5 rounded bg-red-100 text-red-800');
+        }
+
+        // Payment History
+        const payments = inv.payments || [];
+        $('#payments-count-badge').text(`${payments.length} payment${payments.length === 1 ? '' : 's'}`);
+        if (payments.length) {
+            $('#payments-history-body').html(payments.map(p => {
+                const amt = Number(p.amount || 0);
+                const ref = [p.reference_no, p.notes].filter(Boolean).join(' - ') || '-';
+                return `<tr class="border-b border-gray-50 hover:bg-slate-50">
+                    <td class="px-3 py-2 font-medium text-gray-700">${p.payment_date || ''}</td>
+                    <td class="px-3 py-2"><span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">${p.payment_method || 'Cash'}</span></td>
+                    <td class="px-3 py-2 text-gray-500 text-xs">${ref}</td>
+                    <td class="px-3 py-2 text-right font-bold text-emerald-600">PKR ${fmt(amt)}</td>
+                </tr>`;
+            }).join(''));
+        } else {
+            $('#payments-history-body').html('<tr><td colspan="4" class="text-center py-4 text-gray-400 text-xs">No payments recorded yet.</td></tr>');
+        }
+    }).fail(function(x) {
+        if (x.status === 401) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+        alert('Failed to load invoice: ' + (x.responseJSON?.detail || 'Server error'));
     });
 }
-$(function(){
+
+$(function() {
+    $('#pay-date').val(new Date().toISOString().split('T')[0]);
     loadInvoice();
-    $('#payment-form').submit(function(e){e.preventDefault();const amt=$('#pay-amount').val();$.post({url:'/api/invoices/'+iid+'/pay?amount='+amt,headers:{Authorization:'Bearer '+token}}).done(function(){alert('Payment recorded');loadInvoice();}).fail(function(x){alert(x.responseJSON?.detail);});});
-    $('#send-form').submit(function(e){e.preventDefault();
-        const data={};const email=$('#send-email').val();const wa=$('#send-whatsapp').val();const msg=$('#send-msg').val()||null;
-        if(email)data.email=email;if(wa)data.whatsapp=wa;if(msg)data.message=msg;
-        if(!email&&!wa){alert('Enter email or WhatsApp number');return;}
-        $.ajax({url:'/api/invoices/'+iid+'/send',method:'POST',contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(r){let m=[];if(r.email_sent)m.push('Email sent');if(r.whatsapp_sent)m.push('WhatsApp sent');if(r.whatsapp_error)m.push('WhatsApp failed: '+r.whatsapp_error);alert(m.join('\n')||'Send failed');loadInvoice();}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+
+    $('#pay-full-btn').on('click', function() {
+        if (currentInvoiceBalance > 0) {
+            $('#pay-amount').val(currentInvoiceBalance.toFixed(2));
+        }
+    });
+
+    $('#payment-form').submit(function(e) {
+        e.preventDefault();
+        const amt = parseFloat($('#pay-amount').val());
+        if (isNaN(amt) || amt <= 0) {
+            alert('Please enter a valid amount greater than zero.');
+            return;
+        }
+
+        const payload = {
+            amount: amt,
+            payment_date: $('#pay-date').val() || new Date().toISOString().split('T')[0],
+            payment_method: $('#pay-method').val() || 'Cash',
+            reference_no: $('#pay-ref').val() || null,
+            notes: $('#pay-notes').val() || null
+        };
+
+        const $btn = $('#pay-submit-btn');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+        $.ajax({
+            url: '/api/invoices/' + iid + '/pay',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function(res) {
+            alert(res.message || 'Payment recorded successfully!');
+            $('#pay-ref').val('');
+            $('#pay-notes').val('');
+            loadInvoice();
+        }).fail(function(x) {
+            alert('Error recording payment: ' + (x.responseJSON?.detail || 'Unknown error'));
+        }).always(function() {
+            $btn.prop('disabled', false).html('<i class="fas fa-check"></i> Save Payment');
+        });
+    });
+
+    $('#send-form').submit(function(e) {
+        e.preventDefault();
+        const data = {};
+        const email = $('#send-email').val().trim();
+        const wa = $('#send-whatsapp').val().trim();
+        const msg = $('#send-msg').val().trim() || null;
+        if (email) data.recipient_email = email;
+        if (wa) data.recipient_phone = wa;
+        if (msg) data.message = msg;
+        if (!email && !wa) {
+            alert('Please provide an email address or WhatsApp phone number.');
+            return;
+        }
+
+        $.ajax({
+            url: '/api/invoices/' + iid + '/send',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function(r) {
+            const m = [];
+            if (r.results?.email) m.push('Email: ' + r.results.email);
+            if (r.results?.whatsapp) m.push('WhatsApp: ' + r.results.whatsapp);
+            alert(m.join('\n') || 'Invoice dispatch completed');
+            loadInvoice();
+        }).fail(function(x) {
+            alert('Error dispatching invoice: ' + (x.responseJSON?.detail || 'Unknown error'));
+        });
+    });
+
+    $('#delete-btn').on('click', function() {
+        if (confirm('Permanently delete this cancelled invoice? This action cannot be undone.')) {
+            $.ajax({
+                url: '/api/invoices/' + iid + '/delete',
+                method: 'DELETE',
+                headers: { Authorization: 'Bearer ' + token }
+            }).done(function() {
+                alert('Invoice deleted successfully');
+                window.location.href = '/invoices';
+            }).fail(function(x) {
+                alert(x.responseJSON?.detail || 'Error deleting invoice');
+            });
+        }
     });
 });
+
+function sendInvoiceWhatsappDirect() {
+    const wa = $('#send-whatsapp').val().trim();
+    const phone = prompt('Enter or confirm client WhatsApp mobile number (e.g. 03167788990 or +923167788990):', wa || '');
+    if (!phone) return;
+
+    const btn = $('#whatsapp-quick-btn');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Sending...');
+
+    $.ajax({
+        url: '/api/invoices/' + iid + '/whatsapp',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ recipient_phone: phone }),
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(res) {
+        alert(res.message || 'Invoice PDF sent via WhatsApp successfully!');
+        loadInvoice();
+    }).fail(function(err) {
+        alert('Failed to send WhatsApp: ' + (err.responseJSON?.detail || 'Unknown error. Ensure WhatsApp is linked on the Dashboard.'));
+    }).always(function() {
+        btn.prop('disabled', false).html('<i class="fab fa-whatsapp text-lg"></i> Send WhatsApp');
+    });
+}
 </script>
 {% endblock %}
