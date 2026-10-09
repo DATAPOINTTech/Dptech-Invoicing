@@ -1,6 +1,5 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
 
     # Prevent directory listing
     Options -Indexes
@@ -12,9 +11,8 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Serve static assets directly if in root or in php/public/static
-    RewriteCond %{REQUEST_URI} ^/static/(.*)$
-    RewriteCond %{DOCUMENT_ROOT}/php/public/static/%1 -f
+    # Serve static assets directly if in php/public/static
+    RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^static/(.*)$ php/public/static/$1 [L]
 
     # Serve existing files and directories directly
