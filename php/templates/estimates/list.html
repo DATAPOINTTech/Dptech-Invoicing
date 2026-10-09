@@ -197,7 +197,7 @@ if (!token) {
         $.ajax({
             url: '/api/companies',
             method: 'GET',
-            headers: { Authorization: 'Bearer ' + token }
+            headers: { Authorization: 'Bearer ' + token, 'X-Authorization': 'Bearer ' + token }
         }).done(function(companies) {
             cachedCompanies = Array.isArray(companies) ? companies : [];
             let totalEsts = 0;
@@ -298,7 +298,7 @@ if (!token) {
         $.ajax({
             url,
             method: 'GET',
-            headers: { Authorization: 'Bearer ' + token }
+            headers: { Authorization: 'Bearer ' + token, 'X-Authorization': 'Bearer ' + token }
         }).done(function(ests) {
             cachedEstimates = Array.isArray(ests) ? ests : [];
             filterAndRender();

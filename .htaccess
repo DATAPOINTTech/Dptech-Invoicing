@@ -1,5 +1,12 @@
+# Pass Authorization headers in Apache FastCGI / PHP-FPM / LiteSpeed
+<IfModule mod_setenvif.c>
+    SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=$1
+    SetEnvIfNoCase ^X-Authorization$ "(.+)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    CGIPassAuth On
 
     # Prevent directory listing
     Options -Indexes
@@ -7,9 +14,11 @@
     # Block access to sensitive files and directories
     RewriteRule ^(\.env|\.git|.*\.db|.*\.sqlite|composer\.(json|lock)|Dockerfile|docker-compose\.yml|Procfile) - [F,L,NC]
 
-    # Forward Authorization header to PHP (Crucial for Apache / cPanel / LiteSpeed JWT authentication)
+    # Forward Authorization and X-Authorization headers to PHP
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    RewriteCond %{HTTP:X-Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:X-Authorization},E=HTTP_X_AUTHORIZATION:%{HTTP:X-Authorization}]
 
     # Serve static assets directly if in php/public/static
     RewriteCond %{REQUEST_FILENAME} !-f

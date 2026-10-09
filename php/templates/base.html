@@ -28,6 +28,23 @@
             var t = localStorage.getItem('token');
             if (t) {
                 document.cookie = 'token=' + encodeURIComponent(t) + '; path=/; max-age=2592000; SameSite=Lax';
+                if (window.jQuery) {
+                    $.ajaxSetup({
+                        beforeSend: function(xhr) {
+                            xhr.setRequestHeader('Authorization', 'Bearer ' + t);
+                            xhr.setRequestHeader('X-Authorization', 'Bearer ' + t);
+                        }
+                    });
+                }
+            }
+            if (window.jQuery) {
+                $(document).ajaxError(function(event, jqXHR, ajaxSettings) {
+                    if (jqXHR.status === 401 && !ajaxSettings.url.includes('/api/auth/login')) {
+                        localStorage.removeItem('token');
+                        document.cookie = 'token=; path=/; max-age=0';
+                        window.location.href = '/login?expired=1';
+                    }
+                });
             }
         })();
     </script>
