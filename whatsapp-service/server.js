@@ -5,6 +5,31 @@ const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const https = require('https');
+
+// Simple zero-dependency .env loader
+function loadEnvFile(envPath) {
+    if (!fs.existsSync(envPath)) return;
+    try {
+        const content = fs.readFileSync(envPath, 'utf8');
+        content.split(/\r?\n/).forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return;
+            const [key, ...rest] = trimmed.split('=');
+            const k = key.trim();
+            let val = rest.join('=').trim();
+            if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+                val = val.slice(1, -1);
+            }
+            if (k && process.env[k] === undefined) {
+                process.env[k] = val;
+            }
+        });
+    } catch (e) {}
+}
+
+loadEnvFile(path.join(__dirname, '..', '.env'));
+loadEnvFile(path.join(__dirname, '.env'));
 
 // Ignore EPIPE errors on stdout/stderr if parent process closed the pipe
 if (process.stdout && typeof process.stdout.on === 'function') {
@@ -34,7 +59,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-const PORT = process.env.WHATSAPP_PORT || 3001;
+const PORT = process.env.WHATSAPP_PORT || process.env.PORT || 3001;
 const AUTH_DIR = path.join(__dirname, 'auth_info');
 
 // Ensure auth dir exists
@@ -132,10 +157,22 @@ async function callPhpAgentBridge(senderPhone, senderName, messageText) {
             message: messageText
         });
 
+        const backendBase = process.env.PHP_BACKEND_URL || process.env.APP_URL || process.env.COMPANY_WEBSITE || 'http://127.0.0.1:8000';
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(backendBase);
+        } catch (e) {
+            parsedUrl = new URL('http://127.0.0.1:8000');
+        }
+
+        const isHttps = parsedUrl.protocol === 'https:';
+        const client = isHttps ? https : http;
+        const basePath = parsedUrl.pathname.replace(/\/$/, '');
+
         const options = {
-            hostname: '127.0.0.1',
-            port: 8000,
-            path: '/api/whatsapp/agent-bridge',
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (isHttps ? 443 : 80),
+            path: (basePath || '') + '/api/whatsapp/agent-bridge',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -144,7 +181,7 @@ async function callPhpAgentBridge(senderPhone, senderName, messageText) {
             timeout: 15000
         };
 
-        const req = http.request(options, (res) => {
+        const req = client.request(options, (res) => {
             let data = '';
             res.on('data', (chunk) => { data += chunk; });
             res.on('end', () => {
@@ -481,10 +518,17 @@ app.post('/clean-sessions', (req, res) => {
 });
 
 // Start Express server and Baileys
-app.listen(PORT, '127.0.0.1', () => {
+const isNumericPort = typeof PORT === 'number' || /^\d+$/.test(String(PORT));
+const serverCallback = () => {
     console.log(`========================================================`);
-    console.log(`  DATAPOINT WhatsApp Baileys Service running on port ${PORT}`);
+    console.log(`  DATAPOINT WhatsApp Baileys Service running on port/pipe ${PORT}`);
     console.log(`========================================================`);
     startWhatsApp();
-});
+};
+
+if (isNumericPort) {
+    app.listen(Number(PORT), '127.0.0.1', serverCallback);
+} else {
+    app.listen(PORT, serverCallback);
+}
 
