@@ -18,6 +18,9 @@ def create_cpanel_zip():
         "node_modules",
         "auth_info",
         "__pycache__",
+        "tests",
+        "output",
+        "pdf_output",
     }
 
     excluded_extensions = {
