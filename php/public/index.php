@@ -64,21 +64,31 @@ function serve_static_asset(string $path): bool
         return false;
     }
 
-    if (!str_starts_with($path, '/static/')) {
+    $isStatic = str_starts_with($path, '/static/');
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $staticExts = ['css', 'js', 'svg', 'png', 'jpg', 'jpeg', 'ico', 'json', 'woff', 'woff2', 'ttf', 'webp', 'gif'];
+
+    if (!$isStatic && !in_array($ext, $staticExts, true)) {
         return false;
     }
 
-    $relPath = substr($path, strlen('/static/'));
+    $relPath = $isStatic ? substr($path, strlen('/static/')) : ltrim($path, '/');
+    $baseName = basename($path);
+
     $candidates = [
         __DIR__ . '/static/' . $relPath,
         dirname(__DIR__) . '/public/static/' . $relPath,
         ($appRoot ?? __DIR__) . '/public/static/' . $relPath,
         __DIR__ . '/php/public/static/' . $relPath,
+        __DIR__ . '/static/img/' . $baseName,
+        __DIR__ . '/static/uploads/' . $baseName,
+        ($appRoot ?? __DIR__) . '/public/static/img/' . $baseName,
+        ($appRoot ?? __DIR__) . '/public/static/uploads/' . $baseName,
     ];
 
     foreach ($candidates as $candidate) {
         if (is_file($candidate)) {
-            $ext = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
+            $candExt = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
             $mimes = [
                 'css' => 'text/css; charset=utf-8',
                 'js' => 'application/javascript; charset=utf-8',
@@ -87,12 +97,14 @@ function serve_static_asset(string $path): bool
                 'jpg' => 'image/jpeg',
                 'jpeg' => 'image/jpeg',
                 'ico' => 'image/x-icon',
+                'webp' => 'image/webp',
+                'gif' => 'image/gif',
                 'json' => 'application/json',
                 'woff' => 'font/woff',
                 'woff2' => 'font/woff2',
                 'ttf' => 'font/ttf',
             ];
-            $contentType = $mimes[$ext] ?? 'application/octet-stream';
+            $contentType = $mimes[$candExt] ?? 'application/octet-stream';
             header('Content-Type: ' . $contentType);
             header('Cache-Control: public, max-age=86400');
             readfile($candidate);

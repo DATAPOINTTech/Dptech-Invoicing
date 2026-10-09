@@ -727,9 +727,11 @@ function request_path(): string
 
     // Strip script base directory if hosted in a subdirectory (e.g. /subfolder/login)
     $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
-    $scriptDir = dirname($scriptName);
-    if ($scriptDir !== '/' && $scriptDir !== '.' && $scriptDir !== '' && str_starts_with($path, $scriptDir . '/')) {
-        $path = substr($path, strlen($scriptDir));
+    if (str_ends_with(strtolower($scriptName), '.php')) {
+        $scriptDir = dirname($scriptName);
+        if ($scriptDir !== '/' && $scriptDir !== '.' && $scriptDir !== '' && !str_starts_with($scriptDir, '/static') && str_starts_with($path, $scriptDir . '/')) {
+            $path = substr($path, strlen($scriptDir));
+        }
     }
 
     return $path !== '' ? $path : '/';
