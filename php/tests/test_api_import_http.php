@@ -40,6 +40,11 @@ $tests = [
         'file' => __DIR__ . '/sample_test_invoice.pdf',
         'desc' => 'Sample CCTV Invoice PDF -> /api/invoices/import'
     ],
+    [
+        'url' => 'http://127.0.0.1:8000/api/estimates/import',
+        'file' => __DIR__ . '/sample_test_estimate.pdf',
+        'desc' => 'Sample CCTV Estimate PDF -> /api/estimates/import'
+    ],
 ];
 
 $allPassed = true;

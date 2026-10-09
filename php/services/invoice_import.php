@@ -78,7 +78,79 @@ function _decode_pdf_string(string $s): string
     );
 }
 
-function _extract_text_from_pdf_stream(string $stream): string
+function _parse_pdf_cmaps(string $pdfContent): array
+{
+    $cmapMap = [];
+    if (!preg_match_all('/\/ToUnicode\s+(\d+)\s+(\d+)\s+R/', $pdfContent, $toUnicodeRefs)) {
+        return [];
+    }
+    $objIds = array_unique($toUnicodeRefs[1]);
+
+    foreach ($objIds as $objId) {
+        if (preg_match('/' . $objId . '\s+0\s+obj[\s\S]*?stream[\r\n]+([\s\S]*?)[\r\n]+endstream/m', $pdfContent, $sm)) {
+            $decomp = @gzuncompress($sm[1]);
+            if ($decomp === false) $decomp = @gzinflate($sm[1]);
+            if ($decomp === false && strlen($sm[1]) > 2) $decomp = @gzinflate(substr($sm[1], 2));
+            if ($decomp === false) $decomp = $sm[1];
+
+            if (preg_match_all('/beginbfchar[\r\n]+([\s\S]*?)[\r\n]+endbfchar/m', $decomp, $bfcharBlocks)) {
+                foreach ($bfcharBlocks[1] as $block) {
+                    if (preg_match_all('/<([0-9a-fA-F]+)>\s+<([0-9a-fA-F]+)>/', $block, $chars)) {
+                        for ($i = 0; $i < count($chars[1]); $i++) {
+                            $src = strtoupper($chars[1][$i]);
+                            $dstCode = hexdec($chars[2][$i]);
+                            if ($dstCode > 0) {
+                                $cmapMap[$src] = mb_chr($dstCode, 'UTF-8');
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (preg_match_all('/beginbfrange[\r\n]+([\s\S]*?)[\r\n]+endbfrange/m', $decomp, $bfrangeBlocks)) {
+                foreach ($bfrangeBlocks[1] as $block) {
+                    if (preg_match_all('/<([0-9a-fA-F]+)>\s+<([0-9a-fA-F]+)>\s+<([0-9a-fA-F]+)>/', $block, $ranges)) {
+                        for ($i = 0; $i < count($ranges[1]); $i++) {
+                            $start = hexdec($ranges[1][$i]);
+                            $end = hexdec($ranges[2][$i]);
+                            $dstStart = hexdec($ranges[3][$i]);
+                            $hexLen = strlen($ranges[1][$i]);
+                            for ($c = $start; $c <= $end; $c++) {
+                                $srcHex = strtoupper(str_pad(dechex($c), $hexLen, '0', STR_PAD_LEFT));
+                                $dstCode = $dstStart + ($c - $start);
+                                if ($dstCode > 0) {
+                                    $cmapMap[$srcHex] = mb_chr($dstCode, 'UTF-8');
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return $cmapMap;
+}
+
+function _decode_pdf_hex(string $hex, array $cmaps): string
+{
+    $out = '';
+    $hex = strtoupper($hex);
+    $chunkSize = 4;
+    for ($i = 0; $i < strlen($hex); $i += $chunkSize) {
+        $chunk = substr($hex, $i, $chunkSize);
+        if (isset($cmaps[$chunk])) {
+            $out .= $cmaps[$chunk];
+        } else {
+            $code = hexdec($chunk);
+            if ($code > 0) {
+                $out .= mb_chr($code, 'UTF-8');
+            }
+        }
+    }
+    return $out;
+}
+
+function _extract_text_from_pdf_stream(string $stream, array $cmaps = []): string
 {
     $decompressed = @gzuncompress($stream);
     if ($decompressed === false) {
@@ -89,25 +161,40 @@ function _extract_text_from_pdf_stream(string $stream): string
     }
     $content = ($decompressed !== false) ? $decompressed : $stream;
 
+    $tokenRegex = '/(?:\(((?:[^()\\\\]|\\\\.)*)\)|<([0-9a-fA-F]+)>)/s';
+
     $text = '';
     if (preg_match_all('/BT[\s\S]*?ET/m', $content, $btMatches)) {
         foreach ($btMatches[0] as $bt) {
-            if (preg_match_all('/\((.*?)\)\s*Tj/s', $bt, $tjMatches)) {
-                foreach ($tjMatches[1] as $str) {
-                    $text .= _decode_pdf_string($str) . ' ';
-                }
-            }
+            $line = '';
+            // Check for TJ arrays first
             if (preg_match_all('/\[(.*?)\]\s*TJ/s', $bt, $tjMatches)) {
                 foreach ($tjMatches[1] as $arrayStr) {
-                    if (preg_match_all('/\((.*?)\)/s', $arrayStr, $parts)) {
-                        foreach ($parts[1] as $part) {
-                            $text .= _decode_pdf_string($part);
+                    if (preg_match_all($tokenRegex, $arrayStr, $tokens, PREG_SET_ORDER)) {
+                        foreach ($tokens as $tok) {
+                            if (!empty($tok[1]) || (isset($tok[1]) && $tok[1] === '0')) {
+                                $line .= _decode_pdf_string($tok[1]);
+                            } elseif (!empty($tok[2])) {
+                                $line .= _decode_pdf_hex($tok[2], $cmaps);
+                            }
                         }
                     }
-                    $text .= ' ';
+                    $line .= ' ';
                 }
             }
-            $text .= "\n";
+            // Check for single Tj strings
+            if (preg_match_all('/(?:\(((?:[^()\\\\]|\\\\.)*)\)|<([0-9a-fA-F]+)>)\s*Tj/s', $bt, $tjMatches, PREG_SET_ORDER)) {
+                foreach ($tjMatches as $tok) {
+                    if (!empty($tok[1]) || (isset($tok[1]) && $tok[1] === '0')) {
+                        $line .= _decode_pdf_string($tok[1]) . ' ';
+                    } elseif (!empty($tok[2])) {
+                        $line .= _decode_pdf_hex($tok[2], $cmaps) . ' ';
+                    }
+                }
+            }
+            if (trim($line) !== '') {
+                $text .= trim($line) . "\n";
+            }
         }
     }
     return $text;
@@ -124,7 +211,7 @@ function _parse_pdf_items(array $lines): array
     $startIndex = -1;
     $stopIndex = count($lines);
 
-    $colHeaderRegex = '/^(?:#|item(?:\s*(?:name|description|desc))?|description|particulars?|model(?:\s*\/?\s*make)?|unit|qty|quantity|rate(?:\s*\(pkr\))?|price|unit\s*price|total(?:\s*\(pkr\))?)$/i';
+    $colHeaderRegex = '/^(?:#|item(?:\s*(?:name|description|desc))?|description|particulars?|model(?:\s*\/?\s*make)?|unit|qty|quantity|rate(?:\s*\(pkr\))?|\(?pkr\)?|price|unit\s*price|total(?:\s*\(pkr\))?)$/i';
 
     for ($i = 0; $i < count($lines); $i++) {
         if (preg_match('/^(?:items?|active\s*components|particulars?)$/i', trim($lines[$i])) ||
@@ -194,38 +281,71 @@ function _parse_pdf_items(array $lines): array
                 continue;
             }
 
-            $total = null;
-            $rate = null;
-            $qty = 1.0;
-            $unit = 'pcs';
-            $tailIndex = $bCount;
+            $bestMatch = null;
+            // 1. Look for arithmetic triple: qty * rate = total
+            for ($i = 0; $i < $bCount - 2; $i++) {
+                $qty = _number($block[$i]);
+                $rate = _number($block[$i + 1]);
+                $tot = _number($block[$i + 2]);
 
-            $val1 = _number($block[$bCount - 1]);
-            $val2 = ($bCount >= 2) ? _number($block[$bCount - 2]) : null;
-            $val3 = ($bCount >= 3) ? _number($block[$bCount - 3]) : null;
-
-            if ($val1 !== null && $val2 !== null) {
-                $total = $val1;
-                $rate = $val2;
-                $tailIndex = $bCount - 2;
-
-                if ($val3 !== null && $val3 > 0 && $bCount >= 4) {
-                    $qty = $val3;
-                    $tailIndex = $bCount - 3;
-                    if (_is_known_unit($block[$tailIndex - 1])) {
-                        $unit = $block[$tailIndex - 1];
-                        $tailIndex--;
-                    }
-                } elseif ($bCount >= 3 && _is_known_unit($block[$bCount - 3])) {
-                    $unit = $block[$bCount - 3];
-                    $tailIndex = $bCount - 3;
-                    if ($rate > 0) {
-                        $qty = round($total / $rate, 2);
+                if ($qty !== null && $rate !== null && $tot !== null && $qty > 0 && $rate > 0) {
+                    if (abs(($qty * $rate) - $tot) < 0.1 || abs(($qty * $tot) - $rate) < 0.1) {
+                        $unit = ($i > 0 && _is_known_unit($block[$i - 1])) ? $block[$i - 1] : 'pcs';
+                        $descIndex = ($i > 0 && _is_known_unit($block[$i - 1])) ? $i - 1 : $i;
+                        $bestMatch = [
+                            'descParts' => array_slice($block, 0, $descIndex),
+                            'unit' => $unit,
+                            'qty' => $qty,
+                            'rate' => $rate,
+                            'total' => $tot
+                        ];
+                        break;
                     }
                 }
             }
 
-            $descParts = array_slice($block, 0, $tailIndex);
+            // 2. Fallback to tail values
+            if ($bestMatch === null) {
+                $total = null;
+                $rate = null;
+                $qty = 1.0;
+                $unit = 'pcs';
+                $tailIndex = $bCount;
+
+                $val1 = _number($block[$bCount - 1]);
+                $val2 = ($bCount >= 2) ? _number($block[$bCount - 2]) : null;
+                $val3 = ($bCount >= 3) ? _number($block[$bCount - 3]) : null;
+
+                if ($val1 !== null && $val2 !== null) {
+                    $total = $val1;
+                    $rate = $val2;
+                    $tailIndex = $bCount - 2;
+
+                    if ($val3 !== null && $val3 > 0 && $bCount >= 4) {
+                        $qty = $val3;
+                        $tailIndex = $bCount - 3;
+                        if ($tailIndex > 0 && _is_known_unit($block[$tailIndex - 1])) {
+                            $unit = $block[$tailIndex - 1];
+                            $tailIndex--;
+                        }
+                    } elseif ($bCount >= 3 && _is_known_unit($block[$bCount - 3])) {
+                        $unit = $block[$bCount - 3];
+                        $tailIndex = $bCount - 3;
+                        if ($rate > 0) {
+                            $qty = round($total / $rate, 2);
+                        }
+                    }
+                }
+                $bestMatch = [
+                    'descParts' => array_slice($block, 0, $tailIndex),
+                    'unit' => $unit,
+                    'qty' => $qty,
+                    'rate' => $rate ?? ($qty > 0 && $total ? $total / $qty : 0),
+                    'total' => $total
+                ];
+            }
+
+            $descParts = $bestMatch['descParts'];
             $desc = '';
             $model = '';
             if (count($descParts) === 1) {
@@ -234,18 +354,30 @@ function _parse_pdf_items(array $lines): array
                 $desc = $descParts[0];
                 $model = $descParts[1];
             } elseif (count($descParts) > 2) {
-                $half = (int) ceil(count($descParts) / 2);
-                $desc = implode(' ', array_slice($descParts, 0, $half));
-                $model = implode(' ', array_slice($descParts, $half));
+                $splitAt = -1;
+                for ($p = 1; $p < count($descParts); $p++) {
+                    if (preg_match('/^(?:hikvision|huawei|wd|cisco|d-link|tp-link|generic|model|schneider|dell|hp|lenovo)/i', $descParts[$p])) {
+                        $splitAt = $p;
+                        break;
+                    }
+                }
+                if ($splitAt > 0) {
+                    $desc = implode(' ', array_slice($descParts, 0, $splitAt));
+                    $model = implode(' ', array_slice($descParts, $splitAt));
+                } else {
+                    $half = (int) ceil(count($descParts) / 2);
+                    $desc = implode(' ', array_slice($descParts, 0, $half));
+                    $model = implode(' ', array_slice($descParts, $half));
+                }
             }
 
             if ($desc !== '') {
                 $items[] = [
                     'description' => $desc,
                     'model_make' => $model,
-                    'quantity' => $qty,
-                    'unit' => $unit,
-                    'unit_price' => $rate ?? ($qty > 0 ? $total / $qty : 0),
+                    'quantity' => $bestMatch['qty'],
+                    'unit' => $bestMatch['unit'],
+                    'unit_price' => $bestMatch['rate'],
                 ];
             }
         }
@@ -315,11 +447,12 @@ function _parse_pdf_items(array $lines): array
 
 function _extract_pdf(string $content): array
 {
+    $cmaps = _parse_pdf_cmaps($content);
     $text = '';
     // 1. Pure PHP stream extraction
     if (preg_match_all('/stream[\r\n]+([\s\S]*?)[\r\n]+endstream/m', $content, $matches)) {
         foreach ($matches[1] as $stream) {
-            $text .= _extract_text_from_pdf_stream($stream) . "\n";
+            $text .= _extract_text_from_pdf_stream($stream, $cmaps) . "\n";
         }
     }
 

@@ -127,3 +127,4 @@ To guarantee that the WhatsApp service never stays down if the host server reboo
    - Scan the QR code displayed in the dashboard.
 5. Within 5–10 seconds, the dashboard will show **Status: Connected** with your phone number.
 6. The auto-responder sales agent will immediately start handling inquiries!
+
