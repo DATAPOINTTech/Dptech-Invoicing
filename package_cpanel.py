@@ -21,6 +21,7 @@ def create_cpanel_zip():
         "tests",
         "output",
         "pdf_output",
+        "dptech-invoicing-cpanel",
     }
 
     excluded_extensions = {

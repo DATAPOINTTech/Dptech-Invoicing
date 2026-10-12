@@ -63,19 +63,40 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             $companies = $stmtCo->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        // If multi-company, we build 3 estimates for the 3 companies (0%, +2%, +3%)
+        // Selected primary company ID (from user selection or default)
+        $selectedPrimaryCompanyId = !empty($body['company_id']) ? (int) $body['company_id'] : 0;
+
+        // If multi-company, we build 3 estimates for the 3 companies (Primary 0%, Supporting +2%, Supporting +3%)
         if ($isMultiCompany && count($companies) >= 3) {
             $batchId = 'GRP-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
-            $targetCompanies = array_slice($companies, 0, 3);
 
-            // Assign standard markups if not specified: Co 1 = 0%, Co 2 = 2%, Co 3 = 3%
+            // Reorder companies so the user-selected Primary Company is at index 0 (0% base markup)
+            $primaryCompany = null;
+            $otherCompanies = [];
+
+            foreach ($companies as $co) {
+                if ($primaryCompany === null && ($selectedPrimaryCompanyId > 0 ? ((int) $co['id'] === $selectedPrimaryCompanyId) : !empty($co['is_default']))) {
+                    $primaryCompany = $co;
+                } else {
+                    $otherCompanies[] = $co;
+                }
+            }
+
+            if ($primaryCompany === null) {
+                $primaryCompany = array_shift($otherCompanies) ?? $companies[0];
+            }
+
+            // Target companies: Primary is at index 0, followed by the supporting companies
+            $targetCompanies = array_merge([$primaryCompany], array_slice($otherCompanies, 0, 2));
+
+            // Standard markups: Primary (Option 1) = 0%, Supporting (Option 2) = 2%, Supporting (Option 3) = 3%
             $markups = [0.0, 2.0, 3.0];
             $createdEstimates = [];
             $primaryEstimateId = null;
             $primaryEstimateNo = null;
 
             foreach ($targetCompanies as $idx => $co) {
-                $markupPct = isset($co['markup_percent']) ? (float) $co['markup_percent'] : $markups[$idx];
+                $markupPct = $markups[$idx];
                 $multiplier = 1.0 + ($markupPct / 100.0);
 
                 // Calculate item lines with markup applied to unit_price
@@ -172,6 +193,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     'estimate_no' => $estimateNo,
                     'company_name' => $co['name'],
                     'company_id' => $co['id'],
+                    'is_primary' => ($idx === 0),
                     'markup_percent' => $markupPct,
                     'subtotal' => $totals['subtotal'],
                     'total_amount' => $totals['total_amount'],
@@ -188,26 +210,37 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
         }
 
         // Single Estimate fallback
-        $co = $companies[0] ?? [
-            'id' => null,
-            'name' => env_value('COMPANY_NAME', 'DATAPOINT Technologies'),
-            'logo_url' => '/static/img/logo.png',
-            'phone' => env_value('COMPANY_PHONE', ''),
-            'email' => env_value('COMPANY_EMAIL', ''),
-            'address' => env_value('COMPANY_ADDRESS', ''),
-            'ntn' => null,
-            'strn' => null,
-        ];
-        if (!empty($body['company_id'])) {
+        $co = null;
+        if ($selectedPrimaryCompanyId > 0) {
             foreach ($companies as $c) {
-                if ($c['id'] == $body['company_id']) {
+                if ((int) $c['id'] === $selectedPrimaryCompanyId) {
                     $co = $c;
                     break;
                 }
             }
         }
+        if ($co === null) {
+            foreach ($companies as $c) {
+                if (!empty($c['is_default'])) {
+                    $co = $c;
+                    break;
+                }
+            }
+        }
+        if ($co === null) {
+            $co = $companies[0] ?? [
+                'id' => null,
+                'name' => env_value('COMPANY_NAME', 'DATAPOINT Technologies'),
+                'logo_url' => '/static/img/logo.png',
+                'phone' => env_value('COMPANY_PHONE', ''),
+                'email' => env_value('COMPANY_EMAIL', ''),
+                'address' => env_value('COMPANY_ADDRESS', ''),
+                'ntn' => null,
+                'strn' => null,
+            ];
+        }
 
-        $markupPct = (float) ($co['markup_percent'] ?? 0.0);
+        $markupPct = 0.0;
         $calculated = [];
         foreach ($items as $item) {
             $basePrice = (float) ($item['unit_price'] ?? 0);
@@ -297,6 +330,8 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
         json_response([
             'id' => $estimateId,
             'estimate_no' => $estimateNo,
+            'company_id' => $co['id'],
+            'company_name' => $co['name'],
             'total_amount' => $totals['total_amount'],
             'message' => 'Estimate created',
         ], 201);
@@ -596,6 +631,23 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     ]);
                 }
 
+                // Resolve company details for update
+                $targetCoId = array_key_exists('company_id', $body) && !empty($body['company_id']) ? (int) $body['company_id'] : (int) ($curr['company_id'] ?? 0);
+                $coToSave = null;
+                if ($targetCoId > 0) {
+                    $stmtC = $db->prepare('SELECT * FROM companies WHERE id = :cid LIMIT 1');
+                    $stmtC->execute(['cid' => $targetCoId]);
+                    $coToSave = $stmtC->fetch(PDO::FETCH_ASSOC);
+                }
+                $coIdVal = $coToSave ? $coToSave['id'] : ($curr['company_id'] ?? null);
+                $coNameVal = $coToSave ? $coToSave['name'] : ($curr['company_name'] ?? null);
+                $coLogoVal = $coToSave ? ($coToSave['logo_url'] ?? '/static/img/logo.png') : ($curr['company_logo'] ?? null);
+                $coPhoneVal = $coToSave ? ($coToSave['phone'] ?? null) : ($curr['company_phone'] ?? null);
+                $coEmailVal = $coToSave ? ($coToSave['email'] ?? null) : ($curr['company_email'] ?? null);
+                $coAddrVal = $coToSave ? ($coToSave['address'] ?? null) : ($curr['company_address'] ?? null);
+                $coNtnVal = $coToSave ? ($coToSave['ntn'] ?? null) : ($curr['company_ntn'] ?? null);
+                $coStrnVal = $coToSave ? ($coToSave['strn'] ?? null) : ($curr['company_strn'] ?? null);
+
                 // Update current estimate header and totals
                 $updCurr = $db->prepare('
                     UPDATE estimates SET
@@ -611,6 +663,14 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         total_amount = :total,
                         terms_conditions = :terms,
                         notes = :notes,
+                        company_id = :coid,
+                        company_name = :coname,
+                        company_logo = :cologo,
+                        company_phone = :cophone,
+                        company_email = :coemail,
+                        company_address = :coaddr,
+                        company_ntn = :conntn,
+                        company_strn = :costrn,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id
                 ');
@@ -627,6 +687,14 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     'total' => $totals['total_amount'],
                     'terms' => $terms,
                     'notes' => $notes,
+                    'coid' => $coIdVal,
+                    'coname' => $coNameVal,
+                    'cologo' => $coLogoVal,
+                    'cophone' => $coPhoneVal,
+                    'coemail' => $coEmailVal,
+                    'coaddr' => $coAddrVal,
+                    'conntn' => $coNtnVal,
+                    'costrn' => $coStrnVal,
                     'id' => $estimateId,
                 ]);
 

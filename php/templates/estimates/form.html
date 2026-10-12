@@ -44,13 +44,23 @@
             {% endif %}
 
             <form id="estimate-form" class="space-y-4">
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-800">
+                            Primary Company *
+                            <span class="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 uppercase tracking-wider">Primary</span>
+                        </label>
+                        <select id="company_id" required class="w-full px-3 py-2 border border-indigo-200 bg-indigo-50/40 rounded-lg text-sm font-semibold text-gray-800 mt-1 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all">
+                            <option value="">Loading Companies...</option>
+                        </select>
+                        <p class="text-[11px] text-gray-500 mt-0.5" id="primary-company-caption">Primary issuer (0% base markup)</p>
+                    </div>
                     <div><label class="block text-sm font-medium text-gray-700">Client *</label>
                         <select id="client_id" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select>
                     </div>
                     <div><label class="block text-sm font-medium text-gray-700">Estimate Date</label><input type="date" id="estimate_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
                     <div><label class="block text-sm font-medium text-gray-700">Valid Until</label><input type="date" id="valid_until" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
-                    <div class="col-span-3"><label class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., IT Equipment Supply & Setup"></div>
+                    <div class="col-span-1 md:col-span-4"><label class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., IT Equipment Supply & Setup"></div>
                 </div>
 
                 <div class="border-t pt-4">
@@ -130,40 +140,40 @@
 
                     <!-- 3-Company Live Quotation Preview Cards -->
                     <div id="multi-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                        <div class="bg-indigo-50/70 border-2 border-indigo-300 rounded-xl p-3.5 shadow-sm">
                             <div class="flex items-center justify-between mb-1.5">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                                    <p class="text-xs font-bold text-gray-800 truncate" id="mc-co1-name">DATAPOINT Technologies</p>
+                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                                    <p class="text-xs font-bold text-indigo-950 truncate" id="mc-co1-name">DATAPOINT Technologies</p>
                                 </div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Option 1</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-200 text-indigo-900 flex items-center gap-1" id="mc-co1-badge"><i class="fas fa-star text-amber-500 text-[9px]"></i> Option 1 (Primary)</span>
                             </div>
-                            <p class="text-[11px] text-gray-500">Quotation</p>
-                            <p class="text-base font-extrabold text-gray-900 mt-2">PKR <span id="mc-co1-total">0.00</span></p>
+                            <p class="text-[11px] text-indigo-700">Main Quotation (0% Base Rate)</p>
+                            <p class="text-base font-extrabold text-indigo-950 mt-2">PKR <span id="mc-co1-total">0.00</span></p>
                         </div>
 
-                        <div class="bg-blue-50/60 border border-blue-200 rounded-xl p-3.5">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
                             <div class="flex items-center justify-between mb-1.5">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                                    <p class="text-xs font-bold text-gray-800 truncate" id="mc-co2-name">TechPoint Solutions</p>
+                                    <span class="w-5 h-5 rounded-full bg-slate-600 text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                                    <p class="text-xs font-bold text-gray-800 truncate" id="mc-co2-name">Supporting Company 2</p>
                                 </div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Option 2</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800" id="mc-co2-badge">Option 2 (+2%)</span>
                             </div>
-                            <p class="text-[11px] text-blue-700">Quotation</p>
-                            <p class="text-base font-extrabold text-blue-900 mt-2">PKR <span id="mc-co2-total">0.00</span></p>
+                            <p class="text-[11px] text-gray-500">Supporting Quotation (+2% Markup)</p>
+                            <p class="text-base font-extrabold text-gray-900 mt-2">PKR <span id="mc-co2-total">0.00</span></p>
                         </div>
 
-                        <div class="bg-purple-50/60 border border-purple-200 rounded-xl p-3.5">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
                             <div class="flex items-center justify-between mb-1.5">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">3</span>
-                                    <p class="text-xs font-bold text-gray-800 truncate" id="mc-co3-name">Apex Data Systems</p>
+                                    <span class="w-5 h-5 rounded-full bg-slate-600 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+                                    <p class="text-xs font-bold text-gray-800 truncate" id="mc-co3-name">Supporting Company 3</p>
                                 </div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">Option 3</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800" id="mc-co3-badge">Option 3 (+3%)</span>
                             </div>
-                            <p class="text-[11px] text-purple-700">Quotation</p>
-                            <p class="text-base font-extrabold text-purple-900 mt-2">PKR <span id="mc-co3-total">0.00</span></p>
+                            <p class="text-[11px] text-gray-500">Supporting Quotation (+3% Markup)</p>
+                            <p class="text-base font-extrabold text-gray-900 mt-2">PKR <span id="mc-co3-total">0.00</span></p>
                         </div>
                     </div>
 
@@ -369,31 +379,52 @@ function calcTotal() {
     $('#display-tax').text(taxAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     $('#display-total').text(total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
+    // Determine active Primary Company
+    const selPrimaryId = $('#company_id').val();
+    let primaryCo = configuredCompanies.find(c => String(c.id) === String(selPrimaryId));
+    if (!primaryCo) {
+        primaryCo = configuredCompanies.find(c => c.is_default) || configuredCompanies[0];
+    }
+
+    const otherCos = configuredCompanies.filter(c => String(c.id) !== String(primaryCo?.id));
+    const suppCo1 = otherCos[0] || { name: 'Supporting Company 2' };
+    const suppCo2 = otherCos[1] || { name: 'Supporting Company 3' };
+
+    if (primaryCo) {
+        $('#sum-co1').text(primaryCo.name + ' (Primary)');
+        $('#mc-co1-name').text(primaryCo.name);
+        $('#primary-company-caption').text(`Primary Issuer: ${primaryCo.name} (0% Base Rate)`);
+    }
+    if (suppCo1) {
+        $('#sum-co2').text(suppCo1.name + ' (+2%)');
+        $('#mc-co2-name').text(suppCo1.name);
+    }
+    if (suppCo2) {
+        $('#sum-co3').text(suppCo2.name + ' (+3%)');
+        $('#mc-co3-name').text(suppCo2.name);
+    }
+
     // Multi-company preview totals:
-    // Co 1 = Base total (0%)
+    // Option 1: Primary Company = Base total (0% markup)
     $('#mc-co1-total').text(total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
-    // Co 2 (+2% markup on items)
+    // Option 2: Supporting Company 1 (+2% markup on items)
     const sub2 = subtotal * 1.02;
     const taxable2 = Math.max(0, sub2 - (sub2 * (discPct / 100)));
     const tot2 = taxable2 + (taxable2 * (taxRate / 100));
     $('#mc-co2-total').text(tot2.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
-    // Co 3 (+3% markup on items)
+    // Option 3: Supporting Company 2 (+3% markup on items)
     const sub3 = subtotal * 1.03;
     const taxable3 = Math.max(0, sub3 - (sub3 * (discPct / 100)));
     const tot3 = taxable3 + (taxable3 * (taxRate / 100));
     $('#mc-co3-total').text(tot3.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
     // Single Company folder preview total
-    const selCoId = $('#single_company_id').val();
-    const selCo = configuredCompanies.find(c => String(c.id) === String(selCoId)) || configuredCompanies[0];
+    const selCoId = $('#single_company_id').val() || $('#company_id').val();
+    const selCo = configuredCompanies.find(c => String(c.id) === String(selCoId)) || primaryCo;
     if (selCo) {
-        const scMarkup = parseFloat(selCo.markup_percent || 0);
-        const subSC = (scMarkup > 0) ? (subtotal * (1 + (scMarkup / 100.0))) : subtotal;
-        const taxableSC = Math.max(0, subSC - (subSC * (discPct / 100.0)));
-        const totSC = taxableSC + (taxableSC * (taxRate / 100.0));
-        $('#sc-total').text(totSC.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#sc-total').text(total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         $('#sc-name').text(selCo.name);
         $('#sc-logo').attr('src', selCo.logo_url || '/static/img/logo.png');
         $('#sc-markup-text').text(selCo.city ? selCo.city : 'Selected Company');
@@ -403,32 +434,31 @@ function calcTotal() {
 function loadCompaniesSummary() {
     $.ajax({ url: '/api/companies', method: 'GET', headers: authHeaders }).done(function(cos) {
         configuredCompanies = Array.isArray(cos) ? cos : [];
-        if (configuredCompanies.length >= 1) {
-            $('#sum-co1').text(configuredCompanies[0].name);
-            $('#mc-co1-name').text(configuredCompanies[0].name);
-        }
-        if (configuredCompanies.length >= 2) {
-            $('#sum-co2').text(configuredCompanies[1].name);
-            $('#mc-co2-name').text(configuredCompanies[1].name);
-        }
-        if (configuredCompanies.length >= 3) {
-            $('#sum-co3').text(configuredCompanies[2].name);
-            $('#mc-co3-name').text(configuredCompanies[2].name);
-        }
-
-        // Populate single company folder select dropdown
-        let opts = '';
-        configuredCompanies.forEach(c => {
-            opts += `<option value="${c.id}">${esc(c.name)}</option>`;
-        });
-        $('#single_company_id').html(opts);
 
         // Check if company_id query parameter is specified in URL
         const urlParams = new URLSearchParams(window.location.search);
         const queryCid = urlParams.get('company_id');
+
+        // Populate primary company select dropdown (#company_id)
+        let primaryOpts = '';
+        configuredCompanies.forEach(c => {
+            const isSel = queryCid ? (String(c.id) === String(queryCid)) : Boolean(c.is_default);
+            const defBadge = c.is_default ? ' (Default)' : '';
+            primaryOpts += `<option value="${c.id}" ${isSel ? 'selected' : ''}>${esc(c.name)}${defBadge}</option>`;
+        });
+        $('#company_id').html(primaryOpts);
+
+        // Populate single company folder select dropdown (#single_company_id)
+        let singleOpts = '';
+        configuredCompanies.forEach(c => {
+            const isSel = queryCid ? (String(c.id) === String(queryCid)) : Boolean(c.is_default);
+            singleOpts += `<option value="${c.id}" ${isSel ? 'selected' : ''}>${esc(c.name)}</option>`;
+        });
+        $('#single_company_id').html(singleOpts);
+
         if (queryCid && configuredCompanies.some(c => String(c.id) === String(queryCid))) {
-            $('input[name="folder_mode"][value="single"]').prop('checked', true).trigger('change');
-            $('#single_company_id').val(queryCid).trigger('change');
+            $('#company_id').val(queryCid);
+            $('#single_company_id').val(queryCid);
         }
 
         calcTotal();
@@ -722,6 +752,8 @@ function applyImportedDraft(draft) {
                     $('#notes').val(est.notes || '');
                     if (est.tax_rate >= 0) $('#tax_rate').val(est.tax_rate);
                     (est.items || []).forEach(addItem);
+                    $('#company_id').val(est.company_id);
+                    $('#single_company_id').val(est.company_id);
                     calcTotal();
                     $('#multi-company-section').hide();
                 });
@@ -799,7 +831,13 @@ function applyImportedDraft(draft) {
         calcTotal();
     });
 
+    $(document).on('change', '#company_id', function() {
+        $('#single_company_id').val($(this).val());
+        calcTotal();
+    });
+
     $(document).on('change', '#single_company_id', function() {
+        $('#company_id').val($(this).val());
         calcTotal();
     });
 
@@ -833,10 +871,7 @@ function applyImportedDraft(draft) {
 
         const folderMode = $('input[name="folder_mode"]:checked').val() || 'multi';
         const isMulti = !estimateId && folderMode === 'multi';
-        let companyId = null;
-        if (!isMulti) {
-            companyId = parseInt($('#single_company_id').val()) || null;
-        }
+        const companyId = parseInt($('#company_id').val()) || (parseInt($('#single_company_id').val()) || null);
 
         const data = {
             client_id: parseInt($('#client_id').val()),
@@ -868,6 +903,7 @@ function applyImportedDraft(draft) {
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="font-bold text-sm text-gray-800">${esc(est.company_name)}</span>
+                                ${est.is_primary ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-star text-amber-500 mr-1"></i>Primary (0% Base)</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Supporting (+' + est.markup_percent + '%)</span>'}
                             </div>
                             <p class="text-xs text-gray-500 mt-0.5">Estimate #: <strong>${esc(est.estimate_no)}</strong> • Total: <strong>PKR ${Number(est.total_amount).toLocaleString(undefined,{minimumFractionDigits:2})}</strong></p>
                         </div>

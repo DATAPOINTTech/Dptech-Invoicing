@@ -38,6 +38,7 @@ Cpanel-RSAkey/backup/
 *.tar
 *.zip
 *.bak
+dptech-invoicing-cpanel/
 
 # Temporary test outputs
 php/tests/*.pdf
