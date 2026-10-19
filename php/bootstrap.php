@@ -1041,9 +1041,97 @@ function render_template(string $templateName, array $context = []): never
         return htmlspecialchars((string) ($val ?? ''), ENT_QUOTES, 'UTF-8');
     }, $content);
 
+    // Replace sidebar company folder placeholders
+    if (str_contains($content, '<!-- SIDEBAR_COMPANY_LINKS_PLACEHOLDER -->')) {
+        $content = str_replace('<!-- SIDEBAR_COMPANY_LINKS_PLACEHOLDER -->', get_sidebar_company_links_html(), $content);
+    }
+    if (str_contains($content, '<!-- SIDEBAR_TOTAL_ESTIMATES_COUNT -->')) {
+        $content = str_replace('<!-- SIDEBAR_TOTAL_ESTIMATES_COUNT -->', (string) get_sidebar_total_estimates_count(), $content);
+    }
+
     header('Content-Type: text/html; charset=utf-8');
     echo $content;
     exit;
+}
+
+function get_sidebar_company_links_html(): string
+{
+    try {
+        $db = database_connection();
+        if (!db_table_exists($db, 'companies')) {
+            return '';
+        }
+
+        $hasEstimates = db_table_exists($db, 'estimates');
+        if ($hasEstimates) {
+            $stmt = $db->query('
+                SELECT c.id, c.name, c.code, COUNT(e.id) AS estimates_count
+                FROM companies c
+                LEFT JOIN estimates e ON e.company_id = c.id
+                GROUP BY c.id, c.name, c.code, c.sort_order
+                ORDER BY c.sort_order ASC, c.id ASC
+            ');
+        } else {
+            $stmt = $db->query('SELECT id, name, code, 0 AS estimates_count FROM companies ORDER BY sort_order ASC, id ASC');
+        }
+        $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (empty($companies)) {
+            return '<div class="px-2 py-1 text-[11px] text-slate-500">No companies found</div>';
+        }
+
+        $currentCid = $_GET['company_id'] ?? null;
+        $reqUri = $_SERVER['REQUEST_URI'] ?? '';
+        $path = parse_url($reqUri, PHP_URL_PATH) ?? '';
+        $isEstimates = str_contains($path, '/estimates');
+
+        $html = '';
+        foreach ($companies as $co) {
+            $cid = (int) $co['id'];
+            $name = htmlspecialchars((string) $co['name'], ENT_QUOTES, 'UTF-8');
+            $count = (int) ($co['estimates_count'] ?? 0);
+            $isActive = ($isEstimates && $currentCid !== null && (string) $currentCid === (string) $cid);
+
+            $activeClass = $isActive
+                ? 'bg-indigo-600/30 text-white font-semibold border border-indigo-500/50 shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/80';
+            $iconClass = $isActive ? 'fa-folder-open text-indigo-400' : 'fa-folder text-amber-400/90';
+
+            $html .= sprintf(
+                '<a href="/estimates?company_id=%d" class="company-folder-link flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors %s" data-cid="%d" title="%s">' . "\n" .
+                '    <span class="truncate flex items-center gap-1.5 mr-1 min-w-0">' . "\n" .
+                '        <i class="fas %s text-[11px] shrink-0"></i>' . "\n" .
+                '        <span class="truncate">%s</span>' . "\n" .
+                '    </span>' . "\n" .
+                '    <span class="flex items-center gap-1 shrink-0">' . "\n" .
+                '        <span class="text-[10px] bg-slate-800/90 text-slate-400 px-1.5 py-0.2 rounded font-mono">%d</span>' . "\n" .
+                '    </span>' . "\n" .
+                '</a>' . "\n",
+                $cid,
+                $activeClass,
+                $cid,
+                $name,
+                $iconClass,
+                $name,
+                $count
+            );
+        }
+        return $html;
+    } catch (\Throwable $e) {
+        return '<div class="px-2 py-1 text-[11px] text-slate-500">Loading company folders...</div>';
+    }
+}
+
+function get_sidebar_total_estimates_count(): int
+{
+    try {
+        $db = database_connection();
+        if (!db_table_exists($db, 'estimates')) {
+            return 0;
+        }
+        return (int) $db->query('SELECT COUNT(*) FROM estimates')->fetchColumn();
+    } catch (\Throwable $e) {
+        return 0;
+    }
 }
 
 function resolve_context_var(string $key, array $context): mixed

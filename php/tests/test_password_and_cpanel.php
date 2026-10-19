@@ -95,3 +95,4 @@ $finalHash = getPasswordHash('admin123');
 $db->prepare('UPDATE users SET hashed_password = :h WHERE username = "admin" OR id = 1')->execute(['h' => $finalHash]);
 
 echo "=== All 8 Password & cPanel Compatibility Tests Passed Successfully! ===\n";
+

@@ -101,3 +101,4 @@ curl_close($ch);
 
 echo "6. Restored password to admin123.\n";
 echo "=== All HTTP password change tests PASSED! ===\n";
+

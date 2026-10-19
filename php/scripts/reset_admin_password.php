@@ -55,3 +55,4 @@ if (!$admin) {
 }
 
 echo "\nYou can now log in at: http://your-domain.com/login\n";
+
