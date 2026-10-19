@@ -264,14 +264,32 @@
 </div>
 
 <!-- Price List Picker Modal -->
-<div id="price-picker" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl mx-4 shadow-2xl">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">Add from Price List</h3>
-            <button type="button" onclick="hidePricePicker()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+<div id="price-picker" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl mx-auto shadow-2xl">
+        <div class="flex justify-between items-center mb-3">
+            <div>
+                <h3 class="text-base font-bold text-gray-800">Add Items from Sheet / Price List</h3>
+                <p class="text-xs text-gray-500">Select items with live rates &bull; Products automatically apply +10% profit margin</p>
+            </div>
+            <button type="button" onclick="hidePricePicker()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
         </div>
-        <input type="text" id="price-search" placeholder="Search items & accessories (e.g. laptop, cable, charger)..." class="w-full px-3 py-2 border rounded-lg text-sm mb-3 focus:ring-2 focus:ring-cyan-500 outline-none">
-        <div id="price-results" class="max-h-96 overflow-y-auto divide-y divide-gray-100"></div>
+
+        <div class="flex flex-col sm:flex-row gap-2 mb-3">
+            <div class="relative flex-1">
+                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                <input type="text" id="price-search" placeholder="Search products or prices (e.g. camera, nvr, cable)..." class="w-full pl-8 pr-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold shrink-0">
+                <button type="button" id="tab-btn-products" onclick="switchPickerSource('products')" class="px-3 py-2 bg-indigo-600 text-white flex items-center gap-1.5 transition-colors">
+                    <i class="fas fa-table-cells text-[10px]"></i> Product Sheet (+10%)
+                </button>
+                <button type="button" id="tab-btn-prices" onclick="switchPickerSource('prices')" class="px-3 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 flex items-center gap-1.5 transition-colors">
+                    <i class="fas fa-tags text-[10px]"></i> Daily Prices
+                </button>
+            </div>
+        </div>
+
+        <div id="price-results" class="max-h-96 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-xl"></div>
     </div>
 </div>
 
@@ -317,43 +335,80 @@ function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
 }
 
+let currentPickerSource = 'products';
+
 function addItem(item = {}) {
-    const opts = productList.map(p => `<option value="${p.id}" ${item.product_id == p.id ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(p.unit_price).toLocaleString()}</option>`).join('');
+    const opts = productList.map(p => {
+        const cost = parseFloat(p.cost_price) || 0;
+        const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+        const costStr = cost > 0 ? ` (Purchase: PKR ${Number(cost).toLocaleString()} + 10%)` : '';
+        return `<option value="${p.id}" ${item.product_id == p.id ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
+    }).join('');
+
     const isCustom = !item.product_id && (item.description || !productList.length);
+    let initPrice = item.unit_price;
+    if (initPrice === undefined || initPrice === null || initPrice === '') {
+        if (item.product_id) {
+            const p = productList.find(x => x.id == item.product_id);
+            if (p) {
+                const cost = parseFloat(p.cost_price) || 0;
+                initPrice = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+            }
+        } else {
+            initPrice = 0;
+        }
+    }
+
+    let profitBadgeText = '';
+    if (item.product_id) {
+        const p = productList.find(x => x.id == item.product_id);
+        const cost = p ? (parseFloat(p.cost_price) || 0) : 0;
+        if (cost > 0) {
+            const rate = Math.round(cost * 1.10 * 100) / 100;
+            profitBadgeText = `+10% Profit (Purchase: PKR ${Number(cost).toLocaleString()} &rarr; Rate: PKR ${Number(rate).toLocaleString()})`;
+        }
+    }
+
     const html = `
-    <div class="item-row grid grid-cols-12 gap-2 mb-2.5 items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100">
-        <div class="col-span-12 md:col-span-3">
-            <select name="product" class="product-select w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white">
-                <option value="">Select Product...</option>
-                ${opts}
-                <option value="custom" ${isCustom ? 'selected' : ''}>Custom Item</option>
-            </select>
+    <div class="item-row mb-2.5 bg-gray-50/50 p-2.5 rounded-xl border border-gray-100 transition-all hover:border-indigo-200">
+        <div class="grid grid-cols-12 gap-2 items-center">
+            <div class="col-span-12 md:col-span-3">
+                <select name="product" class="product-select w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white focus:ring-1 focus:ring-indigo-500">
+                    <option value="">Select Product...</option>
+                    ${opts}
+                    <option value="custom" ${isCustom ? 'selected' : ''}>Custom Item</option>
+                </select>
+            </div>
+            <div class="col-span-12 md:col-span-3">
+                <input type="text" name="desc" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Description *" value="${esc(item.description || '')}" required>
+            </div>
+            <div class="col-span-12 md:col-span-2">
+                <input type="text" name="model_make" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Model / Make" value="${esc(item.model_make || '')}">
+            </div>
+            <div class="col-span-4 md:col-span-1">
+                <input type="number" name="qty" class="qty-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-center" placeholder="Qty" value="${item.quantity || 1}" min="0.01" step="any" required>
+            </div>
+            <div class="col-span-4 md:col-span-1">
+                <select name="unit" class="w-full px-1 py-1.5 border rounded-lg text-xs bg-white text-center">
+                    <option value="pcs" ${item.unit==='pcs'?'selected':''}>pcs</option>
+                    <option value="No." ${item.unit==='No.'?'selected':''}>No.</option>
+                    <option value="set" ${item.unit==='set'?'selected':''}>set</option>
+                    <option value="meter" ${item.unit==='meter'?'selected':''}>meter</option>
+                    <option value="month" ${item.unit==='month'?'selected':''}>month</option>
+                    <option value="hour" ${item.unit==='hour'?'selected':''}>hour</option>
+                    <option value="job" ${item.unit==='job'?'selected':''}>job</option>
+                </select>
+            </div>
+            <div class="col-span-3 md:col-span-1">
+                <input type="number" name="price" class="price-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-right font-semibold" placeholder="Price" value="${initPrice}" step="0.01" required>
+            </div>
+            <div class="col-span-1 text-center">
+                <button type="button" onclick="$(this).closest('.item-row').remove(); calcTotal();" class="text-red-400 hover:text-red-600 transition-colors"><i class="fas fa-trash"></i></button>
+            </div>
         </div>
-        <div class="col-span-12 md:col-span-3">
-            <input type="text" name="desc" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Description *" value="${esc(item.description || '')}" required>
-        </div>
-        <div class="col-span-12 md:col-span-2">
-            <input type="text" name="model_make" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Model / Make" value="${esc(item.model_make || '')}">
-        </div>
-        <div class="col-span-4 md:col-span-1">
-            <input type="number" name="qty" class="qty-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-center" placeholder="Qty" value="${item.quantity || 1}" min="0.01" step="any" required>
-        </div>
-        <div class="col-span-4 md:col-span-1">
-            <select name="unit" class="w-full px-1 py-1.5 border rounded-lg text-xs bg-white text-center">
-                <option value="pcs" ${item.unit==='pcs'?'selected':''}>pcs</option>
-                <option value="No." ${item.unit==='No.'?'selected':''}>No.</option>
-                <option value="set" ${item.unit==='set'?'selected':''}>set</option>
-                <option value="meter" ${item.unit==='meter'?'selected':''}>meter</option>
-                <option value="month" ${item.unit==='month'?'selected':''}>month</option>
-                <option value="hour" ${item.unit==='hour'?'selected':''}>hour</option>
-                <option value="job" ${item.unit==='job'?'selected':''}>job</option>
-            </select>
-        </div>
-        <div class="col-span-3 md:col-span-1">
-            <input type="number" name="price" class="price-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-right" placeholder="Price" value="${item.unit_price || 0}" step="0.01" required>
-        </div>
-        <div class="col-span-1 text-center">
-            <button type="button" onclick="$(this).closest('.item-row').remove(); calcTotal();" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
+        <div class="row-profit-note text-[10px] text-emerald-700 font-semibold px-1 mt-1 flex items-center gap-1 ${profitBadgeText ? '' : 'hidden'}">
+            <i class="fas fa-arrow-trend-up text-emerald-600 text-[9px]"></i>
+            <span class="profit-text">${profitBadgeText}</span>
         </div>
     </div>`;
     $('#items-container').append(html);
@@ -600,7 +655,7 @@ $('#modal-companies-form').submit(function(e) {
 
 function showPricePicker() {
     $('#price-picker').removeClass('hidden').addClass('flex');
-    loadPricePickerResults('');
+    switchPickerSource('products');
     $('#price-search').val('').focus();
 }
 
@@ -608,29 +663,93 @@ function hidePricePicker() {
     $('#price-picker').addClass('hidden').removeClass('flex');
 }
 
+function switchPickerSource(src) {
+    currentPickerSource = src;
+    if (src === 'products') {
+        $('#tab-btn-products').removeClass('bg-gray-50 text-gray-600').addClass('bg-indigo-600 text-white');
+        $('#tab-btn-prices').removeClass('bg-indigo-600 text-white').addClass('bg-gray-50 text-gray-600');
+    } else {
+        $('#tab-btn-prices').removeClass('bg-gray-50 text-gray-600').addClass('bg-indigo-600 text-white');
+        $('#tab-btn-products').removeClass('bg-indigo-600 text-white').addClass('bg-gray-50 text-gray-600');
+    }
+    loadPricePickerResults($('#price-search').val());
+}
+
 function loadPricePickerResults(q) {
+    q = (q || '').toLowerCase().trim();
+
+    if (currentPickerSource === 'products') {
+        const matches = productList.filter(p => {
+            if (!q) return true;
+            return (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q);
+        });
+
+        if (!matches.length) {
+            $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6">No matching products found in Product Sheet.</p>');
+            return;
+        }
+
+        $('#price-results').html(matches.map(p => {
+            const cost = parseFloat(p.cost_price) || 0;
+            const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+            return `
+                <button type="button" onclick="addProductFromSheet(${p.id})" class="w-full text-left px-4 py-3 hover:bg-indigo-50/60 flex justify-between items-center transition-all group">
+                    <div class="min-w-0 pr-3">
+                        <p class="text-xs font-bold text-gray-900 group-hover:text-indigo-900">${esc(p.name)}</p>
+                        <div class="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 font-mono">
+                            <span>SKU: ${esc(p.sku || 'N/A')}</span>
+                            <span>&bull; ${esc(p.category || 'General')}</span>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="text-xs font-bold text-emerald-800">PKR ${Number(rateWithProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div class="text-[10px] text-emerald-600 font-semibold">${cost > 0 ? `+10% Profit (Cost: PKR ${Number(cost).toLocaleString()})` : 'Catalog Rate'}</div>
+                    </div>
+                </button>
+            `;
+        }).join(''));
+        return;
+    }
+
     const url = '/api/prices' + (q ? '?search=' + encodeURIComponent(q) : '');
     $.ajax({ url, method: 'GET', headers: authHeaders }).done(function(items) {
         priceCache = items || [];
         if (!priceCache.length) {
-            $('#price-results').html('<p class="text-sm text-gray-400 text-center py-6">No matching items found.</p>');
+            $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6">No matching items in Daily Prices.</p>');
             return;
         }
         $('#price-results').html(priceCache.map(p => `
-            <button type="button" onclick="addPriceListItem(${p.id})" class="w-full text-left px-4 py-3 hover:bg-cyan-50 flex justify-between items-center transition-all">
-                <div>
-                    <p class="text-sm font-semibold text-gray-800">${esc(p.name)}</p>
-                    <p class="text-xs text-gray-400">${esc(p.category || 'General')}</p>
+            <button type="button" onclick="addPriceListItem(${p.id})" class="w-full text-left px-4 py-3 hover:bg-cyan-50 flex justify-between items-center transition-all group">
+                <div class="min-w-0 pr-3">
+                    <p class="text-xs font-bold text-gray-900 group-hover:text-cyan-900">${esc(p.name)}</p>
+                    <p class="text-[11px] text-gray-400">${esc(p.category || 'General')}</p>
                 </div>
                 <div class="text-right shrink-0">
-                    <p class="text-sm font-semibold text-gray-800">PKR ${Number(p.unit_price).toLocaleString()}</p>
-                    <p class="text-xs text-gray-400">${esc(p.unit || 'pcs')}</p>
+                    <p class="text-xs font-bold text-gray-900">PKR ${Number(p.unit_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p class="text-[10px] text-gray-400">${esc(p.unit || 'pcs')}</p>
                 </div>
             </button>
         `).join(''));
     }).fail(function() {
-        $('#price-results').html('<p class="text-sm text-red-500 text-center py-6">Failed to load price list.</p>');
+        $('#price-results').html('<p class="text-xs text-red-500 text-center py-6">Failed to load price list.</p>');
     });
+}
+
+function addProductFromSheet(id) {
+    const p = productList.find(x => x.id === id);
+    if (!p) return;
+    const cost = parseFloat(p.cost_price) || 0;
+    const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+    addItem({
+        product_id: p.id,
+        description: p.name,
+        model_make: p.sku || '',
+        quantity: 1,
+        unit: p.unit || 'pcs',
+        unit_price: rateWithProfit
+    });
+    calcTotal();
+    hidePricePicker();
 }
 
 function addPriceListItem(id) {
@@ -805,9 +924,22 @@ function applyImportedDraft(draft) {
         if (p) {
             row.find('[name=desc]').val(p.name).prop('readonly', true);
             row.find('[name=unit]').val(p.unit || 'pcs');
-            row.find('[name=price]').val(p.unit_price);
+            if (p.sku && !row.find('[name=model_make]').val()) {
+                row.find('[name=model_make]').val(p.sku);
+            }
+            const cost = parseFloat(p.cost_price) || 0;
+            const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+            row.find('[name=price]').val(rateWithProfit);
+
+            if (cost > 0) {
+                row.find('.profit-text').html(`+10% Profit Applied (Purchase: PKR ${Number(cost).toLocaleString()} &rarr; Rate: PKR ${Number(rateWithProfit).toLocaleString()})`);
+                row.find('.row-profit-note').removeClass('hidden');
+            } else {
+                row.find('.row-profit-note').addClass('hidden');
+            }
         } else {
             row.find('[name=desc]').prop('readonly', false);
+            row.find('.row-profit-note').addClass('hidden');
         }
         calcTotal();
     });

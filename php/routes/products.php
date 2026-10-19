@@ -4,9 +4,107 @@ declare(strict_types=1);
 
 function handle_products_routes(string $method, string $path, PDO $db): bool
 {
+    if ($method === 'GET' && $path === '/api/products/settings') {
+        require_authenticated_user($db);
+        $sheetUrl = get_app_setting($db, 'google_sheet_url', '');
+        $lastSynced = get_app_setting($db, 'google_sheet_last_synced', '');
+        $profitMargin = (float) get_app_setting($db, 'product_profit_percent', '10.0');
+        json_response([
+            'google_sheet_url' => $sheetUrl,
+            'google_sheet_last_synced' => $lastSynced,
+            'product_profit_percent' => $profitMargin,
+        ]);
+    }
+
+    if ($method === 'POST' && $path === '/api/products/settings') {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'edit');
+        $body = request_json();
+        if (isset($body['google_sheet_url'])) {
+            set_app_setting($db, 'google_sheet_url', trim((string) $body['google_sheet_url']));
+        }
+        if (isset($body['product_profit_percent'])) {
+            $margin = (float) $body['product_profit_percent'];
+            if ($margin >= 0) {
+                set_app_setting($db, 'product_profit_percent', (string) $margin);
+            }
+        }
+        json_response([
+            'message' => 'Settings updated',
+            'google_sheet_url' => get_app_setting($db, 'google_sheet_url', ''),
+            'google_sheet_last_synced' => get_app_setting($db, 'google_sheet_last_synced', ''),
+            'product_profit_percent' => (float) get_app_setting($db, 'product_profit_percent', '10.0'),
+        ]);
+    }
+
+    if ($method === 'POST' && $path === '/api/products/sync-google-sheet') {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'edit');
+        $body = request_json();
+        $sheetUrl = trim((string) ($body['sheet_url'] ?? ''));
+        if ($sheetUrl === '') {
+            $sheetUrl = (string) get_app_setting($db, 'google_sheet_url', '');
+        }
+        if ($sheetUrl === '') {
+            json_response(['detail' => 'Google Sheet URL is required. Please provide a sheet URL.'], 422);
+        }
+
+        $profitMargin = isset($body['profit_percent']) ? (float) $body['profit_percent'] : (float) get_app_setting($db, 'product_profit_percent', '10.0');
+
+        try {
+            $result = sync_products_from_google_sheet($db, $sheetUrl, $profitMargin);
+            json_response($result);
+        } catch (Throwable $e) {
+            json_response(['detail' => $e->getMessage()], 400);
+        }
+    }
+
+    if ($method === 'POST' && $path === '/api/products/batch-update-rates') {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'edit');
+        $body = request_json();
+        $items = $body['items'] ?? [];
+        if (!is_array($items) || empty($items)) {
+            json_response(['detail' => 'items array is required'], 422);
+        }
+
+        $profitMargin = (float) get_app_setting($db, 'product_profit_percent', '10.0');
+        $multiplier = 1.0 + ($profitMargin / 100.0);
+        $updated = 0;
+
+        $stmt = $db->prepare('UPDATE products SET cost_price = :cost, unit_price = :unit, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        foreach ($items as $item) {
+            $id = (int) ($item['id'] ?? 0);
+            if ($id <= 0) continue;
+            $cost = clean_numeric_rate($item['cost_price'] ?? 0);
+            $selling = round($cost * $multiplier, 2);
+            $stmt->execute([
+                'cost' => $cost,
+                'unit' => $selling,
+                'id' => $id,
+            ]);
+            $updated++;
+        }
+
+        json_response([
+            'success' => true,
+            'message' => "Successfully updated rates for {$updated} products (+{$profitMargin}% profit applied).",
+            'updated_count' => $updated,
+        ]);
+    }
+
+    if ($method === 'GET' && $path === '/api/products/export-csv') {
+        require_authenticated_user($db);
+        $csv = export_products_to_csv($db);
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="datapoint_product_rates_' . date('Ymd_His') . '.csv"');
+        echo $csv;
+        exit;
+    }
+
     if ($method === 'GET' && $path === '/api/products') {
         require_authenticated_user($db);
-        $stmt = $db->query('SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE p.is_active = 1 ORDER BY p.created_at DESC, p.id DESC');
+        $stmt = $db->query('SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE p.is_active = 1 ORDER BY p.category ASC, p.name ASC');
         json_response($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
@@ -25,6 +123,12 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
             if (array_key_exists($f, $body)) {
                 $values[$f] = in_array($f, ['tax_inclusive', 'is_active'], true) ? (int) (bool) $body[$f] : $body[$f];
             }
+        }
+        $cost = (float) ($values['cost_price'] ?? 0);
+        $unitPrice = (float) ($values['unit_price'] ?? 0);
+        if ($cost > 0 && $unitPrice <= 0) {
+            $profitMargin = (float) get_app_setting($db, 'product_profit_percent', '10.0');
+            $values['unit_price'] = round($cost * (1.0 + ($profitMargin / 100.0)), 2);
         }
         $cols = array_keys($values);
         $stmt = $db->prepare('INSERT INTO products (' . implode(',', $cols) . ', created_at, updated_at) VALUES (:' . implode(',:', $cols) . ', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
@@ -69,6 +173,11 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
                     $updates[] = "{$f} = :{$f}";
                     $values[$f] = in_array($f, ['tax_inclusive', 'is_active'], true) ? (int) (bool) $body[$f] : $body[$f];
                 }
+            }
+            if (array_key_exists('cost_price', $body) && !array_key_exists('unit_price', $body)) {
+                $profitMargin = (float) get_app_setting($db, 'product_profit_percent', '10.0');
+                $updates[] = 'unit_price = :unit_price';
+                $values['unit_price'] = round(((float) $body['cost_price']) * (1.0 + ($profitMargin / 100.0)), 2);
             }
             if ($updates === []) {
                 json_response(['detail' => 'No fields to update'], 422);

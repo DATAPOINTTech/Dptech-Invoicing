@@ -12,6 +12,7 @@ require_once PHP_APP_ROOT . '/services/pdf_service.php';
 require_once PHP_APP_ROOT . '/services/invoice_import.php';
 require_once PHP_APP_ROOT . '/services/scraper.php';
 require_once PHP_APP_ROOT . '/services/support_agent.php';
+require_once PHP_APP_ROOT . '/services/google_sheet_sync.php';
 
 function load_dotenv(string $path): void
 {
@@ -476,12 +477,57 @@ CREATE TABLE IF NOT EXISTS agent_messages (
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 SQL,
+        'app_settings' => <<<'SQL'
+CREATE TABLE IF NOT EXISTS app_settings (
+	setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+	setting_value TEXT,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+SQL,
     ];
 
     foreach ($schemas as $table => $sql) {
         if (!db_table_exists($db, $table)) {
             $db->exec($sql);
         }
+    }
+}
+
+function ensure_app_settings_schema(PDO $db): void
+{
+    $db->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+    setting_value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+SQL);
+}
+
+function get_app_setting(PDO $db, string $key, ?string $default = null): ?string
+{
+    ensure_app_settings_schema($db);
+    $stmt = $db->prepare('SELECT setting_value FROM app_settings WHERE setting_key = :k');
+    $stmt->execute(['k' => $key]);
+    $val = $stmt->fetchColumn();
+    return $val !== false ? (string) $val : $default;
+}
+
+function set_app_setting(PDO $db, string $key, string $value): void
+{
+    ensure_app_settings_schema($db);
+    try {
+        $stmt = $db->prepare('
+            INSERT INTO app_settings (setting_key, setting_value, updated_at)
+            VALUES (:k, :v, CURRENT_TIMESTAMP)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value = :v2, updated_at = CURRENT_TIMESTAMP
+        ');
+        $stmt->execute(['k' => $key, 'v' => $value, 'v2' => $value]);
+    } catch (Throwable $e) {
+        $del = $db->prepare('DELETE FROM app_settings WHERE setting_key = :k');
+        $del->execute(['k' => $key]);
+        $ins = $db->prepare('INSERT INTO app_settings (setting_key, setting_value, updated_at) VALUES (:k, :v, CURRENT_TIMESTAMP)');
+        $ins->execute(['k' => $key, 'v' => $value]);
     }
 }
 

@@ -205,6 +205,8 @@ function handle_request(): never
                 '/clients/new' => 'clients/form.html',
                 '/products' => 'inventory/products.html',
                 '/products/new' => 'inventory/product_form.html',
+                '/product-sheet' => 'inventory/product_sheet.html',
+                '/rates' => 'inventory/product_sheet.html',
                 '/inventory' => 'inventory/list.html',
                 '/inventory/movements' => 'inventory/movements.html',
                 '/purchases' => 'purchases/list.html',
