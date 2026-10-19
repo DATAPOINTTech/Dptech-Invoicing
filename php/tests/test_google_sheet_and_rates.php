@@ -95,3 +95,4 @@ echo "✓ Batch rate update verified: New Cost 20000 -> New Selling 22000 (+10%)
 $stmt->execute(['cost' => 18500.0, 'unit' => round(18500.0 * 1.10, 2)]);
 
 echo "=== All Tests Passed Successfully! ===\n";
+

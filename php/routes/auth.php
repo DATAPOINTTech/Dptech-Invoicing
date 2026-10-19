@@ -56,6 +56,44 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
         ]);
     }
 
+    // Change Password (Available for currently logged-in user)
+    if ($method === 'POST' && ($path === '/api/auth/change-password' || $path === '/api/user/change-password')) {
+        $currentUser = require_authenticated_user($db);
+        $body = request_json();
+        $newPassword = trim((string) ($body['new_password'] ?? $body['password'] ?? ''));
+        $confirmPassword = trim((string) ($body['confirm_password'] ?? ''));
+        $currentPassword = (string) ($body['current_password'] ?? '');
+
+        if ($newPassword === '') {
+            json_response(['detail' => 'New password cannot be empty.'], 422);
+        }
+        if (strlen($newPassword) < 4) {
+            json_response(['detail' => 'New password must be at least 4 characters.'], 422);
+        }
+        if ($confirmPassword !== '' && $newPassword !== $confirmPassword) {
+            json_response(['detail' => 'New password and confirmation do not match.'], 422);
+        }
+
+        // Optional check for current password if supplied
+        if ($currentPassword !== '') {
+            $stmt = $db->prepare('SELECT hashed_password FROM users WHERE id = :id');
+            $stmt->execute(['id' => $currentUser->id]);
+            $currentHash = (string) $stmt->fetchColumn();
+            if (!verifyPassword($currentPassword, $currentHash)) {
+                json_response(['detail' => 'Current password is incorrect.'], 400);
+            }
+        }
+
+        $newHash = getPasswordHash($newPassword);
+        $stmt = $db->prepare('UPDATE users SET hashed_password = :h, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        $stmt->execute(['h' => $newHash, 'id' => $currentUser->id]);
+
+        json_response([
+            'success' => true,
+            'message' => 'Password changed successfully! You can now log in with your new password.',
+        ]);
+    }
+
     // User creation (Admin only)
     if ($method === 'POST' && ($path === '/api/auth/register' || $path === '/api/users')) {
         $currentUser = require_authenticated_user($db);
@@ -159,9 +197,11 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
                     $params[$field] = $field === 'is_active' ? (int) (bool) $body[$field] : $body[$field];
                 }
             }
-            if (!empty($body['password'])) {
+            $passwordUpdated = false;
+            if (isset($body['password']) && trim((string) $body['password']) !== '') {
                 $updates[] = 'hashed_password = :hp';
-                $params['hp'] = getPasswordHash((string) $body['password']);
+                $params['hp'] = getPasswordHash(trim((string) $body['password']));
+                $passwordUpdated = true;
             }
             if (isset($body['permissions'])) {
                 $perms = $body['permissions'];
@@ -176,7 +216,10 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
                 $stmt = $db->prepare('UPDATE users SET ' . implode(', ', $updates) . ' WHERE id = :id');
                 $stmt->execute($params);
             }
-            json_response(['message' => 'User updated successfully']);
+            json_response([
+                'message' => 'User updated successfully',
+                'password_updated' => $passwordUpdated,
+            ]);
         }
 
         if ($sub === '' && $method === 'DELETE') {

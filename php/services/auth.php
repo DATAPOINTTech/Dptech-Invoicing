@@ -88,7 +88,36 @@ function verifyJwt(string $token, string $secretKey, string $algorithm = 'HS256'
 
 function verifyPassword(string $plainPassword, string $hashedPassword): bool
 {
-    return password_verify($plainPassword, $hashedPassword);
+    if ($plainPassword === '' || $hashedPassword === '') {
+        return false;
+    }
+
+    // 1. Standard PHP password_verify (bcrypt, argon2, etc.)
+    if (password_verify($plainPassword, $hashedPassword)) {
+        return true;
+    }
+
+    // 2. Plain-text match (e.g. admin changed password directly in cPanel phpMyAdmin without hashing)
+    if (hash_equals($hashedPassword, $plainPassword)) {
+        return true;
+    }
+
+    // 3. MD5 hash match (very common in cPanel phpMyAdmin function dropdown)
+    if (hash_equals(strtolower($hashedPassword), md5($plainPassword))) {
+        return true;
+    }
+
+    // 4. SHA1 hash match (phpMyAdmin function dropdown)
+    if (hash_equals(strtolower($hashedPassword), sha1($plainPassword))) {
+        return true;
+    }
+
+    // 5. SHA256 hash match
+    if (hash_equals(strtolower($hashedPassword), hash('sha256', $plainPassword))) {
+        return true;
+    }
+
+    return false;
 }
 
 function getPasswordHash(string $password): string
@@ -111,16 +140,20 @@ function createAccessToken(array $data, string $secretKey, int $expireMinutes = 
 
 function authenticateUser($db, string $username, string $password): ?object
 {
+    $username = trim($username);
     $user = null;
 
     if (is_object($db) && method_exists($db, 'query')) {
-        $sql = 'SELECT * FROM users WHERE username = :username LIMIT 1';
+        // Support login by either username or email (case-insensitive)
+        $sql = 'SELECT * FROM users WHERE LOWER(username) = LOWER(:u1) OR LOWER(email) = LOWER(:u2) LIMIT 1';
         $stmt = $db->prepare($sql);
-        $stmt->execute(['username' => $username]);
+        $stmt->execute(['u1' => $username, 'u2' => $username]);
         $user = $stmt->fetch(PDO::FETCH_OBJ);
     } elseif (is_array($db) && isset($db['users'])) {
         foreach ($db['users'] as $candidate) {
-            if (($candidate['username'] ?? null) === $username) {
+            $cUser = (string) ($candidate['username'] ?? '');
+            $cEmail = (string) ($candidate['email'] ?? '');
+            if (strcasecmp($cUser, $username) === 0 || strcasecmp($cEmail, $username) === 0) {
                 $user = (object) $candidate;
                 break;
             }
@@ -131,42 +164,50 @@ function authenticateUser($db, string $username, string $password): ?object
         return null;
     }
 
-    $hashedPassword = $user->hashed_password ?? $user->password ?? '';
+    $hashedPassword = (string) ($user->hashed_password ?? $user->password ?? '');
     $isValid = verifyPassword($password, $hashedPassword);
 
-    if (!$isValid) {
-        $envAdminUser = function_exists('env_value') ? env_value('ADMIN_USERNAME', 'admin') : 'admin';
-        $envAdminPass = function_exists('env_value') ? env_value('ADMIN_PASSWORD', 'admin123') : 'admin123';
-
-        $knownPasswords = array_filter(array_unique([
-            (string) $envAdminPass,
-            'Connect@4532',
-            'admin123'
-        ]));
-
-        if (
-            (strcasecmp($username, (string) $envAdminUser) === 0 || strcasecmp($username, 'admin') === 0) &&
-            in_array($password, $knownPasswords, true)
-        ) {
-            $isValid = true;
+    if ($isValid) {
+        // If the stored password was plain text, MD5/SHA, or needs rehash, upgrade it to secure bcrypt
+        if (!str_starts_with($hashedPassword, '$2y$') || password_needs_rehash($hashedPassword, PASSWORD_BCRYPT)) {
             if (is_object($db) && method_exists($db, 'prepare')) {
                 try {
                     $newHash = getPasswordHash($password);
-                    $upStmt = $db->prepare('UPDATE users SET hashed_password = :hash WHERE id = :id');
+                    $upStmt = $db->prepare('UPDATE users SET hashed_password = :hash, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
                     $upStmt->execute(['hash' => $newHash, 'id' => $user->id]);
                     $user->hashed_password = $newHash;
-                } catch (\Throwable $e) {
-                    // Ignore DB update errors during fallback auth
-                }
+                } catch (\Throwable $e) {}
             }
         }
+        return $user;
     }
 
-    if (!$isValid) {
-        return null;
+    // Emergency .env password sync for admin:
+    // If the admin user set a custom ADMIN_PASSWORD in .env (e.g. via cPanel File Manager), allow login and update DB hash
+    $envAdminUser = function_exists('env_value') ? env_value('ADMIN_USERNAME', 'admin') : 'admin';
+    $envAdminPass = function_exists('env_value') ? env_value('ADMIN_PASSWORD', null) : null;
+    $role = strtolower((string) ($user->role ?? ''));
+
+    if (
+        $role === 'admin' &&
+        $envAdminPass !== null &&
+        $envAdminPass !== '' &&
+        $envAdminPass !== 'admin123' &&
+        (strcasecmp($username, (string) $envAdminUser) === 0 || strcasecmp((string)$user->username, 'admin') === 0 || strcasecmp((string)$user->email, $username) === 0) &&
+        hash_equals($envAdminPass, $password)
+    ) {
+        if (is_object($db) && method_exists($db, 'prepare')) {
+            try {
+                $newHash = getPasswordHash($password);
+                $upStmt = $db->prepare('UPDATE users SET hashed_password = :hash, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+                $upStmt->execute(['hash' => $newHash, 'id' => $user->id]);
+                $user->hashed_password = $newHash;
+            } catch (\Throwable $e) {}
+        }
+        return $user;
     }
 
-    return $user;
+    return null;
 }
 
 function getCurrentUser($db, string $token, string $secretKey, string $algorithm = 'HS256')

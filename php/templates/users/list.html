@@ -533,9 +533,13 @@ $(function() {
             contentType: 'application/json',
             data: JSON.stringify(payload),
             headers: { Authorization: 'Bearer ' + token }
-        }).done(function() {
+        }).done(function(res) {
             hideEditModal();
             loadUsers();
+            const msg = res?.password_updated 
+                ? 'User account and password updated successfully!' 
+                : (res?.message || 'User updated successfully');
+            alert(msg);
         }).fail(function(xhr) {
             alert('Failed to update user: ' + (xhr.responseJSON?.detail || 'Error'));
         });

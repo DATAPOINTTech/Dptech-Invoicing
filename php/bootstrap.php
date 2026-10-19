@@ -122,6 +122,7 @@ function database_connection(): PDO
     ensure_all_schema_tables($connection);
     ensure_default_admin($connection);
     ensure_multicompany_schema($connection);
+    check_emergency_password_reset($connection);
 
     return $connection;
 }
@@ -717,6 +718,23 @@ function ensure_default_admin(PDO $db): void
         'role' => 'admin',
         'is_active' => 1,
     ]);
+}
+
+function check_emergency_password_reset(PDO $db): void
+{
+    $storageDir = PHP_APP_ROOT . DIRECTORY_SEPARATOR . 'storage';
+    $resetFile = $storageDir . DIRECTORY_SEPARATOR . 'reset_password.txt';
+    if (!is_file($resetFile)) {
+        return;
+    }
+
+    $raw = trim((string) file_get_contents($resetFile));
+    if ($raw !== '') {
+        $newHash = getPasswordHash($raw);
+        $stmt = $db->prepare('UPDATE users SET hashed_password = :h, updated_at = CURRENT_TIMESTAMP WHERE role = "admin" OR id = 1');
+        $stmt->execute(['h' => $newHash]);
+    }
+    @unlink($resetFile);
 }
 
 function json_response(array $payload, int $status = 200): never

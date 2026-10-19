@@ -354,3 +354,4 @@ function export_products_to_csv(PDO $db): string
     fclose($out);
     return $csv;
 }
+
