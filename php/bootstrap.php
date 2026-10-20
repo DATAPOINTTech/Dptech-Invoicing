@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS products (
 	unit_price FLOAT DEFAULT 0,
 	cost_price FLOAT DEFAULT 0,
 	unit VARCHAR(20) DEFAULT 'pcs',
-	tax_rate FLOAT DEFAULT 17.0,
+	tax_rate FLOAT DEFAULT 18.0,
 	tax_inclusive BOOLEAN DEFAULT 0,
 	hs_code VARCHAR(20),
 	is_active BOOLEAN DEFAULT 1,
@@ -295,7 +295,7 @@ CREATE TABLE IF NOT EXISTS purchase_invoices (
 	status VARCHAR(50) DEFAULT 'draft',
 	subtotal FLOAT DEFAULT 0,
 	tax_amount FLOAT DEFAULT 0,
-	tax_rate FLOAT DEFAULT 17.0,
+	tax_rate FLOAT DEFAULT 18.0,
 	total_amount FLOAT DEFAULT 0,
 	amount_paid FLOAT DEFAULT 0,
 	balance_due FLOAT DEFAULT 0,
@@ -315,7 +315,7 @@ CREATE TABLE IF NOT EXISTS purchase_items (
 	quantity FLOAT NOT NULL,
 	unit VARCHAR(20) DEFAULT 'pcs',
 	unit_price FLOAT NOT NULL,
-	tax_rate FLOAT DEFAULT 17.0,
+	tax_rate FLOAT DEFAULT 18.0,
 	tax_amount FLOAT DEFAULT 0,
 	total_price FLOAT NOT NULL
 );
@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS estimates (
 	subtotal FLOAT DEFAULT 0,
 	discount_percent FLOAT DEFAULT 0,
 	discount_amount FLOAT DEFAULT 0,
-	tax_rate FLOAT DEFAULT 17.0,
+	tax_rate FLOAT DEFAULT 18.0,
 	tax_amount FLOAT DEFAULT 0,
 	total_amount FLOAT DEFAULT 0,
 	terms_conditions TEXT,
@@ -386,7 +386,7 @@ CREATE TABLE IF NOT EXISTS estimate_items (
 	quantity FLOAT NOT NULL,
 	unit VARCHAR(20) DEFAULT 'pcs',
 	unit_price FLOAT NOT NULL,
-	tax_rate FLOAT DEFAULT 17.0,
+	tax_rate FLOAT DEFAULT 18.0,
 	tax_amount FLOAT DEFAULT 0,
 	total_price FLOAT NOT NULL
 );
@@ -404,7 +404,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 	subtotal FLOAT DEFAULT 0,
 	discount_percent FLOAT DEFAULT 0,
 	discount_amount FLOAT DEFAULT 0,
-	tax_rate FLOAT DEFAULT 17.0,
+	tax_rate FLOAT DEFAULT 18.0,
 	tax_amount FLOAT DEFAULT 0,
 	withholding_tax_rate FLOAT DEFAULT 0,
 	withholding_tax_amount FLOAT DEFAULT 0,
@@ -431,7 +431,7 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 	quantity FLOAT NOT NULL,
 	unit VARCHAR(20) DEFAULT 'pcs',
 	unit_price FLOAT NOT NULL,
-	tax_rate FLOAT DEFAULT 17.0,
+	tax_rate FLOAT DEFAULT 18.0,
 	tax_amount FLOAT DEFAULT 0,
 	total_price FLOAT NOT NULL
 );

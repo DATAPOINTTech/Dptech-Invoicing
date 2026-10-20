@@ -31,7 +31,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             json_response(['detail' => 'client_id and items are required'], 422);
         }
 
-        $taxRate = (float) ($body['tax_rate'] ?? 17.0);
+        $taxRate = (float) ($body['tax_rate'] ?? 18.0);
         $discountPercent = (float) ($body['discount_percent'] ?? 0.0);
         $applyWht = (bool) ($body['apply_wht'] ?? false);
         $applyFed = (bool) ($body['apply_fed'] ?? false);
@@ -141,8 +141,8 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 'unit' => (string) ($item['unit'] ?? 'pcs'),
                 'price' => (float) ($item['unit_price'] ?? 0),
                 'tr' => $taxRate,
-                'ta' => $line['tax_amount'],
-                'tp' => $line['total'],
+                'ta' => 0.0,
+                'tp' => round(((float) ($item['quantity'] ?? 0)) * ((float) ($item['unit_price'] ?? 0)), 2),
             ]);
 
             if (!empty($item['product_id'])) {
@@ -345,8 +345,8 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                         'unit' => (string) ($item['unit'] ?? 'pcs'),
                         'price' => (float) ($item['unit_price'] ?? 0),
                         'tr' => $taxRate,
-                        'ta' => $line['tax_amount'],
-                        'tp' => $line['total'],
+                        'ta' => 0.0,
+                        'tp' => round(((float) ($item['quantity'] ?? 0)) * ((float) ($item['unit_price'] ?? 0)), 2),
                     ]);
                 }
 

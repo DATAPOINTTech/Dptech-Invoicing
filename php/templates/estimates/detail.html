@@ -102,7 +102,7 @@
                         <!-- Right: Financial Summary -->
                         <div class="w-80 space-y-2">
                             <div class="flex justify-between text-sm text-gray-600">
-                                <span>Subtotal:</span>
+                                <span>Total Amount:</span>
                                 <span>PKR <span id="est-subtotal" class="font-semibold text-gray-800">0.00</span></span>
                             </div>
                             <div class="flex justify-between text-sm text-gray-600" id="row-discount">
@@ -110,7 +110,7 @@
                                 <span id="est-discount" class="font-semibold text-gray-800">0%</span>
                             </div>
                             <div class="flex justify-between text-sm text-gray-600">
-                                <span>Tax (<span id="tax-percent-label">17</span>% GST):</span>
+                                <span>Tax (<span id="tax-percent-label">18</span>% GST):</span>
                                 <span id="gst-label-color" class="font-bold text-red-600">PKR <span id="est-tax">0.00</span></span>
                             </div>
                             <div id="grand-total-card" class="flex justify-between text-base font-extrabold p-3.5 rounded-xl shadow-sm text-white bg-slate-900 transition-all">
@@ -330,16 +330,18 @@ $.ajax({
     currentClientPhone = e.client_phone || e.client_mobile || e.client?.phone || e.client?.mobile || '';
 
     const t = companyThemes[themeKey] || companyThemes.datapoint;
-    $('#items-body').html((e.items || []).map(i => `
+    $('#items-body').html((e.items || []).map(i => {
+        const lineTotal = Number(i.quantity || 0) * Number(i.unit_price || 0);
+        return `
         <tr class="transition-colors ${t.tableRowHover}">
             <td class="px-4 py-3 text-gray-800 font-medium">${esc(i.description)}</td>
             <td class="px-4 py-3 text-gray-600">${esc(i.model_make || '-')}</td>
             <td class="px-4 py-3 text-right text-gray-600">${i.quantity}</td>
             <td class="px-4 py-3 text-right text-gray-500">${esc(i.unit || 'pcs')}</td>
             <td class="px-4 py-3 text-right text-gray-600 font-mono">PKR ${Number(i.unit_price).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-            <td class="px-4 py-3 text-right font-bold text-gray-800 font-mono">PKR ${Number(i.total_price).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td class="px-4 py-3 text-right font-bold text-gray-800 font-mono">PKR ${lineTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
         </tr>
-    `).join(''));
+    `;}).join(''));
 
     $('#est-subtotal').text(Number(e.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     if (e.discount_percent > 0) {
@@ -347,7 +349,7 @@ $.ajax({
     } else {
         $('#est-discount').text('0.00');
     }
-    $('#tax-percent-label').text(e.tax_rate ?? 17);
+    $('#tax-percent-label').text(e.tax_rate ?? 18);
     $('#est-tax').text(Number(e.tax_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     $('#est-total').text(Number(e.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 

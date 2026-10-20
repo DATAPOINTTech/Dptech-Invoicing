@@ -89,14 +89,14 @@
                         <label class="block text-sm font-medium text-gray-700">Discount (%)</label><input type="number" step="0.01" id="discount" value="0" class="w-full px-4 py-2 border rounded-lg text-sm mt-1">
                         <div class="flex items-center gap-2 mt-3">
                             <label class="text-sm text-gray-700 font-medium">GST/Tax %</label>
-                            <input type="number" step="0.01" min="0" max="100" id="tax_rate" value="17" class="w-24 px-2 py-1.5 border rounded text-sm">
-                            <span class="text-xs text-gray-400">(standard 17% GST)</span>
+                            <input type="number" step="0.01" min="0" max="100" id="tax_rate" value="18" class="w-24 px-2 py-1.5 border rounded text-sm">
+                            <span class="text-xs text-gray-400">(fixed 18% GST on total)</span>
                         </div>
                     </div>
                     <div class="text-right pt-2">
-                        <p class="text-sm text-gray-500">Base Subtotal: <span id="display-subtotal" class="font-semibold text-gray-800">0.00</span></p>
-                        <p class="text-sm text-gray-500" id="display-tax-row">Tax (<span class="tax-label">17%</span>): <span id="display-tax" class="font-semibold text-gray-800">0.00</span></p>
-                        <p class="text-lg font-bold text-gray-800">Base Total: PKR <span id="display-total">0.00</span></p>
+                        <p class="text-sm text-gray-500">Total Amount (Items): <span id="display-subtotal" class="font-semibold text-gray-800">0.00</span></p>
+                        <p class="text-sm text-gray-500" id="display-tax-row">Tax (<span class="tax-label">18%</span>): <span id="display-tax" class="font-semibold text-gray-800">0.00</span></p>
+                        <p class="text-lg font-bold text-gray-800">Grand Total: PKR <span id="display-total">0.00</span></p>
                     </div>
                 </div>
 

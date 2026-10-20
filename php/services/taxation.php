@@ -2,26 +2,27 @@
 
 declare(strict_types=1);
 
-const PAKISTAN_STANDARD_GST_RATE = 17.0;
+const PAKISTAN_STANDARD_GST_RATE = 18.0;
 const PAKISTAN_WHT_RATE = 4.0;
 const PAKISTAN_FED_RATE = 5.0;
 
 const EXEMPTED_CATEGORIES = ['books', 'newspaper', 'basic_food_items'];
 const ZERO_RATED_CATEGORIES = ['export'];
 
-function calculate_item_tax(float $unit_price, float $quantity, float $tax_rate, bool $tax_inclusive = true): array
+function calculate_item_tax(float $unit_price, float $quantity, float $tax_rate = 18.0, bool $tax_inclusive = false): array
 {
-    $line_total = $unit_price * $quantity;
+    $line_total = round($unit_price * $quantity, 2);
 
-    if ($tax_inclusive) {
-        $tax_amount = $line_total * ($tax_rate / (100 + $tax_rate));
-        $subtotal = $line_total - $tax_amount;
+    if ($tax_inclusive && $tax_rate > 0) {
+        $tax_amount = round($line_total * ($tax_rate / (100 + $tax_rate)), 2);
+        $subtotal = round($line_total - $tax_amount, 2);
+        $total = $line_total;
     } else {
+        // Tax 18% is added to total amount of estimate/invoice, NOT on individual items
         $subtotal = $line_total;
-        $tax_amount = $line_total * ($tax_rate / 100);
+        $tax_amount = 0.0;
+        $total = $line_total;
     }
-
-    $total = $subtotal + $tax_amount;
 
     return [
         'subtotal' => round($subtotal, 2),
@@ -31,7 +32,7 @@ function calculate_item_tax(float $unit_price, float $quantity, float $tax_rate,
     ];
 }
 
-function calculateItemTax(float $unitPrice, float $quantity, float $taxRate, bool $taxInclusive = true): array
+function calculateItemTax(float $unitPrice, float $quantity, float $taxRate = 18.0, bool $taxInclusive = false): array
 {
     return calculate_item_tax($unitPrice, $quantity, $taxRate, $taxInclusive);
 }
@@ -42,28 +43,35 @@ function calculate_invoice_tax(array $items, float $discount_percent = 0.0, ?flo
 
     $subtotal = 0.0;
     foreach ($items as $item) {
-        $subtotal += (float) ($item['subtotal'] ?? 0);
+        if (isset($item['subtotal'])) {
+            $subtotal += (float) $item['subtotal'];
+        } elseif (isset($item['quantity'], $item['unit_price'])) {
+            $subtotal += round(((float)$item['quantity']) * ((float)$item['unit_price']), 2);
+        } elseif (isset($item['total_price'])) {
+            $subtotal += (float) $item['total_price'];
+        }
     }
+    $subtotal = round($subtotal, 2);
 
-    $discount_amount = $discount_percent > 0 ? $subtotal * ($discount_percent / 100) : 0.0;
-    $taxable_amount = $subtotal - $discount_amount;
-    $tax_amount = $taxable_amount * ($tax_rate / 100);
-    $wht_amount = $apply_wht ? $taxable_amount * (PAKISTAN_WHT_RATE / 100) : 0.0;
-    $fed_amount = $apply_fed ? $taxable_amount * (PAKISTAN_FED_RATE / 100) : 0.0;
-    $total_amount = $taxable_amount + $tax_amount + $fed_amount - $wht_amount;
+    $discount_amount = $discount_percent > 0 ? round($subtotal * ($discount_percent / 100), 2) : 0.0;
+    $taxable_amount = max(0.0, round($subtotal - $discount_amount, 2));
+    $tax_amount = round($taxable_amount * ($tax_rate / 100), 2);
+    $wht_amount = $apply_wht ? round($taxable_amount * (PAKISTAN_WHT_RATE / 100), 2) : 0.0;
+    $fed_amount = $apply_fed ? round($taxable_amount * (PAKISTAN_FED_RATE / 100), 2) : 0.0;
+    $total_amount = round($taxable_amount + $tax_amount + $fed_amount - $wht_amount, 2);
 
     return [
-        'subtotal' => round($subtotal, 2),
+        'subtotal' => $subtotal,
         'discount_percent' => $discount_percent,
-        'discount_amount' => round($discount_amount, 2),
-        'taxable_amount' => round($taxable_amount, 2),
+        'discount_amount' => $discount_amount,
+        'taxable_amount' => $taxable_amount,
         'tax_rate' => $tax_rate,
-        'tax_amount' => round($tax_amount, 2),
+        'tax_amount' => $tax_amount,
         'wht_rate' => $apply_wht ? PAKISTAN_WHT_RATE : 0,
-        'wht_amount' => round($wht_amount, 2),
+        'wht_amount' => $wht_amount,
         'fed_rate' => $apply_fed ? PAKISTAN_FED_RATE : 0,
-        'fed_amount' => round($fed_amount, 2),
-        'total_amount' => round($total_amount, 2),
+        'fed_amount' => $fed_amount,
+        'total_amount' => $total_amount,
     ];
 }
 

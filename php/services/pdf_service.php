@@ -919,7 +919,8 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $unit = (string)($item['unit'] ?? 'No.');
         $qty = (float)($item['quantity'] ?? 1);
         $rate = (float)($item['unit_price'] ?? 0);
-        $total = (float)($item['total_price'] ?? ($qty * $rate));
+        // Tax is NOT on individual items; line total is strictly Qty * Rate
+        $total = round($qty * $rate, 2);
 
         $descLines = $pdf->wrapText($desc, $colDesc - 10.0, 8.0);
         $modelLines = $pdf->wrapText($modelMake !== '' ? $modelMake : '-', $colModel - 10.0, 7.5);
@@ -982,30 +983,66 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $itemIdx++;
     }
 
-    // 6. Summary Block
-    $pdf->checkPageBreak(120.0);
+    // 6. Summary Block printed at the end of the columns
+    $pdf->checkPageBreak(130.0);
     $y = $pdf->getY() - 4.0;
 
+    // Subtotal: sum of all items (Qty * Rate), without individual item tax
+    $calcSubtotal = 0.0;
+    foreach ($items as $it) {
+        $calcSubtotal += round(((float)($it['quantity'] ?? 0)) * ((float)($it['unit_price'] ?? 0)), 2);
+    }
     $subtotal = (float)($doc['subtotal'] ?? 0);
-    $taxRate = (float)($doc['tax_rate'] ?? 18);
-    $taxAmount = (float)($doc['tax_amount'] ?? 0);
-    $totalAmount = (float)($doc['total_amount'] ?? ($subtotal + $taxAmount));
+    if ($subtotal <= 0.0 || abs($subtotal - $calcSubtotal) > 0.05) {
+        $subtotal = $calcSubtotal;
+    }
 
-    // Total (Subtotal)
+    $taxRate = isset($doc['tax_rate']) && $doc['tax_rate'] !== null && $doc['tax_rate'] !== '' ? (float)$doc['tax_rate'] : 18.0;
+
+    $discPercent = (float)($doc['discount_percent'] ?? 0);
+    $discAmount = (float)($doc['discount_amount'] ?? 0);
+    if ($discPercent > 0 && $discAmount <= 0) {
+        $discAmount = round($subtotal * ($discPercent / 100.0), 2);
+    }
+
+    $taxable = max(0.0, round($subtotal - $discAmount, 2));
+    $taxAmount = round($taxable * ($taxRate / 100.0), 2);
+    $totalAmount = round($taxable + $taxAmount, 2);
+
+    $summaryValX = $left + $width - $colTotal;
+    $summaryValW = $colTotal;
+    $summaryLabelW = 150.0;
+    $summaryLabelX = $summaryValX - $summaryLabelW;
+
+    // Total Amount / Subtotal
     $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($left + $width - $colTotal - $colRate - 30.0, $y - 11.0, 'Total', 'F2', 10.0, 'right', 40.0);
-    $pdf->drawText($left + $width - $colTotal, $y - 11.0, number_format($subtotal, 2), 'F2', 9.0, 'right', $colTotal - 4.0);
-    $y -= 16.0;
+    $subLabel = ($discAmount > 0) ? 'Subtotal:' : 'Total Amount:';
+    $pdf->drawText($summaryLabelX, $y - 11.0, $subLabel, 'F2', 9.5, 'right', $summaryLabelW - 8.0);
+    $pdf->drawText($summaryValX, $y - 11.0, number_format($subtotal, 2), 'F2', 9.0, 'right', $summaryValW - 4.0);
+    $y -= 15.0;
 
-    // GST @ Rate%
+    // If discount was applied
+    if ($discAmount > 0) {
+        $pdf->setFillColor(0.8, 0.4, 0.0);
+        $pdf->drawText($summaryLabelX, $y - 11.0, sprintf('Discount (%g%%):', $discPercent), 'F2', 9.0, 'right', $summaryLabelW - 8.0);
+        $pdf->drawText($summaryValX, $y - 11.0, '-' . number_format($discAmount, 2), 'F2', 9.0, 'right', $summaryValW - 4.0);
+        $y -= 15.0;
+
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawText($summaryLabelX, $y - 11.0, 'Net Total Amount:', 'F2', 9.5, 'right', $summaryLabelW - 8.0);
+        $pdf->drawText($summaryValX, $y - 11.0, number_format($taxable, 2), 'F2', 9.0, 'right', $summaryValW - 4.0);
+        $y -= 15.0;
+    }
+
+    // 18% Tax added to total amount at the end of columns
     $pdf->setFillColorArray($theme['gst_color'] ?? [0.753, 0.224, 0.169]);
     $gstLabel = sprintf('GST @ %g%%', $taxRate);
-    $pdf->drawText($left + $width - $colTotal - $colRate - 50.0, $y - 11.0, $gstLabel, 'F2', 9.5, 'right', 60.0);
-    $pdf->drawText($left + $width - $colTotal, $y - 11.0, number_format($taxAmount, 2), 'F2', 9.0, 'right', $colTotal - 4.0);
-    $y -= 16.0;
+    $pdf->drawText($summaryLabelX, $y - 11.0, $gstLabel, 'F2', 9.5, 'right', $summaryLabelW - 8.0);
+    $pdf->drawText($summaryValX, $y - 11.0, number_format($taxAmount, 2), 'F2', 9.0, 'right', $summaryValW - 4.0);
+    $y -= 17.0;
 
-    // Grand Total Solid Bar
-    $barW = 230.0;
+    // Grand Total Solid Bar: Total Amount + Tax 18%
+    $barW = 240.0;
     $barX = $left + $width - $barW;
     $pdf->setFillColorArray($theme['total_bar_bg']);
     $pdf->drawRect($barX, $y - 16.0, $barW, 19.0, true, false);

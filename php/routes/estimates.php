@@ -41,7 +41,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             json_response(['detail' => 'client_id and items are required'], 422);
         }
 
-        $taxRate = (float) ($body['tax_rate'] ?? 17.0);
+        $taxRate = (float) ($body['tax_rate'] ?? 18.0);
         $discountPercent = (float) ($body['discount_percent'] ?? 0.0);
         $date = (string) ($body['estimate_date'] ?? date('Y-m-d'));
         $validUntil = !empty($body['valid_until']) ? (string) $body['valid_until'] : date('Y-m-d', strtotime('+15 days'));
@@ -183,8 +183,8 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         'unit' => (string) ($it['unit'] ?? 'pcs'),
                         'price' => (float) ($it['unit_price'] ?? 0),
                         'tr' => $taxRate,
-                        'ta' => $line['tax_amount'],
-                        'tp' => $line['total'],
+                        'ta' => 0.0,
+                        'tp' => round(((float) ($it['quantity'] ?? 0)) * ((float) ($it['unit_price'] ?? 0)), 2),
                     ]);
                 }
 
@@ -322,8 +322,8 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 'unit' => (string) ($item['unit'] ?? 'pcs'),
                 'price' => (float) ($item['unit_price'] ?? 0),
                 'tr' => $taxRate,
-                'ta' => $line['tax_amount'],
-                'tp' => $line['total'],
+                'ta' => 0.0,
+                'tp' => round(((float) ($item['quantity'] ?? 0)) * ((float) ($item['unit_price'] ?? 0)), 2),
             ]);
         }
 
@@ -411,7 +411,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             $itStmt->execute(['id' => $estimateId]);
             $estItems = $itStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $taxRate = (float) ($est['tax_rate'] ?? 17.0);
+            $taxRate = (float) ($est['tax_rate'] ?? 18.0);
             $discPct = (float) ($est['discount_percent'] ?? 0.0);
             $subtotal = (float) ($est['subtotal'] ?? 0.0);
             $discAmt = (float) ($est['discount_amount'] ?? 0.0);
@@ -497,12 +497,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             foreach ($estItems as $ei) {
                 $qty = (float) ($ei['quantity'] ?? 0);
                 $price = (float) ($ei['unit_price'] ?? 0);
-                $itemTax = (float) ($ei['tax_amount'] ?? 0);
-                $itemTotal = (float) ($ei['total_price'] ?? 0);
-                if ($itemTotal <= 0 && $price > 0 && $qty > 0) {
-                    $itemTax = round(($price * $qty) * ($taxRate / 100.0), 2);
-                    $itemTotal = round(($price * $qty) + $itemTax, 2);
-                }
+                $itemTotal = round($qty * $price, 2);
 
                 $insItem->execute([
                     'iid' => $invoiceId,
@@ -513,7 +508,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     'unit' => $ei['unit'] ?? 'pcs',
                     'price' => $price,
                     'tr' => $taxRate,
-                    'ta' => $itemTax,
+                    'ta' => 0.0,
                     'tp' => $itemTotal,
                 ]);
 
@@ -626,8 +621,8 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         'unit' => (string) ($item['unit'] ?? 'pcs'),
                         'price' => (float) ($item['unit_price'] ?? 0),
                         'tr' => $taxRate,
-                        'ta' => $line['tax_amount'],
-                        'tp' => $line['total'],
+                        'ta' => 0.0,
+                        'tp' => round(((float) ($item['quantity'] ?? 0)) * ((float) ($item['unit_price'] ?? 0)), 2),
                     ]);
                 }
 
@@ -741,8 +736,8 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                                 'unit' => (string) ($sIt['unit'] ?? 'pcs'),
                                 'price' => (float) ($sIt['unit_price'] ?? 0),
                                 'tr' => $taxRate,
-                                'ta' => $sLine['tax_amount'],
-                                'tp' => $sLine['total'],
+                                'ta' => 0.0,
+                                'tp' => round(((float) ($sIt['quantity'] ?? 0)) * ((float) ($sIt['unit_price'] ?? 0)), 2),
                             ]);
                         }
 

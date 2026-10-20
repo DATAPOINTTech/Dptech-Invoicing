@@ -52,11 +52,11 @@ $stmt = $db->prepare("
     INSERT INTO estimates (
         estimate_no, client_id, title, estimate_date, valid_until, status,
         subtotal, discount_percent, discount_amount, tax_rate, tax_amount, total_amount,
-        terms_conditions, notes, created_by, company_name, company_ntn, company_strn, created_at, updated_at
+        terms_conditions, notes, created_by, company_id, company_name, company_ntn, company_strn, created_at, updated_at
     ) VALUES (
         :no, :cid, :title, :edate, :vdate, 'draft',
         :subtotal, 0, 0, :tr, :ta, :total,
-        'Terms valid for 15 days', 'Testing notes', :uid, 'DATAPOINT Technologies', '7178396-5', '3277876124452', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        'Terms valid for 15 days', 'Testing notes', :uid, 1, 'DATAPOINT Technologies', '7178396-5', '3277876124452', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     )
 ");
 $stmt->execute([

@@ -51,7 +51,7 @@ function handle_purchases_routes(string $method, string $path, PDO $db): bool
         foreach ($items as $item) {
             $qty = (float) ($item['quantity'] ?? 0);
             $price = (float) ($item['unit_price'] ?? 0);
-            $taxRate = isset($item['tax_rate']) ? (float) $item['tax_rate'] : 17.0;
+            $taxRate = isset($item['tax_rate']) ? (float) $item['tax_rate'] : 18.0;
             $lineSubtotal = $qty * $price;
             $lineTax = $lineSubtotal * ($taxRate / 100);
             $lineTotal = $lineSubtotal + $lineTax;
@@ -72,7 +72,7 @@ function handle_purchases_routes(string $method, string $path, PDO $db): bool
         }
 
         $totalAmount = $subtotal + $totalTax;
-        $taxRateAvg = $subtotal > 0 ? round(($totalTax / $subtotal) * 100, 2) : 17.0;
+        $taxRateAvg = $subtotal > 0 ? round(($totalTax / $subtotal) * 100, 2) : 18.0;
 
         $stmt = $db->prepare('
             INSERT INTO purchase_invoices (

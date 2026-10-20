@@ -67,7 +67,7 @@
                         </div>
                         <div class="w-72 space-y-1.5 text-right">
                             <div class="flex justify-between text-sm text-gray-600">
-                                <span>Subtotal:</span>
+                                <span>Total Amount:</span>
                                 <span>PKR <span id="inv-subtotal" class="font-medium">0.00</span></span>
                             </div>
                             <div class="flex justify-between text-sm text-amber-700" id="inv-discount-row" style="display:none">
@@ -75,7 +75,7 @@
                                 <span><span id="inv-discount"></span></span>
                             </div>
                             <div class="flex justify-between text-sm text-gray-600" id="inv-tax-row">
-                                <span id="inv-tax-label">GST:</span>
+                                <span id="inv-tax-label">Tax (18% GST):</span>
                                 <span>PKR <span id="inv-tax" class="font-medium">0.00</span></span>
                             </div>
                             <div class="flex justify-between text-sm text-gray-600" id="inv-wht-row" style="display:none">
@@ -286,8 +286,8 @@ function loadInvoice() {
         if (items.length) {
             $('#items-body').html(items.map(i => {
                 const up = Number(i.unit_price || 0);
-                const tp = Number(i.total_price || 0);
                 const q = Number(i.quantity || 0);
+                const tp = q * up;
                 return `<tr class="border-b border-gray-100 hover:bg-slate-50">
                     <td class="px-4 py-3 font-medium text-gray-800">${i.description || 'Item'}</td>
                     <td class="px-4 py-3 text-gray-600">${i.model_make || '-'}</td>
@@ -305,7 +305,7 @@ function loadInvoice() {
         const subtotal = Number(inv.subtotal || 0);
         const discAmt = Number(inv.discount_amount || 0);
         const discPct = Number(inv.discount_percent || 0);
-        const taxRate = Number(inv.tax_rate || 0);
+        const taxRate = (inv.tax_rate !== null && inv.tax_rate !== undefined) ? Number(inv.tax_rate) : 18;
         const taxAmt = Number(inv.tax_amount || 0);
         const whtAmt = Number(inv.withholding_tax_amount || 0);
         const fedAmt = Number(inv.fed_amount || 0);
@@ -324,7 +324,7 @@ function loadInvoice() {
             $('#inv-discount-row').hide();
         }
 
-        $('#inv-tax-label').text(`GST (${taxRate}%):`);
+        $('#inv-tax-label').text(`Tax (${taxRate}% GST):`);
         $('#inv-tax').text(fmt(taxAmt));
 
         if (whtAmt > 0) {

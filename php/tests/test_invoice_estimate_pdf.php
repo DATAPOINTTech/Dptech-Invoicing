@@ -56,9 +56,9 @@ $estimate = [
     'valid_until' => '2026-10-15',
     'client_name' => 'Apex Logistics Corp',
     'subtotal' => 127500,
-    'tax_rate' => 17,
-    'tax_amount' => 21675,
-    'total_amount' => 149175,
+    'tax_rate' => 18,
+    'tax_amount' => 22950,
+    'total_amount' => 150450,
     'items' => [
         [
             'description' => 'Enterprise Server Installation & Configuration (TechPoint)',
