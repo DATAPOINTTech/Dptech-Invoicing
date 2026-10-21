@@ -27,12 +27,28 @@ yarn-error.log*
 
 # Databases & Backups
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 *.db.backup*
+*.sql
+*.sql.gz
+*.sql.bz2
+*.dump
 php/storage/*.db
 php/storage/*.db*
+php/storage/*.sqlite*
+php/storage/*.sql*
 !php/storage/.gitkeep
+cpanel_backup/*.sql
+cpanel_backup/*.sqlite
+cpanel_backup/*.db
+cpanel_backup/backup/
 Cpanel-RSAkey/backup/
 *.tar.gz
 *.tar
