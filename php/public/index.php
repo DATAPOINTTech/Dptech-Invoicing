@@ -196,7 +196,7 @@ function handle_request(): never
         handle_whatsapp_routes($method, $path, $db);
 
         // 6. Web UI views (renders full Tailwind CSS frontend)
-        if ($method === 'GET') {
+        if (in_array($method, ['GET', 'HEAD'], true)) {
             $uiRoutes = [
                 '/' => 'login.html',
                 '/login' => 'login.html',

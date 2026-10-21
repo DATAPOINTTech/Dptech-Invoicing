@@ -490,24 +490,71 @@ class DpPdfEngine
         $this->append(sprintf("%.2F %.2F m\n%.2F %.2F l\nS\n", $x1, $y1, $x2, $y2));
     }
 
+    public function getTextWidth(string $text, string $font = 'F1', float $size = 10.0): float
+    {
+        static $widthsF1 = [
+            32 => 278, 33 => 278, 34 => 355, 35 => 556, 36 => 556, 37 => 889, 38 => 667, 39 => 191,
+            40 => 333, 41 => 333, 42 => 389, 43 => 584, 44 => 278, 45 => 333, 46 => 278, 47 => 278,
+            48 => 556, 49 => 556, 50 => 556, 51 => 556, 52 => 556, 53 => 556, 54 => 556, 55 => 556,
+            56 => 556, 57 => 556, 58 => 278, 59 => 278, 60 => 584, 61 => 584, 62 => 584, 63 => 556,
+            64 => 1015,
+            65 => 667, 66 => 667, 67 => 722, 68 => 722, 69 => 667, 70 => 611, 71 => 778, 72 => 722,
+            73 => 278, 74 => 500, 75 => 667, 76 => 556, 77 => 833, 78 => 722, 79 => 778, 80 => 667,
+            81 => 778, 82 => 722, 83 => 667, 84 => 611, 85 => 722, 86 => 667, 87 => 944, 88 => 667,
+            89 => 667, 90 => 611,
+            91 => 278, 92 => 278, 93 => 278, 94 => 469, 95 => 556, 96 => 222,
+            97 => 556, 98 => 556, 99 => 500, 100 => 556, 101 => 556, 102 => 278, 103 => 556, 104 => 556,
+            105 => 222, 106 => 222, 107 => 500, 108 => 222, 109 => 833, 110 => 556, 111 => 556, 112 => 556,
+            113 => 556, 114 => 333, 115 => 500, 116 => 278, 117 => 556, 118 => 500, 119 => 722, 120 => 500,
+            121 => 500, 122 => 500, 123 => 334, 124 => 260, 125 => 334, 126 => 584
+        ];
+        static $widthsF2 = [
+            32 => 278, 33 => 333, 34 => 474, 35 => 556, 36 => 556, 37 => 889, 38 => 722, 39 => 238,
+            40 => 389, 41 => 389, 42 => 500, 43 => 584, 44 => 278, 45 => 333, 46 => 278, 47 => 278,
+            48 => 556, 49 => 556, 50 => 556, 51 => 556, 52 => 556, 53 => 556, 54 => 556, 55 => 556,
+            56 => 556, 57 => 556, 58 => 333, 59 => 333, 60 => 584, 61 => 584, 62 => 584, 63 => 611,
+            64 => 975,
+            65 => 722, 66 => 722, 67 => 722, 68 => 722, 69 => 667, 70 => 611, 71 => 778, 72 => 722,
+            73 => 278, 74 => 556, 75 => 722, 76 => 611, 77 => 833, 78 => 722, 79 => 778, 80 => 667,
+            81 => 778, 82 => 722, 83 => 667, 84 => 611, 85 => 722, 86 => 667, 87 => 944, 88 => 667,
+            89 => 667, 90 => 611,
+            91 => 333, 92 => 278, 93 => 333, 94 => 584, 95 => 556, 96 => 278,
+            97 => 556, 98 => 611, 99 => 556, 100 => 611, 101 => 556, 102 => 333, 103 => 611, 104 => 611,
+            105 => 278, 106 => 278, 107 => 556, 108 => 278, 109 => 889, 110 => 611, 111 => 611, 112 => 611,
+            113 => 611, 114 => 389, 115 => 556, 116 => 333, 117 => 611, 118 => 556, 119 => 778, 120 => 556,
+            121 => 556, 122 => 500, 123 => 389, 124 => 280, 125 => 389, 126 => 584
+        ];
+
+        $fontCode = in_array($font, ['F1', 'F2', 'F3'], true) ? $font : 'F1';
+        $table = ($fontCode === 'F2') ? $widthsF2 : $widthsF1;
+        $defaultWidth = ($fontCode === 'F2') ? 600 : 500;
+        $units = 0;
+        $len = strlen($text);
+        for ($i = 0; $i < $len; $i++) {
+            $ascii = ord($text[$i]);
+            $units += $table[$ascii] ?? $defaultWidth;
+        }
+        return ($units / 1000.0) * $size;
+    }
+
     public function drawText(float $x, float $y, string $text, string $font = 'F1', float $size = 10, string $align = 'left', ?float $width = null): void
     {
         $safe = $this->escape($text);
         $fontCode = in_array($font, ['F1', 'F2', 'F3'], true) ? $font : 'F1';
 
         if ($align === 'right' && $width !== null) {
-            $approxTextWidth = strlen($safe) * ($size * 0.50);
-            $x = $x + $width - $approxTextWidth;
+            $textWidth = $this->getTextWidth($text, $fontCode, $size);
+            $x = $x + $width - $textWidth;
         } elseif ($align === 'center' && $width !== null) {
-            $approxTextWidth = strlen($safe) * ($size * 0.50);
-            $x = $x + (($width - $approxTextWidth) / 2);
+            $textWidth = $this->getTextWidth($text, $fontCode, $size);
+            $x = $x + (($width - $textWidth) / 2);
         }
 
         $cmd = sprintf("BT\n/%s %.2F Tf\n%.2F %.2F Td\n(%s) Tj\nET\n", $fontCode, $size, $x, $y, $safe);
         $this->append($cmd);
     }
 
-    public function wrapText(string $text, float $maxWidth, float $size = 9.0): array
+    public function wrapText(string $text, float $maxWidth, float $size = 9.0, string $font = 'F1'): array
     {
         $words = preg_split('/\s+/', trim($text));
         if ($words === false || empty($words)) {
@@ -518,7 +565,7 @@ class DpPdfEngine
 
         foreach ($words as $word) {
             $testLine = $currentLine === '' ? $word : $currentLine . ' ' . $word;
-            $testWidth = strlen($testLine) * ($size * 0.50);
+            $testWidth = $this->getTextWidth($testLine, $font, $size);
             if ($testWidth > $maxWidth && $currentLine !== '') {
                 $lines[] = $currentLine;
                 $currentLine = $word;
@@ -740,6 +787,45 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $companyStrn = !empty($doc['company_strn']) ? (string)$doc['company_strn'] : (getenv('COMPANY_STRN') ?: '3277876124452');
     $logoUrl = $doc['company_logo'] ?? $doc['logo_url'] ?? null;
 
+    // Refresh company details directly from companies table as adjusted in Companies Setup page
+    if (!empty($doc['company_id'])) {
+        try {
+            $db = database_connection();
+            $coStmt = $db->prepare('SELECT * FROM companies WHERE id = :cid LIMIT 1');
+            $coStmt->execute(['cid' => (int)$doc['company_id']]);
+            $co = $coStmt->fetch(PDO::FETCH_ASSOC);
+            if ($co) {
+                if (!empty($co['name'])) $companyName = (string)$co['name'];
+                if (!empty($co['address'])) $companyAddress = (string)$co['address'];
+                if (!empty($co['phone']) || !empty($co['mobile'])) $companyPhone = (string)($co['phone'] ?: $co['mobile']);
+                if (!empty($co['email'])) $companyEmail = (string)$co['email'];
+                if (!empty($co['ntn'])) $companyNtn = (string)$co['ntn'];
+                if (!empty($co['strn'])) $companyStrn = (string)$co['strn'];
+                if (!empty($co['logo_url'])) $logoUrl = (string)$co['logo_url'];
+                $doc['company_name'] = $companyName;
+                $doc['company_code'] = $co['code'] ?? null;
+            }
+        } catch (\Throwable $e) {}
+    } elseif (!empty($doc['company_name'])) {
+        try {
+            $db = database_connection();
+            $coStmt = $db->prepare('SELECT * FROM companies WHERE name = :cname OR code = :cname LIMIT 1');
+            $coStmt->execute(['cname' => (string)$doc['company_name']]);
+            $co = $coStmt->fetch(PDO::FETCH_ASSOC);
+            if ($co) {
+                if (!empty($co['name'])) $companyName = (string)$co['name'];
+                if (!empty($co['address'])) $companyAddress = (string)$co['address'];
+                if (!empty($co['phone']) || !empty($co['mobile'])) $companyPhone = (string)($co['phone'] ?: $co['mobile']);
+                if (!empty($co['email'])) $companyEmail = (string)$co['email'];
+                if (!empty($co['ntn'])) $companyNtn = (string)$co['ntn'];
+                if (!empty($co['strn'])) $companyStrn = (string)$co['strn'];
+                if (!empty($co['logo_url'])) $logoUrl = (string)$co['logo_url'];
+                $doc['company_name'] = $companyName;
+                $doc['company_code'] = $co['code'] ?? null;
+            }
+        } catch (\Throwable $e) {}
+    }
+
     $theme = get_company_color_theme($doc);
     $pdf = new DpPdfEngine($theme, $companyName, $companyPhone, $companyNtn);
 
@@ -757,95 +843,144 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         }
     }
 
-    // 1. Top Header: Logo (top-left) and Document Title (top-right)
-    $logoResolved = resolve_company_logo_path($logoUrl);
-    if ($logoResolved) {
-        // Prominent, large logo at top-left corner
-        $pdf->addImage($logoResolved, $left, 822.0, 145.0, 78.0);
+    // Determine Document Title
+    if ($type === 'INVOICE') {
+        $docTitle = !empty($doc['invoice_heading']) ? (string)$doc['invoice_heading'] : (!empty($theme['is_primary']) ? 'SALES TAX INVOICE' : 'COMMERCIAL INVOICE');
+        $docSubtitle = 'SALES TAX INVOICE ACT 1990';
     } else {
-        $pdf->setFillColorArray($theme['primary']);
-        $pdf->drawRoundedRect($left, 744.0, 120.0, 68.0, 5.0, true, false);
-        $pdf->setFillColor(1, 1, 1);
-        $pdf->drawText($left, 774.0, $theme['initials'] ?? 'DPT', 'F2', 22.0, 'center', 120.0);
+        $docTitle = !empty($doc['estimate_heading']) ? (string)$doc['estimate_heading'] : (!empty($doc['title_heading']) ? (string)$doc['title_heading'] : ($theme['doc_title'] ?? 'QUOTATION'));
+        $docSubtitle = 'OFFICIAL ESTIMATE / PROPOSAL';
     }
 
-    // Document Title on top right
-    $docTitle = ($type === 'INVOICE')
-        ? (!empty($doc['invoice_heading']) ? (string)$doc['invoice_heading'] : (!empty($theme['is_primary']) ? 'SALES TAX INVOICE' : 'COMMERCIAL INVOICE'))
-        : ($theme['doc_title'] ?? 'QUOTATION');
+    // Right Column for Document Title (strictly justified within right area width)
+    $rightAreaW = 200.0;
+    $rightAreaX = $left + $width - $rightAreaW;
+
+    $docTitleSize = 18.0;
+    while ($pdf->getTextWidth($docTitle, 'F2', $docTitleSize) > ($rightAreaW - 4.0) && $docTitleSize > 10.0) {
+        $docTitleSize -= 0.5;
+    }
+
+    // Left Column for Logo & Company Name (from Companies Setup)
+    $leftAreaMaxW = $rightAreaX - $left - 12.0;
+    $logoResolved = resolve_company_logo_path($logoUrl);
+
+    if ($logoResolved) {
+        $logoMaxW = 85.0;
+        $logoMaxH = 48.0;
+        $logoInfo = $pdf->addImage($logoResolved, $left, 816.0, $logoMaxW, $logoMaxH);
+        $actualLogoW = $logoInfo ? $logoInfo['width'] : $logoMaxW;
+        $companyTextX = $left + $actualLogoW + 10.0;
+        $companyMaxW = ($rightAreaX - 10.0) - $companyTextX;
+    } else {
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawRoundedRect($left, 768.0, 48.0, 44.0, 4.0, true, false);
+        $pdf->setFillColor(1, 1, 1);
+        $pdf->drawText($left, 782.0, $theme['initials'] ?? 'DPT', 'F2', 15.0, 'center', 48.0);
+        $companyTextX = $left + 58.0;
+        $companyMaxW = ($rightAreaX - 10.0) - $companyTextX;
+    }
+
+    // 1. Top Header: Company Name (from Companies Setup) & Document Title (justified)
+    $compFontSize = 14.5;
+    while ($pdf->getTextWidth($companyName, 'F2', $compFontSize) > ($companyMaxW - 4.0) && $compFontSize > 9.0) {
+        $compFontSize -= 0.5;
+    }
     $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($left, 772.0, $docTitle, 'F2', 21.0, 'right', $width);
+    $pdf->drawText($companyTextX, 796.0, $companyName, 'F2', $compFontSize);
 
-    // 2. Sub-heading under Heading: Clean, justified & balanced across document width
+    // Document Title on top right (right-aligned to exact page margin)
+    $pdf->drawText($rightAreaX, 796.0, $docTitle, 'F2', $docTitleSize, 'right', $rightAreaW);
+
+    // 2. Slogan & Document Subtitle
     $slogan = $theme['slogan'] ?? 'Offering complete Suite of IT and Security solutions';
+    $sloganSize = 8.0;
+    while ($pdf->getTextWidth($slogan, 'F2', $sloganSize) > ($companyMaxW - 4.0) && $sloganSize > 6.5) {
+        $sloganSize -= 0.5;
+    }
     $pdf->setFillColorArray($theme['accent']);
-    $pdf->drawText($left, 730.0, $slogan, 'F2', 11.0, 'center', $width);
+    $pdf->drawText($companyTextX, 783.0, $slogan, 'F2', $sloganSize);
+    $pdf->drawText($rightAreaX, 783.0, $docSubtitle, 'F2', 8.5, 'right', $rightAreaW);
 
-    // Distinct divider rule under the sub-heading
+    // 3. Address & NTN
+    $addrText = $companyAddress;
+    $addrSize = 7.2;
+    while ($pdf->getTextWidth($addrText, 'F1', $addrSize) > ($companyMaxW - 4.0) && $addrSize > 5.5) {
+        $addrSize -= 0.5;
+    }
+    $pdf->setFillColor(0.35, 0.40, 0.48);
+    $pdf->drawText($companyTextX, 771.0, $addrText, 'F1', $addrSize);
+    $pdf->setFillColorArray($theme['primary']);
+    $pdf->drawText($rightAreaX, 771.0, "NTN: {$companyNtn}", 'F2', 8.5, 'right', $rightAreaW);
+
+    // 4. Contact & STRN
+    $contactText = "Tel: {$companyPhone} | Email: {$companyEmail}";
+    $contactSize = 7.0;
+    while ($pdf->getTextWidth($contactText, 'F1', $contactSize) > ($companyMaxW - 4.0) && $contactSize > 5.5) {
+        $contactSize -= 0.5;
+    }
+    $pdf->setFillColor(0.35, 0.40, 0.48);
+    $pdf->drawText($companyTextX, 760.0, $contactText, 'F1', $contactSize);
+    $pdf->setFillColorArray($theme['primary']);
+    $pdf->drawText($rightAreaX, 760.0, "STRN: {$companyStrn}", 'F1', 8.0, 'right', $rightAreaW);
+
+    // Distinct divider rule under the header
     if (($theme['header_style'] ?? '') === 'corporate_letterhead') {
         // PTC: Dual rule (Thick Slate Charcoal bar + Thin Warm Bronze Gold rule)
         $pdf->setStrokeColorArray($theme['primary']);
-        $pdf->setLineWidth(2.2);
-        $pdf->drawLine($left, 724.0, $left + $width, 724.0);
+        $pdf->setLineWidth(2.0);
+        $pdf->drawLine($left, 752.0, $left + $width, 752.0);
 
         $pdf->setStrokeColorArray($theme['accent']);
         $pdf->setLineWidth(0.8);
-        $pdf->drawLine($left, 721.0, $left + $width, 721.0);
+        $pdf->drawLine($left, 749.0, $left + $width, 749.0);
     } elseif (($theme['header_style'] ?? '') === 'tech_emerald') {
         // MTC: Crisp Emerald Teal accent line
         $pdf->setStrokeColorArray($theme['accent']);
         $pdf->setLineWidth(1.6);
-        $pdf->drawLine($left, 722.0, $left + $width, 722.0);
+        $pdf->drawLine($left, 751.0, $left + $width, 751.0);
     } else {
-        // DPT: High-tech hairline blue rule
-        $pdf->setStrokeColor(0.85, 0.90, 0.95);
-        $pdf->setLineWidth(0.75);
-        $pdf->drawLine($left, 722.0, $left + $width, 722.0);
+        // DPT: High-tech sapphire / blue rule
+        $pdf->setStrokeColorArray($theme['primary']);
+        $pdf->setLineWidth(1.2);
+        $pdf->drawLine($left, 751.0, $left + $width, 751.0);
     }
 
-    // 3. Metadata Section
-    $metaY = 698.0;
+    // 5. Metadata Section (Client & Document info)
+    $metaY = 736.0;
 
-    // Left Column: NTN, STR, Client Details
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($left, $metaY, 'NTN No.', 'F2', 9.0);
-    $pdf->drawText($left + 65.0, $metaY, ': ' . $companyNtn, 'F1', 9.0);
-
-    $pdf->drawText($left, $metaY - 14.0, 'STR No.', 'F2', 9.0);
-    $pdf->drawText($left + 65.0, $metaY - 14.0, ': ' . $companyStrn, 'F1', 9.0);
-
+    // Left Column: Client Details
     $clientName = !empty($doc['client_name']) ? (string)$doc['client_name'] : 'Valued Customer';
     $clientCompany = !empty($doc['client_company']) ? (string)$doc['client_company'] : '';
     $clientPhone = $doc['client_phone'] ?? $doc['client_mobile'] ?? '';
     $clientAddress = $doc['client_address'] ?? '';
     $toLabel = ($type === 'INVOICE') ? 'Invoice To' : 'Quotation To';
 
-    $pdf->drawText($left, $metaY - 28.0, $toLabel, 'F2', 9.0);
-    $pdf->drawText($left + 65.0, $metaY - 28.0, ': ' . $clientName . ($clientCompany !== '' ? " ({$clientCompany})" : ''), 'F2', 9.0);
+    $pdf->setFillColorArray($theme['primary']);
+    $pdf->drawText($left, $metaY, $toLabel, 'F2', 9.0);
+    $pdf->drawText($left + 65.0, $metaY, ': ' . $clientName . ($clientCompany !== '' ? " ({$clientCompany})" : ''), 'F2', 9.0);
 
     $clientSub = array_filter([$clientPhone, $clientAddress]);
     if (!empty($clientSub)) {
         $pdf->setFillColor(0.35, 0.40, 0.48);
-        $pdf->drawText($left + 65.0, $metaY - 40.0, ': ' . implode(' | ', $clientSub), 'F1', 8.0);
+        $pdf->drawText($left + 65.0, $metaY - 13.0, ': ' . implode(' | ', $clientSub), 'F1', 8.0);
     }
 
-    // Right Column: Date, EST: # / INV: #
+    // Right Column: Date & Document Number
     $rawDate = $doc['invoice_date'] ?? $doc['estimate_date'] ?? date('Y-m-d');
     $dateTs = strtotime((string)$rawDate);
     $formattedDate = $dateTs ? date('d/m/Y', $dateTs) : (string)$rawDate;
     $docNo = ($type === 'INVOICE') ? ($doc['invoice_no'] ?? 'N/A') : ($doc['estimate_no'] ?? 'N/A');
     $numLabel = ($type === 'INVOICE') ? 'INV: #' : 'EST: #';
 
-    $rightMetaX = $left + $width - 190.0;
+    $rightMetaW = 180.0;
+    $rightMetaX = $left + $width - $rightMetaW;
     $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($rightMetaX, $metaY, 'Date', 'F2', 9.0);
-    $pdf->drawText($rightMetaX + 50.0, $metaY, ': ' . $formattedDate, 'F1', 9.0);
+    $pdf->drawText($rightMetaX, $metaY, 'Date: ' . $formattedDate, 'F1', 9.0, 'right', $rightMetaW);
+    $pdf->drawText($rightMetaX, $metaY - 13.0, $numLabel . ' ' . $docNo, 'F2', 9.5, 'right', $rightMetaW);
 
-    $pdf->drawText($rightMetaX, $metaY - 14.0, $numLabel, 'F2', 9.0);
-    $pdf->drawText($rightMetaX + 50.0, $metaY - 14.0, ': ' . $docNo, 'F2', 9.0);
-
-    // 4. Section Title Banner
-    $bannerY = $metaY - 56.0;
+    // 6. Section Title Banner
+    $bannerY = $metaY - 34.0;
     $sectionTitle = !empty($doc['title']) ? strtoupper(trim((string)$doc['title'])) : 'ACTIVE COMPONENTS-ZONE-1';
     $pdf->setFillColorArray($theme['primary']);
     $pdf->drawRect($left, $bannerY - 16.0, $width, 18.0, true, false);
@@ -861,7 +996,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $pdf->setFillColor(1, 1, 1);
     $pdf->drawText($left, $bannerY - 12.0, $sectionTitle, 'F2', 9.5, 'center', $width);
 
-    // 5. Line Items Table
+    // 7. Line Items Table
     $tableTop = $bannerY - 20.0;
     $pdf->setY($tableTop);
 
