@@ -321,20 +321,20 @@ function loadPrices() {
             return `
             <tr class="border-b border-gray-50 hover:bg-slate-50">
                 <td class="px-5 py-3">
-                    <p class="font-medium text-gray-800 text-sm">${p.escaped_name || p.name}</p>
-                    ${p.description ? `<p class="text-xs text-gray-400">${p.description}</p>` : ''}
+                    <p class="font-medium text-gray-800 text-sm">${escHtml(p.escaped_name || p.name)}</p>
+                    ${p.description ? `<p class="text-xs text-gray-400">${escHtml(p.description)}</p>` : ''}
                 </td>
-                <td class="px-5 py-3"><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">${p.category||'general'}</span></td>
-                <td class="px-5 py-3 text-sm text-gray-600">${p.unit}</td>
+                <td class="px-5 py-3"><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">${escHtml(p.category||'general')}</span></td>
+                <td class="px-5 py-3 text-sm text-gray-600">${escHtml(p.unit)}</td>
                 <td class="px-5 py-3 text-right">
-                    <span class="inline-block price-display-${p.id} font-semibold text-gray-800">PKR ${Number(p.unit_price).toLocaleString('en-PK', {minimumFractionDigits:2})}</span>
+                    <span class="inline-block price-display-${Number(p.id)} font-semibold text-gray-800">PKR ${Number(p.unit_price).toLocaleString('en-PK', {minimumFractionDigits:2})}</span>
                 </td>
-                <td class="px-5 py-3 text-center text-sm ${dateClass}">${p.effective_date}${dateBadge}</td>
-                <td class="px-5 py-3 text-xs text-gray-400 max-w-[120px] truncate" title="${p.source||''}">${p.source||'manual'}</td>
+                <td class="px-5 py-3 text-center text-sm ${dateClass}">${escHtml(p.effective_date)}${dateBadge}</td>
+                <td class="px-5 py-3 text-xs text-gray-400 max-w-[120px] truncate" title="${escHtml(p.source||'')}">${escHtml(p.source||'manual')}</td>
                 <td class="px-5 py-3 text-right space-x-3">
-                    <button onclick='editPrice(${JSON.stringify(p).replace(/'/g,"&#39;")})' class="text-cyan-600 hover:text-cyan-800 text-sm" title="Edit"><i class="fas fa-edit"></i></button>
-                    <button onclick="quickEditPrice(${p.id}, '${p.name.replace(/'/g,"\\'")}', ${p.unit_price})" class="text-blue-500 hover:text-blue-700 text-sm" title="Quick Edit Price"><i class="fas fa-pen"></i></button>
-                    <button onclick="deletePrice(${p.id})" class="text-red-500 hover:text-red-700 text-sm" title="Delete"><i class="fas fa-trash"></i></button>
+                    <button onclick="editPrice(${escHtml(JSON.stringify(p))})" class="text-cyan-600 hover:text-cyan-800 text-sm" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button onclick="quickEditPrice(${Number(p.id)}, ${escHtml(JSON.stringify(p.name))}, ${Number(p.unit_price)})" class="text-blue-500 hover:text-blue-700 text-sm" title="Quick Edit Price"><i class="fas fa-pen"></i></button>
+                    <button onclick="deletePrice(${Number(p.id)})" class="text-red-500 hover:text-red-700 text-sm" title="Delete"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>`}).join(''));
     });
@@ -359,9 +359,9 @@ function quickEditPrice(id, name, currentPrice) {
 function loadCategories() {
     $.ajax({url: '/api/prices/categories', headers: {Authorization: 'Bearer ' + token}})
     .done(function(cats) {
-        const opts = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+        const opts = cats.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
         $('#filter-category').append(opts);
-        $('#cat-list').html(cats.map(c => `<option value="${c}">`).join(''));
+        $('#cat-list').html(cats.map(c => `<option value="${escHtml(c)}">`).join(''));
     });
 }
 
@@ -443,12 +443,12 @@ function scrapeURL() {
     .done(function(r) {
         $('#scrape-count').text(r.items.length);
         $('#scrape-body').html(r.items.map(function(it, i){
-            const name = it.name.replace(/"/g,'&quot;').replace(/</g,'&lt;');
-            const desc = (it.description||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-            const cat = (it.category||'general').replace(/"/g,'&quot;');
+            const name = escHtml(it.name);
+            const desc = escHtml(it.description||'');
+            const cat = escHtml(it.category||'general');
             return `<tr class="border-t border-gray-50">
                 <td class="px-3 py-2"><input type="checkbox" class="scrape-item" checked
-                    data-name="${name}" data-desc="${desc}" data-cat="${cat}" data-unit="${it.unit||'pcs'}" data-price="${it.unit_price}"></td>
+                    data-name="${name}" data-desc="${desc}" data-cat="${cat}" data-unit="${escHtml(it.unit||'pcs')}" data-price="${escHtml(it.unit_price)}"></td>
                 <td class="px-3 py-2"><p class="font-medium text-gray-800 text-sm">${name}</p>${it.description?`<p class="text-xs text-gray-400 truncate">${desc}</p>`:''}</td>
                 <td class="px-3 py-2"><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">${cat}</span></td>
                 <td class="px-3 py-2 text-right font-semibold text-gray-800 text-sm">PKR ${Number(it.unit_price).toLocaleString('en-PK', {minimumFractionDigits:2})}</td>

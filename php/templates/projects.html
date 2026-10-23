@@ -32,14 +32,14 @@ function load(){$.ajax({url:'/api/projects',method:'GET',headers:{Authorization:
     if(!ps.length){$('#projects-body').html('<tr><td colspan="6" class="text-center py-8 text-gray-400">No projects</td></tr>');return;}
     const sc={'planning':'bg-gray-100 text-gray-600','in_progress':'bg-blue-100 text-blue-700','on_hold':'bg-amber-100 text-amber-700','completed':'bg-green-100 text-green-700','cancelled':'bg-red-100 text-red-700'};
     $('#projects-body').html(ps.map(p=>`<tr class="border-b border-gray-50 hover:bg-dptech-50">
-        <td class="px-6 py-4 font-medium">${p.name}</td>
-        <td class="px-6 py-4 text-gray-600">${p.client?.name||'-'}</td>
-        <td class="px-6 py-4 text-sm text-gray-500">${p.start_date||'-'} → ${p.end_date||'-'}</td>
+        <td class="px-6 py-4 font-medium">${escHtml(p.name)}</td>
+        <td class="px-6 py-4 text-gray-600">${escHtml(p.client?.name||'-')}</td>
+        <td class="px-6 py-4 text-sm text-gray-500">${escHtml(p.start_date||'-')} → ${escHtml(p.end_date||'-')}</td>
         <td class="px-6 py-4 text-right font-medium">PKR ${(p.budget||0).toLocaleString()}</td>
-        <td class="px-6 py-4 text-center"><span class="text-xs px-2 py-1 rounded-full ${sc[p.status]||'bg-gray-100'}">${p.status?.replace('_',' ')}</span></td>
+        <td class="px-6 py-4 text-center"><span class="text-xs px-2 py-1 rounded-full ${sc[p.status]||'bg-gray-100'}">${escHtml(p.status?.replace('_',' '))}</span></td>
         <td class="px-6 py-4 text-right">
-            <button onclick="editProject(${p.id})" class="text-amber-600 hover:text-amber-800 text-sm mr-2 bg-transparent border-0 cursor-pointer" title="Edit"><i class="fas fa-edit"></i></button>
-            <button class="text-red-600 hover:text-red-800 text-sm bg-transparent border-0 cursor-pointer cancel-project" data-id="${p.id}" data-name="${p.name}" title="Cancel"><i class="fas fa-times"></i></button>
+            <button onclick="editProject(${Number(p.id)})" class="text-amber-600 hover:text-amber-800 text-sm mr-2 bg-transparent border-0 cursor-pointer" title="Edit"><i class="fas fa-edit"></i></button>
+            <button class="text-red-600 hover:text-red-800 text-sm bg-transparent border-0 cursor-pointer cancel-project" data-id="${Number(p.id)}" data-name="${escHtml(p.name)}" title="Cancel"><i class="fas fa-times"></i></button>
         </td>
     </tr>`).join(''));
 });}
@@ -62,7 +62,7 @@ $(document).on('click', '.cancel-project', function(e){
 });
 $(function(){
     load();
-    $.ajax({url:'/api/clients',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(cs){cs.forEach(c=>{$('#pclient').append(`<option value="${c.id}">${c.name}</option>`);});});
+    $.ajax({url:'/api/clients',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(cs){cs.forEach(c=>{$('#pclient').append(`<option value="${Number(c.id)}">${escHtml(c.name)}</option>`);});});
     $('#project-form').submit(function(e){e.preventDefault();
         const data={name:$('#pname').val(),client_id:parseInt($('#pclient').val())||null,start_date:$('#pstart').val()||null,end_date:$('#pend').val()||null,budget:parseFloat($('#pbudget').val())||0,description:$('#pdesc').val()};
         const id=$('#pid').val();

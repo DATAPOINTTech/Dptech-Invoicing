@@ -60,7 +60,7 @@ function esc(s) {
 
 function renderCompanyCard(co, idx) {
     const p = defaultProfiles[idx] || { badge: `Company ${idx+1}`, badgeCls: 'bg-gray-100 text-gray-800 border-gray-200', markup: idx };
-    const logoUrl = co.logo_url || '/static/img/logo.png';
+    const logoUrl = /^(\/static\/|https?:\/\/)/i.test(co.logo_url || '') ? co.logo_url : '/static/img/logo.png';
     const markupVal = co.markup_percent !== undefined && co.markup_percent !== null ? co.markup_percent : p.markup;
 
     return `
@@ -74,7 +74,7 @@ function renderCompanyCard(co, idx) {
         </div>
 
         <div class="p-5 space-y-4 flex-1">
-            <input type="hidden" class="co-id" value="${co.id || ''}">
+            <input type="hidden" class="co-id" value="${esc(co.id || '')}">
 
             <!-- Logo Section -->
             <div class="flex items-center gap-4 pb-3 border-b border-gray-100">
@@ -105,7 +105,7 @@ function renderCompanyCard(co, idx) {
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Item Markup %</label>
-                    <input type="number" step="0.1" class="co-markup w-full px-2.5 py-1.5 border rounded-lg text-xs font-bold text-blue-600" value="${markupVal}">
+                    <input type="number" step="0.1" class="co-markup w-full px-2.5 py-1.5 border rounded-lg text-xs font-bold text-blue-600" value="${esc(String(markupVal))}">
                 </div>
             </div>
 

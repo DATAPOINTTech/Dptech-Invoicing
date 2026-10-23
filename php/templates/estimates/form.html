@@ -342,7 +342,7 @@ function addItem(item = {}) {
         const cost = parseFloat(p.cost_price) || 0;
         const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
         const costStr = cost > 0 ? ` (Purchase: PKR ${Number(cost).toLocaleString()} + 10%)` : '';
-        return `<option value="${p.id}" ${item.product_id == p.id ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
+        return `<option value="${esc(p.id)}" ${item.product_id == p.id ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
     }).join('');
 
     const isCustom = !item.product_id && (item.description || !productList.length);
@@ -386,7 +386,7 @@ function addItem(item = {}) {
                 <input type="text" name="model_make" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Model / Make" value="${esc(item.model_make || '')}">
             </div>
             <div class="col-span-4 md:col-span-1">
-                <input type="number" name="qty" class="qty-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-center" placeholder="Qty" value="${item.quantity || 1}" min="0.01" step="any" required>
+                <input type="number" name="qty" class="qty-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-center" placeholder="Qty" value="${esc(item.quantity || 1)}" min="0.01" step="any" required>
             </div>
             <div class="col-span-4 md:col-span-1">
                 <select name="unit" class="w-full px-1 py-1.5 border rounded-lg text-xs bg-white text-center">
@@ -400,7 +400,7 @@ function addItem(item = {}) {
                 </select>
             </div>
             <div class="col-span-3 md:col-span-1">
-                <input type="number" name="price" class="price-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-right font-semibold" placeholder="Price" value="${initPrice}" step="0.01" required>
+                <input type="number" name="price" class="price-input w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-right font-semibold" placeholder="Price" value="${esc(initPrice)}" step="0.01" required>
             </div>
             <div class="col-span-1 text-center">
                 <button type="button" onclick="$(this).closest('.item-row').remove(); calcTotal();" class="text-red-400 hover:text-red-600 transition-colors"><i class="fas fa-trash"></i></button>
@@ -481,7 +481,7 @@ function calcTotal() {
     if (selCo) {
         $('#sc-total').text(total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         $('#sc-name').text(selCo.name);
-        $('#sc-logo').attr('src', selCo.logo_url || '/static/img/logo.png');
+        $('#sc-logo').attr('src', /^(\/static\/|https?:\/\/)/i.test(selCo.logo_url || '') ? selCo.logo_url : '/static/img/logo.png');
         $('#sc-markup-text').text(selCo.city ? selCo.city : 'Selected Company');
     }
 }
@@ -499,7 +499,7 @@ function loadCompaniesSummary() {
         configuredCompanies.forEach(c => {
             const isSel = queryCid ? (String(c.id) === String(queryCid)) : Boolean(c.is_default);
             const defBadge = c.is_default ? ' (Default)' : '';
-            primaryOpts += `<option value="${c.id}" ${isSel ? 'selected' : ''}>${esc(c.name)}${defBadge}</option>`;
+            primaryOpts += `<option value="${esc(c.id)}" ${isSel ? 'selected' : ''}>${esc(c.name)}${defBadge}</option>`;
         });
         $('#company_id').html(primaryOpts);
 
@@ -507,7 +507,7 @@ function loadCompaniesSummary() {
         let singleOpts = '';
         configuredCompanies.forEach(c => {
             const isSel = queryCid ? (String(c.id) === String(queryCid)) : Boolean(c.is_default);
-            singleOpts += `<option value="${c.id}" ${isSel ? 'selected' : ''}>${esc(c.name)}</option>`;
+            singleOpts += `<option value="${esc(c.id)}" ${isSel ? 'selected' : ''}>${esc(c.name)}</option>`;
         });
         $('#single_company_id').html(singleOpts);
 
@@ -544,10 +544,10 @@ function showCompanySetupModal() {
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-bold text-indigo-900">${defaults[idx].badge}</span>
                 </div>
-                <input type="hidden" class="m-co-id" value="${co.id || ''}">
+                <input type="hidden" class="m-co-id" value="${esc(co.id || '')}">
                 <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200">
                     <div class="w-10 h-10 rounded border bg-white flex items-center justify-center overflow-hidden shrink-0">
-                        <img src="${esc(co.logo_url || '/static/img/logo.png')}" class="m-logo-prev max-w-full max-h-full object-contain">
+                        <img src="${esc(/^(\/static\/|https?:\/\/)/i.test(co.logo_url || '') ? co.logo_url : '/static/img/logo.png')}" class="m-logo-prev max-w-full max-h-full object-contain">
                     </div>
                     <div class="flex-1">
                         <label class="cursor-pointer text-[10px] font-bold bg-white border border-gray-300 px-2 py-1 rounded inline-block">
@@ -693,7 +693,7 @@ function loadPricePickerResults(q) {
             const cost = parseFloat(p.cost_price) || 0;
             const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
             return `
-                <button type="button" onclick="addProductFromSheet(${p.id})" class="w-full text-left px-4 py-3 hover:bg-indigo-50/60 flex justify-between items-center transition-all group">
+                <button type="button" onclick="addProductFromSheet(${Number(p.id)})" class="w-full text-left px-4 py-3 hover:bg-indigo-50/60 flex justify-between items-center transition-all group">
                     <div class="min-w-0 pr-3">
                         <p class="text-xs font-bold text-gray-900 group-hover:text-indigo-900">${esc(p.name)}</p>
                         <div class="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 font-mono">
@@ -719,7 +719,7 @@ function loadPricePickerResults(q) {
             return;
         }
         $('#price-results').html(priceCache.map(p => `
-            <button type="button" onclick="addPriceListItem(${p.id})" class="w-full text-left px-4 py-3 hover:bg-cyan-50 flex justify-between items-center transition-all group">
+            <button type="button" onclick="addPriceListItem(${Number(p.id)})" class="w-full text-left px-4 py-3 hover:bg-cyan-50 flex justify-between items-center transition-all group">
                 <div class="min-w-0 pr-3">
                     <p class="text-xs font-bold text-gray-900 group-hover:text-cyan-900">${esc(p.name)}</p>
                     <p class="text-[11px] text-gray-400">${esc(p.category || 'General')}</p>
@@ -788,7 +788,7 @@ $('#new-client-form').submit(function(e) {
     };
     $.ajax({ url: '/api/clients', method: 'POST', contentType: 'application/json', data: JSON.stringify(data), headers: authHeaders })
         .done(function(c) {
-            $('#client_id').append(`<option value="${c.id}">${esc(c.name)}${c.company ? ' (' + esc(c.company) + ')' : ''}</option>`);
+            $('#client_id').append(`<option value="${esc(c.id)}">${esc(c.name)}${c.company ? ' (' + esc(c.company) + ')' : ''}</option>`);
             $('#client_id').val(c.id);
             hideNewClient();
         })
@@ -810,7 +810,7 @@ $(function() {
             $('#client_id').html('<option value="">Select Client</option>');
             if (clients && clients.length) {
                 clients.forEach(c => {
-                    $('#client_id').append(`<option value="${c.id}">${esc(c.name)}${c.company ? ' (' + esc(c.company) + ')' : ''}</option>`);
+                    $('#client_id').append(`<option value="${esc(c.id)}">${esc(c.name)}${c.company ? ' (' + esc(c.company) + ')' : ''}</option>`);
                 });
             }
             $('#client_id').append('<option value="new">+ Create New Client</option>');
@@ -1035,13 +1035,13 @@ function applyImportedDraft(draft) {
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="font-bold text-sm text-gray-800">${esc(est.company_name)}</span>
-                                ${est.is_primary ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-star text-amber-500 mr-1"></i>Primary (0% Base)</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Supporting (+' + est.markup_percent + '%)</span>'}
+                                ${est.is_primary ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-star text-amber-500 mr-1"></i>Primary (0% Base)</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Supporting (+' + esc(est.markup_percent) + '%)</span>'}
                             </div>
                             <p class="text-xs text-gray-500 mt-0.5">Estimate #: <strong>${esc(est.estimate_no)}</strong> • Total: <strong>PKR ${Number(est.total_amount).toLocaleString(undefined,{minimumFractionDigits:2})}</strong></p>
                         </div>
                         <div class="flex gap-2">
-                            <a href="/estimates/${est.id}" class="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">View</a>
-                            <a href="/api/estimates/${est.id}/pdf?token=${encodeURIComponent(token)}" target="_blank" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold flex items-center gap-1">
+                            <a href="/estimates/${Number(est.id)}" class="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">View</a>
+                            <a href="/api/estimates/${Number(est.id)}/pdf?token=${encodeURIComponent(token)}" target="_blank" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold flex items-center gap-1">
                                 <i class="fas fa-print"></i> PDF
                             </a>
                         </div>

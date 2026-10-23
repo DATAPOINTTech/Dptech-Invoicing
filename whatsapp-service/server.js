@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors');
+const crypto = require('crypto');
 const qrcode = require('qrcode');
 const pino = require('pino');
 const fs = require('fs');
@@ -54,8 +54,39 @@ const {
     fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 
+// Shared secret between this service and the PHP app. Every request must carry it, so nobody else
+// who can reach this port (other accounts on shared hosting, a web page in a browser) can use it.
+// Uses WHATSAPP_BRIDGE_SECRET if set, otherwise the secret file the PHP app creates in php/storage.
+function loadBridgeSecret() {
+    const fromEnv = (process.env.WHATSAPP_BRIDGE_SECRET || '').trim();
+    if (fromEnv.length >= 16) return fromEnv;
+
+    const secretFile = path.join(__dirname, '..', 'php', 'storage', '.bridge_secret');
+    try {
+        const existing = fs.readFileSync(secretFile, 'utf8').trim();
+        if (existing.length >= 32) return existing;
+    } catch (e) {}
+
+    const generated = crypto.randomBytes(32).toString('hex');
+    try {
+        fs.writeFileSync(secretFile, generated, { mode: 0o600 });
+        return generated;
+    } catch (e) {
+        console.error('FATAL: no WHATSAPP_BRIDGE_SECRET set and cannot read/write ' + secretFile);
+        process.exit(1);
+    }
+}
+const BRIDGE_SECRET = loadBridgeSecret();
+
 const app = express();
-app.use(cors());
+app.use((req, res, next) => {
+    const given = Buffer.from(String(req.headers['x-bridge-secret'] || ''));
+    const expected = Buffer.from(BRIDGE_SECRET);
+    if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
+        return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+    next();
+});
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -176,7 +207,8 @@ async function callPhpAgentBridge(senderPhone, senderName, messageText) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
+                'Content-Length': Buffer.byteLength(postData),
+                'X-Bridge-Secret': BRIDGE_SECRET
             },
             timeout: 15000
         };

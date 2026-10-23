@@ -32,22 +32,22 @@ function load(){const low=$('#low-only').is(':checked');$.ajax({url:'/api/invent
     if(!items||!items.length){$('#stock-body').html('<tr><td colspan="7" class="text-center py-8 text-gray-400">No inventory records</td></tr>');return;}
     try {
         $('#stock-body').html(items.map(i=>`<tr class="border-b border-gray-50 hover:bg-dptech-50">
-            <td class="px-6 py-4 font-medium text-gray-800">${i.product_name||''}</td>
-            <td class="px-6 py-4 text-gray-500 text-sm">${i.sku||'-'}</td>
-            <td class="px-6 py-4 text-right font-semibold ${(i.low_stock)?'text-red-600':'text-gray-800'}">${i.quantity||0} <span class="text-xs text-gray-400">${i.unit||'pcs'}</span></td>
-            <td class="px-6 py-4 text-right text-gray-500 text-sm">${i.min_stock||0}</td>
-            <td class="px-6 py-4 text-right text-gray-500 text-sm">${i.max_stock||'-'}</td>
+            <td class="px-6 py-4 font-medium text-gray-800">${escHtml(i.product_name||'')}</td>
+            <td class="px-6 py-4 text-gray-500 text-sm">${escHtml(i.sku||'-')}</td>
+            <td class="px-6 py-4 text-right font-semibold ${(i.low_stock)?'text-red-600':'text-gray-800'}">${escHtml(i.quantity||0)} <span class="text-xs text-gray-400">${escHtml(i.unit||'pcs')}</span></td>
+            <td class="px-6 py-4 text-right text-gray-500 text-sm">${escHtml(i.min_stock||0)}</td>
+            <td class="px-6 py-4 text-right text-gray-500 text-sm">${escHtml(i.max_stock||'-')}</td>
             <td class="px-6 py-4 text-right">PKR ${Number(i.unit_price).toLocaleString()}</td>
             <td class="px-6 py-4 text-center">${i.low_stock?'<span class="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Low Stock</span>':'<span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">In Stock</span>'}</td>
         </tr>`).join(''));
-    } catch(e){$('#stock-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Error rendering: '+e.message+'</td></tr>');}
-}).fail(function(x){$('#stock-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load: '+(x.statusText||'server error')+'</td></tr>');});}
+    } catch(e){$('#stock-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Error rendering: '+escHtml(e.message)+'</td></tr>');}
+}).fail(function(x){$('#stock-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load: '+escHtml(x.statusText||'server error')+'</td></tr>');});}
 function showIssueModal(){
     $('#issue-pid').prop('disabled',true).html('<option value="">Loading...</option>');
     $('#issue-modal').removeClass('hidden').addClass('flex');
     $.ajax({url:'/api/inventory',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(items){
         var opts='<option value="">-- Select product --</option>';
-        items.forEach(function(i){opts+='<option value="'+i.product_id+'">'+i.product_name+' ('+i.quantity+' '+i.unit+')</option>';});
+        items.forEach(function(i){opts+='<option value="'+Number(i.product_id)+'">'+escHtml(i.product_name)+' ('+escHtml(i.quantity)+' '+escHtml(i.unit)+')</option>';});
         $('#issue-pid').prop('disabled',false).html(opts);
     }).fail(function(){$('#issue-pid').prop('disabled',false).html('<option value="">Failed to load products</option>');});
 }

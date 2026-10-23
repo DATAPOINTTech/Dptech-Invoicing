@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_purchases_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/purchases') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'purchases', 'view');
         $status = $_GET['status'] ?? null;
         $sql = 'SELECT p.*, s.name AS supplier_display_name FROM purchase_invoices p LEFT JOIN suppliers s ON s.id = p.supplier_id';
         $params = [];
@@ -143,6 +144,7 @@ function handle_purchases_routes(string $method, string $path, PDO $db): bool
         $user = require_authenticated_user($db);
 
         if ($sub === '' && $method === 'GET') {
+            require_permission_for($db, $user, 'purchases', 'view');
             $stmt = $db->prepare('SELECT p.*, s.name AS supplier_display_name FROM purchase_invoices p LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = :id');
             $stmt->execute(['id' => $purchaseId]);
             $purchase = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -203,6 +205,7 @@ function handle_purchases_routes(string $method, string $path, PDO $db): bool
         }
 
         if ($sub === '/payments' && $method === 'GET') {
+            require_permission_for($db, $user, 'purchases', 'view');
             $stmt = $db->prepare('SELECT * FROM purchase_payments WHERE purchase_id = :id ORDER BY payment_date DESC, id DESC');
             $stmt->execute(['id' => $purchaseId]);
             json_response($stmt->fetchAll(PDO::FETCH_ASSOC));

@@ -44,6 +44,15 @@ php/storage/*.db
 php/storage/*.db*
 php/storage/*.sqlite*
 php/storage/*.sql*
+# Generated secrets, first-run credentials and data snapshots: never commit these
+php/storage/.app_secret
+php/storage/.bridge_secret
+php/storage/first_run_admin_password.txt
+php/storage/reset_password.txt
+php/storage/products_backup_*.json
+php/public/static/uploads/*
+!php/public/static/uploads/.htaccess
+!php/storage/.htaccess
 !php/storage/.gitkeep
 cpanel_backup/*.sql
 cpanel_backup/*.sqlite

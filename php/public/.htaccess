@@ -13,6 +13,8 @@
 
     # Block sensitive files
     RewriteRule ^(\.env|\.git|.*\.db|.*\.sqlite) - [F,L,NC]
+    RewriteRule ^.*\.(md|sql|zip|log|bak|sqlite3|pem|key|yml|yaml)$ - [F,L,NC]
+    RewriteRule (^|/)\.(?!well-known) - [F,L,NC]
 
     # Pass Authorization and X-Authorization headers to PHP
     RewriteCond %{HTTP:Authorization} .

@@ -83,7 +83,7 @@ let purchaseStatus = '';
 
 function statusBadge(s){
     const m={paid:'badge-green',partially_paid:'badge-amber',cancelled:'badge-red',received:'badge-blue',draft:'badge-gray'};
-    return `<span class="badge ${m[s]||'badge-gray'}">${s.replace('_',' ')}</span>`;
+    return `<span class="badge ${m[s]||'badge-gray'}">${escHtml(s.replace('_',' '))}</span>`;
 }
 
 function loadPurchase(){
@@ -102,16 +102,16 @@ function loadPurchase(){
         $('#p-paid').text(p.amount_paid?.toLocaleString()||'0');
         $('#p-balance').text('PKR '+(p.balance_due?.toLocaleString()||'0'));
         $('#items-body').html((p.items||[]).map(i=>`<tr class="border-b">
-            <td class="py-2">${i.product_name}</td>
-            <td class="py-2 text-right">${i.quantity} ${i.unit}</td>
+            <td class="py-2">${escHtml(i.product_name)}</td>
+            <td class="py-2 text-right">${escHtml(i.quantity)} ${escHtml(i.unit)}</td>
             <td class="py-2 text-right">PKR ${i.unit_price?.toLocaleString()}</td>
-            <td class="py-2 text-right">${i.tax_rate}%</td>
+            <td class="py-2 text-right">${escHtml(i.tax_rate)}%</td>
             <td class="py-2 text-right font-medium">PKR ${i.total_price?.toLocaleString()}</td>
         </tr>`).join(''));
         $('#pay-form').toggle(p.status !== 'cancelled' && p.status !== 'paid');
     }).fail(function(x){
         $('#purchase-details-error').remove();
-        $('.lg\\:col-span-2').first().before('<div id="purchase-details-error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">Failed to load purchase: '+(x.responseJSON?.detail||'Unknown error')+'</div>');
+        $('.lg\\:col-span-2').first().before('<div id="purchase-details-error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">Failed to load purchase: '+escHtml(x.responseJSON?.detail||'Unknown error')+'</div>');
     });
 }
 
@@ -121,9 +121,9 @@ function loadPayments(){
             $('#payments-list').html('<p class="text-sm text-gray-400 text-center py-4">No payments recorded</p>');
             return;
         }
-        $('#payments-list').html(`<table class="w-full text-sm"><thead><tr class="border-b text-gray-500"><th class="pb-2 text-left">Date</th><th class="pb-2 text-right">Amount</th><th class="pb-2 text-left">Method</th><th class="pb-2 text-left">Ref</th></tr></thead><tbody>${pms.map(pm=>`<tr class="border-b"><td class="py-2">${pm.payment_date}</td><td class="py-2 text-right font-medium text-green-600">PKR ${pm.amount?.toLocaleString()}</td><td class="py-2">${pm.payment_method}</td><td class="py-2 text-gray-500">${pm.reference_no||'-'}</td></tr>`).join('')}</tbody></table>`);
+        $('#payments-list').html(`<table class="w-full text-sm"><thead><tr class="border-b text-gray-500"><th class="pb-2 text-left">Date</th><th class="pb-2 text-right">Amount</th><th class="pb-2 text-left">Method</th><th class="pb-2 text-left">Ref</th></tr></thead><tbody>${pms.map(pm=>`<tr class="border-b"><td class="py-2">${escHtml(pm.payment_date)}</td><td class="py-2 text-right font-medium text-green-600">PKR ${pm.amount?.toLocaleString()}</td><td class="py-2">${escHtml(pm.payment_method)}</td><td class="py-2 text-gray-500">${escHtml(pm.reference_no||'-')}</td></tr>`).join('')}</tbody></table>`);
     }).fail(function(x){
-        $('#payments-list').html('<p class="text-sm text-red-500 text-center py-4">Failed to load payments: '+(x.responseJSON?.detail||'Unknown error')+'</p>');
+        $('#payments-list').html('<p class="text-sm text-red-500 text-center py-4">Failed to load payments: '+escHtml(x.responseJSON?.detail||'Unknown error')+'</p>');
     });
 }
 

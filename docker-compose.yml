@@ -9,12 +9,13 @@ services:
       - "8000:80"
     environment:
       - APP_ENV=production
-      - COMPANY_NAME=DATAPOINT Technologies
-      - SECRET_KEY=change-this-to-a-secure-random-secret-key
+      # Set these in your shell or a .env file next to this file (never commit real values)
+      - COMPANY_NAME=${COMPANY_NAME:-Your Company Name}
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY to a long random value (32+ characters)}
       - DATABASE_URL=sqlite:///./storage/dptech.db
-      - ADMIN_USERNAME=admin
-      - ADMIN_EMAIL=admin@datapointtechnology.com
-      - ADMIN_PASSWORD=admin123
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD to a strong password (8+ characters)}
     volumes:
       - ./php/storage:/var/www/html/php/storage
     healthcheck:

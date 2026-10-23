@@ -14,6 +14,15 @@
     # Block access to sensitive files and directories
     RewriteRule ^(\.env|\.git|.*\.db|.*\.sqlite|composer\.(json|lock)|Dockerfile|docker-compose\.yml|Procfile) - [F,L,NC]
 
+    # Never serve application internals, maintenance scripts, tests, backups or packaging files.
+    # Only php/public (the web root of the app) may be reached from a browser.
+    RewriteRule ^php/(scripts|tests|storage|services|routes|templates)(/|$) - [F,L,NC]
+    RewriteRule ^php/(bootstrap\.php|\.env.*|README.*)$ - [F,L,NC]
+    RewriteRule ^(whatsapp-service|cpanel_backup|Cpanel-RSAkey|dptech-invoicing-cpanel|output|pdf_output)(/|$) - [F,L,NC]
+    RewriteRule ^(\.cpanel\.yml|package_cpanel\.py|run\.php|nginx\.conf)$ - [F,L,NC]
+    RewriteRule ^.*\.(md|sql|zip|log|bak|sqlite3|pem|key|yml|yaml)$ - [F,L,NC]
+    RewriteRule (^|/)\.(?!well-known) - [F,L,NC]
+
     # Forward Authorization and X-Authorization headers to PHP
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

@@ -108,9 +108,9 @@ function addItem(data){
     const html=`<div class="item-row border border-gray-200 rounded-lg p-3 mb-2 grid grid-cols-12 gap-2 items-end bg-gray-50/40">
         <div class="col-span-12 md:col-span-4"><label class="text-xs font-semibold text-gray-600">Item Description *</label><input type="text" name="desc" class="w-full px-2.5 py-1.5 border rounded-lg text-sm bg-white" placeholder="Item name & description" value="${esc(data?.description||'')}" required></div>
         <div class="col-span-12 md:col-span-3"><label class="text-xs font-semibold text-gray-600">Model / Make</label><input type="text" name="model_make" class="w-full px-2.5 py-1.5 border rounded-lg text-sm bg-white" placeholder="Model / Make" value="${esc(data?.model_make||'')}"></div>
-        <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Qty</label><input type="number" name="qty" step="any" min="0.01" class="w-full px-2 py-1.5 border rounded-lg text-sm bg-white qty-input text-center" value="${data?.quantity||1}"></div>
+        <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Qty</label><input type="number" name="qty" step="any" min="0.01" class="w-full px-2 py-1.5 border rounded-lg text-sm bg-white qty-input text-center" value="${esc(data?.quantity||1)}"></div>
         <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Unit</label><select name="unit" class="w-full px-1.5 py-1.5 border rounded-lg text-sm bg-white text-center"><option value="pcs" ${data?.unit==='pcs'?'selected':''}>pcs</option><option value="No." ${data?.unit==='No.'?'selected':''}>No.</option><option value="service" ${data?.unit==='service'?'selected':''}>service</option><option value="meter" ${data?.unit==='meter'?'selected':''}>meter</option><option value="box" ${data?.unit==='box'?'selected':''}>box</option><option value="set" ${data?.unit==='set'?'selected':''}>set</option><option value="roll" ${data?.unit==='roll'?'selected':''}>roll</option><option value="hour" ${data?.unit==='hour'?'selected':''}>hour</option><option value="day" ${data?.unit==='day'?'selected':''}>day</option><option value="job" ${data?.unit==='job'?'selected':''}>job</option></select></div>
-        <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Rate</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded-lg text-sm bg-white price-input text-right" value="${data?.unit_price||0}"></div>
+        <div class="col-span-4 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Rate</label><input type="number" name="price" step="0.01" class="w-full px-2 py-1.5 border rounded-lg text-sm bg-white price-input text-right" value="${esc(data?.unit_price||0)}"></div>
         <div class="col-span-10 md:col-span-1"><label class="text-xs font-semibold text-gray-600">Total</label><input type="text" name="row-total" readonly class="w-full px-1.5 py-1.5 bg-gray-100 border rounded-lg text-sm text-right font-medium" value="0.00"></div>
         <div class="col-span-2 md:col-span-1 text-center"><button type="button" onclick="this.closest('.item-row').remove();calcTotal();" class="text-red-400 hover:text-red-600 py-2"><i class="fas fa-trash"></i></button></div>
     </div>`;
@@ -128,7 +128,7 @@ function calcTotal(){
     if($('#apply_wht').is(':checked')){$('#display-wht span').text(wht.toFixed(2));}
     if(tr>0){$('#display-tax-row').removeClass('hidden');$('#display-tax-row').find('span:first').text('GST ('+tr+'%): PKR ');}else{$('#display-tax-row').addClass('hidden');}
 }
-function esc(s){return $('<div>').text(s==null?'':String(s)).html();}
+function esc(s){return escHtml(s);}
 let priceCache=[],priceSearchTimer;
 function showPricePicker(){
     $('#price-search').val('');
@@ -143,7 +143,7 @@ function loadPricePickerResults(q){
         priceCache=items||[];
         if(!priceCache.length){ $('#price-results').html('<p class="text-sm text-gray-400 text-center py-6">No price list items found.</p>'); return; }
         $('#price-results').html(priceCache.map(function(p){
-            return `<button type="button" class="w-full text-left px-3 py-2.5 hover:bg-cyan-50 flex justify-between items-center gap-3" onclick="addPriceListItem(${p.id})">
+            return `<button type="button" class="w-full text-left px-3 py-2.5 hover:bg-cyan-50 flex justify-between items-center gap-3" onclick="addPriceListItem(${Number(p.id)})">
                 <div class="min-w-0">
                     <p class="text-sm font-medium text-gray-800 truncate">${esc(p.name)}</p>
                     ${p.description?`<p class="text-xs text-gray-400 truncate">${esc(p.description)}</p>`:''}
@@ -212,7 +212,7 @@ $('#new-client-form').submit(function(e){
     const data = {name:$('#nc-name').val(),company:$('#nc-company').val(),email:$('#nc-email').val(),phone:$('#nc-phone').val(),mobile:$('#nc-mobile').val(),city:$('#nc-city').val(),province:$('#nc-province').val(),ntn:$('#nc-ntn').val(),strn:$('#nc-strn').val(),address:$('#nc-address').val(),notes:$('#nc-notes').val()};
     $.ajax({url:'/api/clients',method:'POST',contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}})
     .done(function(c){
-        $('#client_id').append(`<option value="${c.id}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}${c.phone?' — '+esc(c.phone):''}</option>`);
+        $('#client_id').append(`<option value="${esc(c.id)}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}${c.phone?' — '+esc(c.phone):''}</option>`);
         $('#client_id').val(c.id);
         hideNewClient();
     })
@@ -227,7 +227,7 @@ $(function(){
         $.ajax({url:'/api/clients',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(clients){
             $('#client_id').html('<option value="">Select Client</option>');
             if(clients&&clients.length){
-                clients.forEach(c=>{$('#client_id').append(`<option value="${c.id}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}${c.phone?' — '+esc(c.phone):''}</option>`);});
+                clients.forEach(c=>{$('#client_id').append(`<option value="${esc(c.id)}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}${c.phone?' — '+esc(c.phone):''}</option>`);});
             } else {
                 $('#client_id').append('<option value="">No clients found</option>');
             }

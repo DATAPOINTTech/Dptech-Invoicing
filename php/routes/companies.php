@@ -2,6 +2,37 @@
 
 declare(strict_types=1);
 
+/**
+ * Stores an uploaded logo and returns its public URL.
+ * Only real PNG/JPEG/GIF/WebP images are accepted; the file extension is chosen from the
+ * detected image type (never from the client's file name) and the name is random.
+ */
+function save_logo_image(string $bytes): string
+{
+    $maxBytes = 2 * 1024 * 1024;
+    if ($bytes === '' || strlen($bytes) > $maxBytes) {
+        throw new InvalidArgumentException('Logo must be an image smaller than 2 MB.');
+    }
+
+    $info = @getimagesizefromstring($bytes);
+    $extensions = [IMAGETYPE_PNG => 'png', IMAGETYPE_JPEG => 'jpg', IMAGETYPE_GIF => 'gif', IMAGETYPE_WEBP => 'webp'];
+    if ($info === false || !isset($extensions[$info[2]])) {
+        throw new InvalidArgumentException('Logo must be a PNG, JPG, GIF or WebP image.');
+    }
+
+    $uploadDir = dirname(__DIR__) . '/public/static/uploads';
+    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+        throw new RuntimeException('Upload folder is not writable.');
+    }
+
+    $filename = 'logo_' . bin2hex(random_bytes(8)) . '.' . $extensions[$info[2]];
+    if (file_put_contents($uploadDir . DIRECTORY_SEPARATOR . $filename, $bytes) === false) {
+        throw new RuntimeException('Could not save the logo.');
+    }
+
+    return '/static/uploads/' . $filename;
+}
+
 function handle_companies_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/companies') {
@@ -22,35 +53,21 @@ function handle_companies_routes(string $method, string $path, PDO $db): bool
         $user = require_authenticated_user($db);
         require_permission_for($db, $user, 'settings', 'edit');
 
-        $uploadDir = dirname(__DIR__) . '/public/static/uploads';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
-
         $logoUrl = '';
         if (!empty($_FILES['logo']['tmp_name']) && is_uploaded_file($_FILES['logo']['tmp_name'])) {
-            $ext = strtolower(pathinfo((string) ($_FILES['logo']['name'] ?? 'logo.png'), PATHINFO_EXTENSION)) ?: 'png';
-            $filename = 'logo_' . uniqid() . '.' . $ext;
-            $dest = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-            if (move_uploaded_file($_FILES['logo']['tmp_name'], $dest)) {
-                $logoUrl = '/static/uploads/' . $filename;
-            }
+            $logoUrl = save_logo_image((string) file_get_contents($_FILES['logo']['tmp_name']));
         } else {
             $body = request_json();
-            $base64 = $body['image_base64'] ?? '';
+            $base64 = (string) ($body['image_base64'] ?? '');
             if ($base64 !== '') {
-                if (preg_match('/^data:image\/(\w+);base64,/', $base64, $m)) {
-                    $ext = $m[1];
+                if (str_starts_with($base64, 'data:') && str_contains($base64, ',')) {
                     $base64 = substr($base64, strpos($base64, ',') + 1);
-                } else {
-                    $ext = 'png';
                 }
-                $decoded = base64_decode($base64);
-                if ($decoded !== false) {
-                    $filename = 'logo_' . uniqid() . '.' . $ext;
-                    file_put_contents($uploadDir . DIRECTORY_SEPARATOR . $filename, $decoded);
-                    $logoUrl = '/static/uploads/' . $filename;
+                $decoded = base64_decode($base64, true);
+                if ($decoded === false) {
+                    json_response(['detail' => 'Logo image data is not valid.'], 422);
                 }
+                $logoUrl = save_logo_image($decoded);
             }
         }
 

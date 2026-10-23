@@ -36,11 +36,50 @@ function normalize_google_sheet_csv_url(string $url): string
     return $url;
 }
 
-function fetch_remote_csv(string $url): string
+/**
+ * Only Google Sheets links are allowed: https, host docs.google.com.
+ * This stops the importer being used to read local files (file://) or reach internal servers.
+ */
+function assert_google_sheet_url(string $url): void
+{
+    $parts = parse_url($url);
+    $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+    $host = strtolower((string) ($parts['host'] ?? ''));
+    if ($scheme !== 'https' || $host !== 'docs.google.com' || isset($parts['user']) || isset($parts['port'])) {
+        throw new InvalidArgumentException('Please use a Google Sheets link (https://docs.google.com/spreadsheets/d/...).');
+    }
+}
+
+/**
+ * Path of a CA certificate bundle to use for HTTPS, or null when the system already has one.
+ * Some hosts and Windows PHP installs ship without CA certificates, which makes verified
+ * HTTPS fail; the Mozilla bundle in services/cacert.pem is the fallback for those.
+ */
+function http_ca_bundle(): ?string
+{
+    foreach ([ini_get('curl.cainfo'), ini_get('openssl.cafile')] as $configured) {
+        if (is_string($configured) && $configured !== '' && is_file($configured)) {
+            return null;
+        }
+    }
+    foreach (['/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/cert.pem'] as $systemBundle) {
+        if (is_file($systemBundle)) {
+            return null;
+        }
+    }
+    $bundled = __DIR__ . DIRECTORY_SEPARATOR . 'cacert.pem';
+    return is_file($bundled) ? $bundled : null;
+}
+
+function fetch_remote_csv(string $url, bool $allowAnyUrl = false): string
 {
     $url = trim($url);
     if ($url === '') {
         throw new InvalidArgumentException('URL is empty');
+    }
+    // $allowAnyUrl is only for automated tests that read a local CSV file.
+    if (!$allowAnyUrl) {
+        assert_google_sheet_url($url);
     }
 
     // If curl is available
@@ -51,7 +90,15 @@ function fetch_remote_csv(string $url): string
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        if (($caBundle = http_ca_bundle()) !== null) {
+            curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
+        }
+        if (!$allowAnyUrl) {
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+            curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+        }
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) DATAPOINT-Invoicing/2.0');
         $content = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -79,10 +126,13 @@ function fetch_remote_csv(string $url): string
             'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) DATAPOINT-Invoicing/2.0\r\n",
         ],
         'ssl' => [
-            'verify_peer' => false,
-            'verify_peer_name' => false,
+            'verify_peer' => true,
+            'verify_peer_name' => true,
         ],
     ];
+    if (($caBundle = http_ca_bundle()) !== null) {
+        $opts['ssl']['cafile'] = $caBundle;
+    }
     $ctx = stream_context_create($opts);
     $content = @file_get_contents($url, false, $ctx);
     if ($content === false || strlen($content) === 0) {
@@ -228,10 +278,10 @@ function parse_product_sheet_csv(string $csvContent): array
     return $rows;
 }
 
-function sync_products_from_google_sheet(PDO $db, string $sheetUrl, float $profitPercent = 10.0): array
+function sync_products_from_google_sheet(PDO $db, string $sheetUrl, float $profitPercent = 10.0, bool $allowAnyUrl = false): array
 {
     $exportUrl = normalize_google_sheet_csv_url($sheetUrl);
-    $csvContent = fetch_remote_csv($exportUrl);
+    $csvContent = fetch_remote_csv($exportUrl, $allowAnyUrl);
     $parsedItems = parse_product_sheet_csv($csvContent);
 
     if (empty($parsedItems)) {

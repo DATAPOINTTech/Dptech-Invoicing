@@ -19,21 +19,37 @@ def create_cpanel_zip():
         "auth_info",
         "__pycache__",
         "tests",
+        "scripts",
         "output",
         "pdf_output",
         "dptech-invoicing-cpanel",
     }
 
+    # Never ship databases, backups, secrets or this machine's data to a customer
     excluded_extensions = {
         ".log",
         ".pyc",
         ".tmp",
+        ".db",
+        ".sqlite",
+        ".sqlite3",
+        ".sql",
+        ".bak",
     }
 
     excluded_files = {
         "dptech-invoicing-cpanel.zip",
         "package_cpanel.py",
+        ".env",
+        ".env.production",
+        ".app_secret",
+        ".bridge_secret",
+        "reset_password.txt",
     }
+
+    # Runtime data folders: ship the folder (and its protective .htaccess) but nothing inside it
+    runtime_dirs = ("php/storage/", "php/public/static/uploads/")
+    runtime_keep = {".htaccess", ".gitkeep"}
 
     print(f"Creating compact cPanel ZIP archive from {base_dir}...")
     file_count = 0
@@ -58,6 +74,9 @@ def create_cpanel_zip():
                 # Double check path segments for any excluded folder
                 path_segments = set(rel_path.split("/"))
                 if path_segments.intersection(excluded_dirs):
+                    continue
+
+                if rel_path.startswith(runtime_dirs) and file not in runtime_keep:
                     continue
 
                 zipf.write(full_path, arcname=rel_path)

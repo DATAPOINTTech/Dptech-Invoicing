@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_expenses_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/expenses') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'expenses', 'view');
         $category = $_GET['category'] ?? null;
         $sql = 'SELECT e.*, p.name AS project_name, u.full_name AS created_by_name FROM expenses e LEFT JOIN projects p ON p.id = e.project_id LEFT JOIN users u ON u.id = e.created_by';
         $params = [];
@@ -20,7 +21,8 @@ function handle_expenses_routes(string $method, string $path, PDO $db): bool
     }
 
     if ($method === 'GET' && $path === '/api/expenses/summary') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'expenses', 'view');
         $catStmt = $db->query('SELECT category, SUM(total_amount) AS total, COUNT(*) AS count FROM expenses GROUP BY category');
         $byCategory = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -84,7 +86,8 @@ function handle_expenses_routes(string $method, string $path, PDO $db): bool
     if (preg_match('#^/api/expenses/([1-9][0-9]*)$#', $path, $m)) {
         $expenseId = (int) $m[1];
         if ($method === 'GET') {
-            require_authenticated_user($db);
+            $user = require_authenticated_user($db);
+            require_permission_for($db, $user, 'expenses', 'view');
             $stmt = $db->prepare('SELECT e.*, p.name AS project_name FROM expenses e LEFT JOIN projects p ON p.id = e.project_id WHERE e.id = :id');
             $stmt->execute(['id' => $expenseId]);
             $exp = $stmt->fetch(PDO::FETCH_ASSOC);

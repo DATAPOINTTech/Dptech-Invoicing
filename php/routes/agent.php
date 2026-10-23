@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_agent_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'POST' && $path === '/api/agent/chat') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'clients', 'view');
         $body = request_json();
         $message = trim((string) ($body['message'] ?? ''));
         if ($message === '') {
@@ -171,7 +172,8 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
 
     // 1. Get all conversations (WhatsApp & Web)
     if ($method === 'GET' && $path === '/api/agent/conversations') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'clients', 'view');
         $convs = $db->query("
             SELECT c.*, 
                    cl.name AS linked_client_name, 
@@ -187,7 +189,8 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
 
     // 2. Get messages for a specific conversation
     if (preg_match('#^/api/agent/conversations/([0-9]+)/messages$#', $path, $m) && $method === 'GET') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'clients', 'view');
         $convId = (int) $m[1];
         $conv = null;
 
@@ -219,6 +222,7 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
 
     // 3. Admin / Staff reply to a conversation (dispatches on WhatsApp if WhatsApp conversation)
     if (preg_match('#^/api/agent/conversations/([0-9]+)/reply$#', $path, $m) && $method === 'POST') {
+    require_permission_for($db, $user, 'clients', 'view');
         $user = require_authenticated_user($db);
         $convId = (int) $m[1];
         $body = request_json();
@@ -280,7 +284,8 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
 
     // 4. Live Synchronization Polling (for real-time updates)
     if ($method === 'GET' && $path === '/api/agent/sync-poll') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'clients', 'view');
         $lastMsgId = (int) ($_GET['last_msg_id'] ?? 0);
         $convId = isset($_GET['conv_id']) ? (int) $_GET['conv_id'] : -1;
 
@@ -307,7 +312,8 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
     }
 
     if ($method === 'POST' && $path === '/api/agent/voice-quotation') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'estimates', 'create');
         $body = request_json();
         $transcript = trim((string) ($body['transcript'] ?? $body['message'] ?? ''));
         if ($transcript === '') {

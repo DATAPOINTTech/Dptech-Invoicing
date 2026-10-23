@@ -573,8 +573,11 @@ class SupportAgent
                 $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.client_id = :cid ORDER BY i.created_at DESC, i.id DESC LIMIT 1');
                 $st->execute(['cid' => $client['id']]);
                 $inv = $st->fetch(PDO::FETCH_ASSOC);
-            } else {
-                $inv = $db->query('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id ORDER BY i.created_at DESC, i.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+            }
+
+            // Only send an invoice to the customer it belongs to (matched by their WhatsApp number)
+            if ($inv && (!$client || (int) $inv['client_id'] !== (int) $client['id'])) {
+                $inv = null;
             }
 
             if ($inv) {
@@ -614,7 +617,7 @@ class SupportAgent
                     'success' => true,
                     'reply_type' => 'text',
                     'reply_text' => "🔍 *Invoice Search Notice*\n\n"
-                        . "We could not find an invoice under reference *\"{$invMatch}\"*.\n\n"
+                        . "We could not find an invoice for " . ($invMatch !== null ? "reference *\"{$invMatch}\"*" : 'this phone number') . ".\n\n"
                         . "Please reply with your exact Invoice Number (e.g., *INV-202610-00001*), or reply *4* to contact our accounts manager directly.",
                 ]);
             }
@@ -646,8 +649,11 @@ class SupportAgent
                 $st = $db->prepare('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE e.client_id = :cid ORDER BY e.created_at DESC, e.id DESC LIMIT 1');
                 $st->execute(['cid' => $client['id']]);
                 $est = $st->fetch(PDO::FETCH_ASSOC);
-            } else {
-                $est = $db->query('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM estimates e LEFT JOIN clients c ON c.id = e.client_id ORDER BY e.created_at DESC, e.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+            }
+
+            // Only send a quotation to the customer it belongs to (matched by their WhatsApp number)
+            if ($est && (!$client || (int) $est['client_id'] !== (int) $client['id'])) {
+                $est = null;
             }
 
             // Check if user is asking for items (e.g., "quote for 4 cctv cameras and 1 switch")

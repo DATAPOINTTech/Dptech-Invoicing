@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_inventory_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/inventory') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'inventory', 'view');
         $stmt = $db->query('
             SELECT i.*, p.name AS product_name, p.sku, p.category, p.unit, p.min_stock_level, p.max_stock_level, p.unit_price, p.cost_price
             FROM inventory i
@@ -17,7 +18,8 @@ function handle_inventory_routes(string $method, string $path, PDO $db): bool
     }
 
     if ($method === 'GET' && $path === '/api/inventory/movements') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'inventory', 'view');
         $stmt = $db->query('
             SELECT sm.*, p.name AS product_name, u.full_name AS created_by_name
             FROM stock_movements sm

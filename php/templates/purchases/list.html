@@ -23,22 +23,22 @@ function loadPurchases(){
         $('#purchases-body').html(ps.map(p=>{
             const balCls = p.balance_due > 0 ? 'text-red-600 font-semibold' : 'text-green-600';
             const stCls = p.status==='paid'?'badge-green':p.status==='partially_paid'?'badge-amber':p.status==='cancelled'?'badge-red':'badge-blue';
-            const itemsList = (p.items||[]).map(i=>i.product_name).join(', ');
+            const itemsList = escHtml((p.items||[]).map(i=>i.product_name).join(', '));
             return `<tr>
-            <td class="font-medium text-slate-800"><a href="/purchases/${p.id}" class="hover:text-blue-600">${p.invoice_no}</a></td>
-            <td class="max-w-[160px] truncate" title="${p.supplier_name}">${p.supplier_name}</td>
+            <td class="font-medium text-slate-800"><a href="/purchases/${Number(p.id)}" class="hover:text-blue-600">${escHtml(p.invoice_no)}</a></td>
+            <td class="max-w-[160px] truncate" title="${escHtml(p.supplier_name)}">${escHtml(p.supplier_name)}</td>
             <td class="max-w-[200px] truncate text-slate-600 text-xs" title="${itemsList}">${itemsList}</td>
-            <td class="text-slate-500 whitespace-nowrap">${p.invoice_date}</td>
+            <td class="text-slate-500 whitespace-nowrap">${escHtml(p.invoice_date)}</td>
             <td class="text-right font-medium whitespace-nowrap">PKR ${p.total_amount?.toLocaleString()}</td>
             <td class="text-right text-slate-600 whitespace-nowrap">PKR ${(p.amount_paid||0)?.toLocaleString()}</td>
             <td class="text-right ${balCls} whitespace-nowrap">PKR ${(p.balance_due||0)?.toLocaleString()}</td>
-            <td class="text-center"><span class="badge ${stCls}">${p.status.replace('_',' ')}</span></td>
+            <td class="text-center"><span class="badge ${stCls}">${escHtml(p.status.replace('_',' '))}</span></td>
             <td class="text-right">
                 <div class="flex gap-2 justify-end">
-                <a href="/purchases/${p.id}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
+                <a href="/purchases/${Number(p.id)}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
                 ${p.status==='cancelled'?
-                    `<button class="btn btn-ghost btn-sm text-red-500 delete-purchase" data-id="${p.id}" data-no="${p.invoice_no}" title="Delete"><i class="fas fa-trash"></i></button>`:
-                    `<button class="btn btn-ghost btn-sm text-red-500 cancel-purchase" data-id="${p.id}" data-no="${p.invoice_no}" title="Cancel"><i class="fas fa-times"></i></button>`
+                    `<button class="btn btn-ghost btn-sm text-red-500 delete-purchase" data-id="${Number(p.id)}" data-no="${escHtml(p.invoice_no)}" title="Delete"><i class="fas fa-trash"></i></button>`:
+                    `<button class="btn btn-ghost btn-sm text-red-500 cancel-purchase" data-id="${Number(p.id)}" data-no="${escHtml(p.invoice_no)}" title="Cancel"><i class="fas fa-times"></i></button>`
                 }
                 </div>
             </td>

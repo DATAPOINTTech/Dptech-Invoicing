@@ -289,10 +289,10 @@ function loadInvoice() {
                 const q = Number(i.quantity || 0);
                 const tp = q * up;
                 return `<tr class="border-b border-gray-100 hover:bg-slate-50">
-                    <td class="px-4 py-3 font-medium text-gray-800">${i.description || 'Item'}</td>
-                    <td class="px-4 py-3 text-gray-600">${i.model_make || '-'}</td>
+                    <td class="px-4 py-3 font-medium text-gray-800">${escHtml(i.description || 'Item')}</td>
+                    <td class="px-4 py-3 text-gray-600">${escHtml(i.model_make || '-')}</td>
                     <td class="px-4 py-3 text-right text-gray-600">${q}</td>
-                    <td class="px-4 py-3 text-right text-gray-500">${i.unit || 'pcs'}</td>
+                    <td class="px-4 py-3 text-right text-gray-500">${escHtml(i.unit || 'pcs')}</td>
                     <td class="px-4 py-3 text-right text-gray-600">PKR ${fmt(up)}</td>
                     <td class="px-4 py-3 text-right font-semibold text-gray-900">PKR ${fmt(tp)}</td>
                 </tr>`;
@@ -382,9 +382,9 @@ function loadInvoice() {
                 const amt = Number(p.amount || 0);
                 const ref = [p.reference_no, p.notes].filter(Boolean).join(' - ') || '-';
                 return `<tr class="border-b border-gray-50 hover:bg-slate-50">
-                    <td class="px-3 py-2 font-medium text-gray-700">${p.payment_date || ''}</td>
-                    <td class="px-3 py-2"><span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">${p.payment_method || 'Cash'}</span></td>
-                    <td class="px-3 py-2 text-gray-500 text-xs">${ref}</td>
+                    <td class="px-3 py-2 font-medium text-gray-700">${escHtml(p.payment_date || '')}</td>
+                    <td class="px-3 py-2"><span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">${escHtml(p.payment_method || 'Cash')}</span></td>
+                    <td class="px-3 py-2 text-gray-500 text-xs">${escHtml(ref)}</td>
                     <td class="px-3 py-2 text-right font-bold text-emerald-600">PKR ${fmt(amt)}</td>
                 </tr>`;
             }).join(''));

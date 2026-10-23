@@ -43,14 +43,14 @@
             for (var i = 0; i < clients.length; i++) {
                 var c = clients[i];
                 html += '<tr class="border-b border-gray-50 hover:bg-dptech-50">' +
-                    '<td class="px-6 py-4 font-medium text-gray-800">' + (c.name || '') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + (c.company || '-') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + (c.phone || '-') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + (c.email || '-') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + (c.city || '-') + '</td>' +
+                    '<td class="px-6 py-4 font-medium text-gray-800">' + escHtml(c.name || '') + '</td>' +
+                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.company || '-') + '</td>' +
+                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.phone || '-') + '</td>' +
+                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.email || '-') + '</td>' +
+                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.city || '-') + '</td>' +
                     '<td class="px-6 py-4 text-right">' +
-                    '<a href="/clients/new?id=' + c.id + '" class="text-cyan-600 hover:text-cyan-800 mr-3"><i class="fas fa-edit"></i></a>' +
-                    '<button onclick="deleteClient(' + c.id + ')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>' +
+                    '<a href="/clients/new?id=' + encodeURIComponent(c.id) + '" class="text-cyan-600 hover:text-cyan-800 mr-3"><i class="fas fa-edit"></i></a>' +
+                    '<button onclick="deleteClient(' + Number(c.id) + ')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>' +
                     '</td></tr>';
             }
             document.getElementById('clients-body').innerHTML = html;

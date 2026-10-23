@@ -24,10 +24,19 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
     <script>
+        // Escape text before putting it into HTML built with template strings / .html().
+        // Use escHtml(value) around EVERY piece of user-entered data (names, notes, emails, ...).
+        window.escHtml = function (value) {
+            return String(value === null || value === undefined ? '' : value).replace(/[&<>"'`]/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+            });
+        };
+    </script>
+    <script>
         (function() {
             var t = localStorage.getItem('token');
             if (t) {
-                document.cookie = 'token=' + encodeURIComponent(t) + '; path=/; max-age=2592000; SameSite=Lax';
+                document.cookie = 'token=' + encodeURIComponent(t) + '; path=/; max-age=86400; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
                 if (window.jQuery) {
                     $.ajaxSetup({
                         beforeSend: function(xhr) {

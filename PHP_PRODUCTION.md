@@ -184,6 +184,6 @@ This performs:
 1. Complete truncation of `estimates`, `estimate_items`, `invoices`, `invoice_items`, `clients`, `products`, `inventory`, `expenses`, `purchases`, `projects`.
 2. Resets auto-increment sequences (`sqlite_sequence`) back to 1.
 3. Configures 3 pristine production company profiles (*DATAPOINT Technologies*, *TechPoint Solutions*, *Apex Data Systems*).
-4. Initializes the pristine Administrator account (`admin` / `admin123` or per `.env`).
+4. Initializes the pristine Administrator account (password from `ADMIN_PASSWORD` in `.env`; a random one is generated if it is not set).
 5. Cleans up temporary upload files from `php/public/static/uploads/`.
 

@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: this file must never run from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 /**
  * DATAPOINT Invoicing - Admin Password Reset Utility
  * 
@@ -24,8 +30,8 @@ $newPassword = $argv[1] ?? null;
 
 if ($newPassword === null || trim($newPassword) === '') {
     echo "Usage: php reset_admin_password.php <new_password>\n";
-    echo "No password provided. Defaulting to 'admin123'\n";
-    $newPassword = 'admin123';
+    $newPassword = bin2hex(random_bytes(8));
+    echo "No password provided. A random one was generated and is shown below.\n";
 }
 
 $newPassword = trim($newPassword);

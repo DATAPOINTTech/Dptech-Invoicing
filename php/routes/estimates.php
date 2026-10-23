@@ -536,6 +536,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
         }
 
         if ($sub === '/pdf' && $method === 'GET') {
+            require_permission_for($db, $user, 'estimates', 'view');
             $stmt = $db->prepare('
                 SELECT e.*, c.name AS client_name, c.email AS client_email, c.phone AS client_phone, c.address AS client_address
                 FROM estimates e

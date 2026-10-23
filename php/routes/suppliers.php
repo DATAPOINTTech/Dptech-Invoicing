@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_suppliers_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/suppliers') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'purchases', 'view');
         $stmt = $db->query('SELECT * FROM suppliers WHERE is_active = 1 ORDER BY name ASC, id DESC');
         json_response($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
@@ -35,7 +36,8 @@ function handle_suppliers_routes(string $method, string $path, PDO $db): bool
     if (preg_match('#^/api/suppliers/([1-9][0-9]*)$#', $path, $match)) {
         $supplierId = (int) $match[1];
         if ($method === 'GET') {
-            require_authenticated_user($db);
+            $user = require_authenticated_user($db);
+            require_permission_for($db, $user, 'purchases', 'view');
             $stmt = $db->prepare('SELECT * FROM suppliers WHERE id = :id LIMIT 1');
             $stmt->execute(['id' => $supplierId]);
             $supplier = $stmt->fetch(PDO::FETCH_ASSOC);

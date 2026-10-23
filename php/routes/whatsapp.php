@@ -9,6 +9,8 @@ function handle_whatsapp_routes(string $method, string $path, PDO $db): bool
 {
     // 1. WhatsApp status & QR code
     if ($method === 'GET' && $path === '/api/whatsapp/status') {
+        // The status includes the pairing QR code and linked phone number: logged-in users only
+        require_authenticated_user($db);
         $status = get_whatsapp_service_status();
         json_response($status);
     }
@@ -187,6 +189,8 @@ function handle_whatsapp_routes(string $method, string $path, PDO $db): bool
 
     // 7. Internal WhatsApp Agent Bridge (called by Baileys service for incoming messages)
     if ($method === 'POST' && $path === '/api/whatsapp/agent-bridge') {
+        // Only the WhatsApp service (which knows the shared secret) may call this
+        require_whatsapp_bridge_secret();
         $body = request_json();
         $senderPhone = (string) ($body['sender_phone'] ?? '');
         $senderName = (string) ($body['sender_name'] ?? '');

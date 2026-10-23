@@ -87,19 +87,25 @@ function send_smtp_socket(
     $isSsl = ($port === 465);
     $transport = $isSsl ? "ssl://{$host}:{$port}" : "tcp://{$host}:{$port}";
 
-    $context = stream_context_create([
-        'ssl' => [
-            'verify_peer' => false,
-            'verify_peer_name' => false,
-            'allow_self_signed' => true,
-        ]
-    ]);
+    // Certificates are checked by default so mail passwords cannot be intercepted.
+    // Hosts whose mail certificate does not match the mail host name can set SMTP_VERIFY_TLS=false.
+    $verifyTls = !in_array(strtolower((string) env_value('SMTP_VERIFY_TLS', 'true')), ['0', 'false', 'no', 'off'], true);
+    $sslOptions = [
+        'verify_peer' => $verifyTls,
+        'verify_peer_name' => $verifyTls,
+        'allow_self_signed' => !$verifyTls,
+    ];
+    if ($verifyTls && ($caBundle = http_ca_bundle()) !== null) {
+        $sslOptions['cafile'] = $caBundle;
+    }
+    $context = stream_context_create(['ssl' => $sslOptions]);
 
     $errno = 0;
     $errstr = '';
     $socket = @stream_socket_client($transport, $errno, $errstr, 20, STREAM_CLIENT_CONNECT, $context);
     if (!$socket) {
-        throw new RuntimeException("Could not connect to SMTP server {$host}:{$port} - {$errstr} ({$errno})");
+        $hint = $verifyTls ? ' If this is a certificate error, use the mail server\'s real host name, or set SMTP_VERIFY_TLS=false in .env.' : '';
+        throw new RuntimeException("Could not connect to SMTP server {$host}:{$port} - {$errstr} ({$errno}).{$hint}");
     }
 
     stream_set_timeout($socket, 20);
@@ -255,10 +261,17 @@ function whatsapp_service_base_url(): string
     return trim((string) (env_value('WHATSAPP_SERVICE_URL') ?: getenv('WHATSAPP_SERVICE_URL') ?: 'http://127.0.0.1:3001'));
 }
 
+/** Headers for calls from this app to the WhatsApp (Node) service, including the shared secret. */
+function whatsapp_service_headers(): array
+{
+    return ['Content-Type: application/json', 'X-Bridge-Secret: ' . whatsapp_bridge_secret()];
+}
+
 function get_whatsapp_service_status(): array
 {
     $url = rtrim(whatsapp_service_base_url(), '/') . '/status';
     $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, whatsapp_service_headers());
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
@@ -281,6 +294,24 @@ function get_whatsapp_service_status(): array
     return is_array($data) ? $data : ['success' => false, 'state' => 'error', 'qr' => null];
 }
 
+/** Calls an endpoint of the WhatsApp (Node) service and returns its decoded JSON reply. */
+function call_whatsapp_service(string $method, string $path, array $payload = []): array
+{
+    $ch = curl_init(rtrim(whatsapp_service_base_url(), '/') . $path);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, whatsapp_service_headers());
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    if (strtoupper($method) === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    }
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $data = json_decode((string) $response, true);
+    return is_array($data) ? $data : ['success' => false, 'error' => 'Failed to reach WhatsApp service'];
+}
+
 function disconnect_whatsapp_account(): array
 {
     $url = rtrim(whatsapp_service_base_url(), '/') . '/disconnect';
@@ -288,7 +319,7 @@ function disconnect_whatsapp_account(): array
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([]));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, whatsapp_service_headers());
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     $response = curl_exec($ch);
     curl_close($ch);
@@ -305,7 +336,7 @@ function toggle_whatsapp_sales_agent(?bool $enabled = null): array
     curl_setopt($ch, CURLOPT_POST, true);
     $payload = $enabled !== null ? ['enabled' => $enabled] : [];
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, whatsapp_service_headers());
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     $response = curl_exec($ch);
     curl_close($ch);
@@ -340,7 +371,7 @@ function send_whatsapp_message(string $to_phone, string $message, ?string $pdf_b
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, whatsapp_service_headers());
     curl_setopt($ch, CURLOPT_TIMEOUT, 15);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
     $response = curl_exec($ch);

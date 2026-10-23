@@ -193,7 +193,7 @@ function authenticateUser($db, string $username, string $password): ?object
         $envAdminPass !== null &&
         $envAdminPass !== '' &&
         $envAdminPass !== 'admin123' &&
-        (strcasecmp($username, (string) $envAdminUser) === 0 || strcasecmp((string)$user->username, 'admin') === 0 || strcasecmp((string)$user->email, $username) === 0) &&
+        strcasecmp((string) $user->username, (string) $envAdminUser) === 0 &&
         hash_equals($envAdminPass, $password)
     ) {
         if (is_object($db) && method_exists($db, 'prepare')) {

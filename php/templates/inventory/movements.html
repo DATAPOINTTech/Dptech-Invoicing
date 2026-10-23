@@ -49,26 +49,26 @@ function load(filterId){
             const t = typeLabels[m.movement_type]||{label:m.movement_type,cls:'badge-gray'};
             return `<tr class="border-b border-gray-50 hover:bg-dptech-50">
                 <td class="px-4 py-3 text-sm text-gray-500">${m.created_at ? new Date(m.created_at).toLocaleDateString() : '-'}</td>
-                <td class="px-4 py-3 font-medium text-gray-800">${m.product_name}</td>
-                <td class="px-4 py-3 text-right font-semibold ${m.quantity>0?'text-green-600':'text-red-600'}">${m.quantity>0?'+':''}${m.quantity}</td>
-                <td class="px-4 py-3 text-center"><span class="badge ${t.cls} text-xs">${t.label}</span></td>
-                <td class="px-4 py-3 text-sm text-gray-500">${m.reference_type ? m.reference_type + (m.reference_id ? ' #'+m.reference_id : '') : '-'}</td>
-                <td class="px-4 py-3 text-sm text-gray-500 max-w-40 truncate">${m.notes||'-'}</td>
+                <td class="px-4 py-3 font-medium text-gray-800">${escHtml(m.product_name)}</td>
+                <td class="px-4 py-3 text-right font-semibold ${m.quantity>0?'text-green-600':'text-red-600'}">${m.quantity>0?'+':''}${escHtml(m.quantity)}</td>
+                <td class="px-4 py-3 text-center"><span class="badge ${t.cls} text-xs">${escHtml(t.label)}</span></td>
+                <td class="px-4 py-3 text-sm text-gray-500">${m.reference_type ? escHtml(m.reference_type) + (m.reference_id ? ' #'+escHtml(m.reference_id) : '') : '-'}</td>
+                <td class="px-4 py-3 text-sm text-gray-500 max-w-40 truncate">${escHtml(m.notes||'-')}</td>
                 <td class="px-4 py-3 text-center">
                     <div class="flex gap-2 justify-center">
-                        <button class="text-amber-600 hover:text-amber-800 bg-transparent border-0 cursor-pointer edit-movement" data-id="${m.id}" data-qty="${m.quantity}" data-type="${m.movement_type}" data-notes="${(m.notes||'').replace(/"/g,'&quot;')}" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button class="text-red-600 hover:text-red-800 bg-transparent border-0 cursor-pointer delete-movement" data-id="${m.id}" data-product="${m.product_name}" title="Delete"><i class="fas fa-trash"></i></button>
+                        <button class="text-amber-600 hover:text-amber-800 bg-transparent border-0 cursor-pointer edit-movement" data-id="${Number(m.id)}" data-qty="${escHtml(m.quantity)}" data-type="${escHtml(m.movement_type)}" data-notes="${escHtml(m.notes||'')}" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-600 hover:text-red-800 bg-transparent border-0 cursor-pointer delete-movement" data-id="${Number(m.id)}" data-product="${escHtml(m.product_name)}" title="Delete"><i class="fas fa-trash"></i></button>
                     </div>
                 </td>
             </tr>`;
         }).join(''));
-    }).fail(function(x){$('#movements-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load: '+(x.statusText||'error')+'</td></tr>');});
+    }).fail(function(x){$('#movements-body').html('<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load: '+escHtml(x.statusText||'error')+'</td></tr>');});
 }
 
 function loadProducts(){
     $.ajax({url:'/api/products',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ps){
         var opts='<option value="">All Products</option>';
-        ps.forEach(function(p){opts+='<option value="'+p.id+'">'+p.name+'</option>';});
+        ps.forEach(function(p){opts+='<option value="'+Number(p.id)+'">'+escHtml(p.name)+'</option>';});
         $('#product-filter').html(opts);
     });
 }

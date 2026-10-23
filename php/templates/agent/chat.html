@@ -209,6 +209,21 @@ let lastPolledMsgId = 0;
 let syncPollTimer = null;
 let assistantMessages = [];
 
+// Safe markdown: escape raw HTML and only allow http/https/mailto/tel links.
+if (typeof marked !== 'undefined' && typeof marked.use === 'function') {
+    marked.use({
+        renderer: {
+            html(html) { return escHtml(html); },
+            link(href, title, text) {
+                const url = String(href || '').replace(/&amp;/g, '&').trim();
+                if (!/^(https?:|mailto:|tel:)/i.test(url)) return text;
+                return '<a href="' + escHtml(url) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+            },
+            image(href, title, text) { return escHtml(text); }
+        }
+    });
+}
+
 // --- Mode Switching (Assistant vs WhatsApp Sync) ---
 function switchChatMode(mode) {
     currentMode = mode;
@@ -363,7 +378,7 @@ function renderSyncedMessage(msg) {
 
     if (isClient) {
         bubble.addClass('bg-white text-slate-800 border border-slate-200 rounded-bl-sm');
-        bubble.append(`<div class="flex items-center gap-1.5 text-[10px] text-emerald-600 font-extrabold uppercase tracking-wide mb-1"><i class="fab fa-whatsapp text-xs"></i> <span>${msg.sender_name || 'Client'}</span></div>`);
+        bubble.append(`<div class="flex items-center gap-1.5 text-[10px] text-emerald-600 font-extrabold uppercase tracking-wide mb-1"><i class="fab fa-whatsapp text-xs"></i> <span>${escHtml(msg.sender_name || 'Client')}</span></div>`);
     } else if (isAgentHuman) {
         bubble.addClass('bg-cyan-600 text-white rounded-br-sm');
         bubble.append(`<div class="flex items-center gap-1.5 text-[10px] text-cyan-100 font-bold mb-1"><i class="fas fa-user-shield"></i> <span>Support Agent (You)</span></div>`);
@@ -378,7 +393,7 @@ function renderSyncedMessage(msg) {
     if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
         bodyDiv.html(marked.parse(msg.message || ''));
     } else {
-        bodyDiv.html((msg.message || '').replace(/\n/g, '<br>'));
+        bodyDiv.html(escHtml(msg.message || '').replace(/\n/g, '<br>'));
     }
     bodyDiv.find('table').addClass('min-w-full my-2 border border-slate-200 text-xs text-left rounded-lg overflow-hidden').find('th').addClass('bg-slate-200 px-2.5 py-1.5 font-bold text-slate-700 border-b').end().find('td').addClass('px-2.5 py-1.5 border-b border-slate-100');
     bodyDiv.find('a').addClass('font-bold underline');
@@ -388,14 +403,15 @@ function renderSyncedMessage(msg) {
     // If PDF document attached
     if (msg.message_type === 'invoice' || msg.message_type === 'quotation' || msg.document_name) {
         const docName = msg.document_name || (msg.message_type === 'invoice' ? 'Invoice.pdf' : 'Quotation.pdf');
-        const docUrl = msg.document_url || (msg.message_type === 'invoice' ? '/api/invoices/latest/pdf' : '/api/estimates/latest/pdf');
+        let docUrl = msg.document_url || (msg.message_type === 'invoice' ? '/api/invoices/latest/pdf' : '/api/estimates/latest/pdf');
+        if (!/^(https?:\/\/|\/(?!\/))/i.test(String(docUrl))) docUrl = '#';
         const docCard = $(`
             <div class="mt-2.5 p-2 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 truncate">
                     <i class="fas fa-file-pdf text-rose-500 text-lg"></i>
-                    <span class="font-bold text-indigo-900 text-xs truncate">${docName}</span>
+                    <span class="font-bold text-indigo-900 text-xs truncate">${escHtml(docName)}</span>
                 </div>
-                <a href="${docUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold shadow-sm whitespace-nowrap">
+                <a href="${escHtml(docUrl)}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold shadow-sm whitespace-nowrap">
                     <i class="fas fa-download mr-1"></i> View PDF
                 </a>
             </div>
@@ -406,7 +422,7 @@ function renderSyncedMessage(msg) {
     // Timestamp
     if (msg.created_at) {
         const timeStr = msg.created_at.length >= 16 ? msg.created_at.substring(11, 16) : '';
-        bubble.append(`<div class="text-[9px] text-right mt-1 opacity-60">${timeStr}</div>`);
+        bubble.append(`<div class="text-[9px] text-right mt-1 opacity-60">${escHtml(timeStr)}</div>`);
     }
 
     div.append(bubble);
@@ -423,7 +439,7 @@ function renderMessageBubble(text, isUser = false, msgMeta = null) {
         if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
             bubble.html(marked.parse(text));
         } else {
-            bubble.html(text.replace(/\n/g, '<br>'));
+            bubble.html(escHtml(text).replace(/\n/g, '<br>'));
         }
         bubble.find('table').addClass('min-w-full my-2 border border-slate-200 text-xs text-left rounded-lg overflow-hidden').find('th').addClass('bg-slate-100 px-3 py-2 font-bold text-slate-700 border-b').end().find('td').addClass('px-3 py-2 border-b border-slate-100');
         bubble.find('a').addClass('text-cyan-600 hover:text-cyan-800 font-bold underline');
@@ -528,7 +544,7 @@ $('#voice-form').submit(function(e) {
         headers: authHeaders
     }).done(function(r) {
         renderMessageBubble(r.transcript + `\n\n**Generated Estimate Total:** PKR ${r.total_amount}`, false);
-        $('#voice-result').removeClass('hidden').html(`<div class="bg-purple-50 rounded-lg p-2.5 text-xs text-purple-900 border border-purple-200"><strong>Status:</strong> ${r.status} &bull; Total: <strong>PKR ${r.total_amount}</strong></div>`);
+        $('#voice-result').removeClass('hidden').html(`<div class="bg-purple-50 rounded-lg p-2.5 text-xs text-purple-900 border border-purple-200"><strong>Status:</strong> ${escHtml(r.status)} &bull; Total: <strong>PKR ${escHtml(r.total_amount)}</strong></div>`);
         $('#voice-input').val('');
     }).fail(function() {
         renderMessageBubble('Sorry, could not process your voice quotation request. Please try again.', false);

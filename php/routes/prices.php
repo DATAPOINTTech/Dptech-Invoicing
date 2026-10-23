@@ -5,13 +5,15 @@ declare(strict_types=1);
 function handle_prices_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/prices/categories') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'prices', 'view');
         $stmt = $db->query('SELECT DISTINCT category FROM price_list WHERE category IS NOT NULL AND category != "" ORDER BY category ASC');
         json_response($stmt->fetchAll(PDO::FETCH_COLUMN));
     }
 
     if ($method === 'GET' && $path === '/api/prices') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'prices', 'view');
         $search = $_GET['search'] ?? null;
         $category = $_GET['category'] ?? null;
         $where = ['is_active = 1'];
@@ -66,7 +68,8 @@ function handle_prices_routes(string $method, string $path, PDO $db): bool
     }
 
     if ($method === 'POST' && $path === '/api/prices/scrape') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'prices', 'create');
         $body = request_json();
         $url = trim((string) ($body['url'] ?? ''));
         if ($url === '') {
@@ -115,7 +118,8 @@ function handle_prices_routes(string $method, string $path, PDO $db): bool
     if (preg_match('#^/api/prices/([1-9][0-9]*)$#', $path, $m)) {
         $priceId = (int) $m[1];
         if ($method === 'GET') {
-            require_authenticated_user($db);
+            $user = require_authenticated_user($db);
+            require_permission_for($db, $user, 'prices', 'view');
             $stmt = $db->prepare('SELECT * FROM price_list WHERE id = :id');
             $stmt->execute(['id' => $priceId]);
             $item = $stmt->fetch(PDO::FETCH_ASSOC);

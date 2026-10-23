@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_projects_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/projects') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'projects', 'view');
         $stmt = $db->query('
             SELECT pr.*, c.name AS client_name, u.full_name AS created_by_name
             FROM projects pr
@@ -51,7 +52,8 @@ function handle_projects_routes(string $method, string $path, PDO $db): bool
     if (preg_match('#^/api/projects/([1-9][0-9]*)$#', $path, $m)) {
         $projectId = (int) $m[1];
         if ($method === 'GET') {
-            require_authenticated_user($db);
+            $user = require_authenticated_user($db);
+            require_permission_for($db, $user, 'projects', 'view');
             $stmt = $db->prepare('
                 SELECT pr.*, c.name AS client_name
                 FROM projects pr

@@ -7,3 +7,6 @@ deployment:
     - export PUBLICPATH=/home/datapointtechnol/public_html/
     - /bin/cp -R * $APPPATH
     - /bin/cp -R public/* $PUBLICPATH
+    # Remove everything from the public web folder that must never be reachable from a browser.
+    # (Full paths on purpose: a mistyped variable must never be able to delete the wrong place.)
+    - /bin/rm -rf /home/datapointtechnol/public_html/php/tests /home/datapointtechnol/public_html/cpanel_backup /home/datapointtechnol/public_html/Cpanel-RSAkey /home/datapointtechnol/public_html/output /home/datapointtechnol/public_html/pdf_output /home/datapointtechnol/public_html/dptech-invoicing-cpanel /home/datapointtechnol/public_html/dptech-invoicing-cpanel.zip /home/datapointtechnol/public_html/package_cpanel.py

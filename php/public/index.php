@@ -64,6 +64,11 @@ function serve_static_asset(string $path): bool
         return false;
     }
 
+    // Never allow path tricks like /static/../../secret.json
+    if (str_contains($path, '..') || str_contains($path, "\0") || str_contains($path, '\\')) {
+        return false;
+    }
+
     $isStatic = str_starts_with($path, '/static/');
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     $staticExts = ['css', 'js', 'svg', 'png', 'jpg', 'jpeg', 'ico', 'json', 'woff', 'woff2', 'ttf', 'webp', 'gif'];
@@ -117,6 +122,8 @@ function serve_static_asset(string $path): bool
 
 function handle_request(): never
 {
+    send_security_headers();
+
     $method = request_method();
     $path = request_path();
 
@@ -136,6 +143,7 @@ function handle_request(): never
 
         // 3. Tax calculation endpoint
         if ($method === 'POST' && $path === '/api/tax/calculate') {
+            require_authenticated_user($db);
             $payload = request_json();
             $items = $payload['items'] ?? [];
             if (!is_array($items)) {
@@ -154,6 +162,8 @@ function handle_request(): never
         // 4. File import endpoints (purchases, estimates, invoices, prices)
         if ($method === 'POST' && in_array($path, ['/api/purchases/import', '/api/estimates/import', '/api/invoices/import'], true)) {
             $user = require_authenticated_user($db);
+            $importModule = ['/api/purchases/import' => 'purchases', '/api/estimates/import' => 'estimates', '/api/invoices/import' => 'invoices'][$path];
+            require_permission_for($db, $user, $importModule, 'create');
             $rawContent = '';
             $filename = 'uploaded_file';
 
@@ -269,8 +279,9 @@ function handle_request(): never
     } catch (InvalidArgumentException $e) {
         json_response(['detail' => $e->getMessage()], 422);
     } catch (PDOException $e) {
+        // The real error goes to the server log only; it can contain database names and users
         error_log('Database error: ' . $e->getMessage());
-        json_response(['detail' => 'Database error: ' . $e->getMessage()], 503);
+        json_response(['detail' => 'A database error occurred. Please try again or contact support.'], 503);
     } catch (Throwable $e) {
         error_log('Server error: ' . $e->getMessage());
         json_response(['detail' => 'Internal server error.'], 500);

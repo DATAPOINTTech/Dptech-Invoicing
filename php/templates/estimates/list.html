@@ -159,7 +159,7 @@ if (!token) {
         const co = cachedCompanies.find(c => String(c.id) === String(activeCid));
         if (co) {
             $('#company-folder-banner').removeClass('hidden').css('background', 'linear-gradient(to right, #f8fafc, #f1f5f9)');
-            $('#folder-co-logo').attr('src', co.logo_url || '/static/img/logo.png');
+            $('#folder-co-logo').attr('src', /^(\/static\/|https?:\/\/)/i.test(co.logo_url || '') ? co.logo_url : '/static/img/logo.png');
             $('#folder-co-name').text(co.name);
 
             let contactParts = [];
@@ -244,7 +244,7 @@ if (!token) {
             const status = String(e.status || 'draft');
             const total = Number(e.total_amount || 0);
 
-            const coId = esc(e.company_id ?? '');
+            const coId = esc(JSON.stringify(String(e.company_id ?? '')));
             const coName = esc(e.company_name || 'DATAPOINT Technologies');
 
             const batchTag = e.batch_id
@@ -263,7 +263,7 @@ if (!token) {
                     </div>
                 </td>
                 <td>
-                    <button type="button" onclick="selectCompanyFolder('${coId}')" class="text-left group cursor-pointer inline-flex items-center gap-1.5" title="Filter by ${coName} Folder">
+                    <button type="button" onclick="selectCompanyFolder(${coId})" class="text-left group cursor-pointer inline-flex items-center gap-1.5" title="Filter by ${coName} Folder">
                         <i class="fas fa-folder text-amber-400 group-hover:text-amber-500 text-xs"></i>
                         <span class="font-semibold text-slate-800 text-xs group-hover:text-indigo-600 group-hover:underline">${coName}</span>
                     </button>

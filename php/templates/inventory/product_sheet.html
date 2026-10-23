@@ -470,7 +470,7 @@ function renderProductsTable() {
         const isModified = modifiedRates[p.id] !== undefined;
 
         return `
-            <tr class="hover:bg-slate-50/80 transition-colors ${isModified ? 'bg-amber-50/30' : ''}" id="row-${p.id}">
+            <tr class="hover:bg-slate-50/80 transition-colors ${isModified ? 'bg-amber-50/30' : ''}" id="row-${Number(p.id)}">
                 <td class="py-3 px-4">
                     <div class="font-bold text-gray-900">${esc(p.name)}</div>
                     <div class="text-[11px] text-gray-500 font-mono mt-0.5 flex items-center gap-2">
@@ -491,35 +491,35 @@ function renderProductsTable() {
                     <div class="inline-flex items-center gap-1.5 justify-end">
                         <span class="text-[11px] text-gray-400 font-bold">PKR</span>
                         <input type="number" step="0.01" min="0" value="${cost}" 
-                               data-id="${p.id}" data-orig="${p.cost_price || 0}"
-                               oninput="onRateInput(this, ${p.id})"
+                               data-id="${Number(p.id)}" data-orig="${esc(p.cost_price || 0)}"
+                               oninput="onRateInput(this, ${Number(p.id)})"
                                class="rate-input w-28 px-2 py-1 text-right text-xs font-bold border ${isModified ? 'border-amber-500 bg-amber-100/50 ring-1 ring-amber-400' : 'border-gray-300 bg-white'} rounded-md focus:ring-2 focus:ring-amber-500 outline-none">
                     </div>
                 </td>
                 <!-- Selling Price (+10% Profit Preview) -->
                 <td class="py-3 px-4 text-right bg-emerald-50/30">
-                    <div class="font-bold text-emerald-800 text-xs" id="selling-cell-${p.id}">
+                    <div class="font-bold text-emerald-800 text-xs" id="selling-cell-${Number(p.id)}">
                         PKR ${formatPkr(selling)}
                     </div>
-                    <div class="text-[10px] text-emerald-600 font-medium" id="profit-badge-${p.id}">
+                    <div class="text-[10px] text-emerald-600 font-medium" id="profit-badge-${Number(p.id)}">
                         +10% profit (+PKR ${formatPkr(profitDiff)})
                     </div>
                 </td>
                 <!-- Stock -->
                 <td class="py-3 px-3 text-center">
                     <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${(p.stock_quantity || 0) > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}">
-                        ${p.stock_quantity || 0}
+                        ${esc(p.stock_quantity || 0)}
                     </span>
                 </td>
                 <!-- Actions -->
                 <td class="py-3 px-4 text-center">
                     <div class="flex items-center justify-center gap-2">
                         ${isModified ? `
-                            <button type="button" onclick="saveSingleRate(${p.id})" class="p-1.5 text-xs text-white bg-amber-600 hover:bg-amber-700 rounded shadow" title="Save this rate">
+                            <button type="button" onclick="saveSingleRate(${Number(p.id)})" class="p-1.5 text-xs text-white bg-amber-600 hover:bg-amber-700 rounded shadow" title="Save this rate">
                                 <i class="fas fa-check"></i>
                             </button>
                         ` : ''}
-                        <button type="button" onclick="openEditModal(${p.id})" class="p-1.5 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded" title="Edit details">
+                        <button type="button" onclick="openEditModal(${Number(p.id)})" class="p-1.5 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded" title="Edit details">
                             <i class="fas fa-pen-to-square"></i>
                         </button>
                     </div>

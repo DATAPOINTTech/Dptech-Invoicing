@@ -163,6 +163,8 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
     }
 
     if ($method === 'POST' && $path === '/api/invoices/pdf') {
+        $pdfUser = require_authenticated_user($db);
+        require_permission_for($db, $pdfUser, 'invoices', 'view');
         $payload = request_json();
         $pdf = generate_invoice_pdf($payload);
         header('Content-Type: application/pdf');
@@ -437,6 +439,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         }
 
         if ($sub === '/pdf' && $method === 'GET') {
+            require_permission_for($db, $user, 'invoices', 'view');
             $stmt = $db->prepare('
                 SELECT i.*, c.name AS client_name, c.email AS client_email, c.phone AS client_phone, c.address AS client_address
                 FROM invoices i

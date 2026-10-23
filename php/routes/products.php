@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_products_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/products/settings') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'view');
         $sheetUrl = get_app_setting($db, 'google_sheet_url', '');
         $lastSynced = get_app_setting($db, 'google_sheet_last_synced', '');
         $profitMargin = (float) get_app_setting($db, 'product_profit_percent', '10.0');
@@ -21,7 +22,15 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
         require_permission_for($db, $user, 'products', 'edit');
         $body = request_json();
         if (isset($body['google_sheet_url'])) {
-            set_app_setting($db, 'google_sheet_url', trim((string) $body['google_sheet_url']));
+            $newSheetUrl = trim((string) $body['google_sheet_url']);
+            if ($newSheetUrl !== '') {
+                try {
+                    assert_google_sheet_url($newSheetUrl);
+                } catch (InvalidArgumentException $e) {
+                    json_response(['detail' => $e->getMessage()], 422);
+                }
+            }
+            set_app_setting($db, 'google_sheet_url', $newSheetUrl);
         }
         if (isset($body['product_profit_percent'])) {
             $margin = (float) $body['product_profit_percent'];
@@ -54,8 +63,15 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
         try {
             $result = sync_products_from_google_sheet($db, $sheetUrl, $profitMargin);
             json_response($result);
-        } catch (Throwable $e) {
+        } catch (PDOException $e) {
+            error_log('Sheet sync database error: ' . $e->getMessage());
+            json_response(['detail' => 'Could not save the imported products. Please try again.'], 500);
+        } catch (InvalidArgumentException | RuntimeException $e) {
+            // Friendly messages written for the user (bad link, sheet not shared, no products found)
             json_response(['detail' => $e->getMessage()], 400);
+        } catch (Throwable $e) {
+            error_log('Sheet sync error: ' . $e->getMessage());
+            json_response(['detail' => 'The sheet could not be imported.'], 500);
         }
     }
 
@@ -94,7 +110,8 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
     }
 
     if ($method === 'GET' && $path === '/api/products/export-csv') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'view');
         $csv = export_products_to_csv($db);
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="datapoint_product_rates_' . date('Ymd_His') . '.csv"');
@@ -103,9 +120,18 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
     }
 
     if ($method === 'GET' && $path === '/api/products') {
-        require_authenticated_user($db);
+        // Everyone who can quote/invoice needs the product list, but the purchase (cost) price
+        // is only for staff who may view the Products module.
+        $user = require_authenticated_user($db);
         $stmt = $db->query('SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE p.is_active = 1 ORDER BY p.category ASC, p.name ASC');
-        json_response($stmt->fetchAll(PDO::FETCH_ASSOC));
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!user_has_permission($user, 'products', 'view')) {
+            $rows = array_map(static function (array $row): array {
+                unset($row['cost_price']);
+                return $row;
+            }, $rows);
+        }
+        json_response($rows);
     }
 
     if ($method === 'POST' && $path === '/api/products') {
@@ -144,12 +170,15 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
     if (preg_match('#^/api/products/([1-9][0-9]*)$#', $path, $match)) {
         $productId = (int) $match[1];
         if ($method === 'GET') {
-            require_authenticated_user($db);
+            $viewer = require_authenticated_user($db);
             $stmt = $db->prepare('SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE p.id = :id');
             $stmt->execute(['id' => $productId]);
             $p = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$p) {
                 json_response(['detail' => 'Product not found'], 404);
+            }
+            if (!user_has_permission($viewer, 'products', 'view')) {
+                unset($p['cost_price']);
             }
             json_response($p);
         }

@@ -59,4 +59,4 @@ If you do not want to set up MySQL in cPanel:
 ## Login Credentials:
 - **URL:** `https://your-domain.com/login`
 - **Username:** `admin`
-- **Password:** `admin123` (or whatever set in `ADMIN_PASSWORD`)
+- **Password:** the `ADMIN_PASSWORD` set in your `.env` (8+ characters). If none is set, a random password is saved in `storage/first_run_admin_password.txt` on first start. Change it after your first login.

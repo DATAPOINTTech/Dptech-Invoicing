@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 const PHP_APP_ROOT = __DIR__;
 
+require_once PHP_APP_ROOT . '/services/security.php';
 require_once PHP_APP_ROOT . '/services/auth.php';
 require_once PHP_APP_ROOT . '/services/communication.php';
 require_once PHP_APP_ROOT . '/services/inventory_service.php';
@@ -707,7 +708,21 @@ function ensure_default_admin(PDO $db): void
 
     $username = trim((string) env_value('ADMIN_USERNAME', 'admin'));
     $email = trim((string) env_value('ADMIN_EMAIL', 'admin@dptech.local'));
-    $password = (string) env_value('ADMIN_PASSWORD', 'admin123');
+    $password = (string) env_value('ADMIN_PASSWORD', '');
+
+    // No default passwords: unless a strong ADMIN_PASSWORD is configured, create a random one and
+    // save it where only someone with access to the server files can read it.
+    $generated = strlen($password) < MIN_PASSWORD_LENGTH || strtolower($password) === 'admin123';
+    if ($generated) {
+        $password = bin2hex(random_bytes(8));
+        $noteFile = PHP_APP_ROOT . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'first_run_admin_password.txt';
+        $note = "First-run administrator login\r\nUsername: {$username}\r\nPassword: {$password}\r\n\r\n"
+            . "Sign in, change this password under your profile, then delete this file.\r\n";
+        if (@file_put_contents($noteFile, $note, LOCK_EX) === false) {
+            throw new RuntimeException('Cannot create the first administrator: set ADMIN_PASSWORD in .env (8+ characters) or make the storage/ folder writable.');
+        }
+        @chmod($noteFile, 0600);
+    }
 
     $stmt = $db->prepare('INSERT INTO users (username, email, hashed_password, full_name, role, is_active, created_at, updated_at) VALUES (:username, :email, :hashed_password, :full_name, :role, :is_active, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
     $stmt->execute([
@@ -899,23 +914,7 @@ function require_authenticated_user(PDO $db): object
     }
 
     $algorithm = (string) env_value('ALGORITHM', 'HS256');
-    $primarySecret = (string) env_value('SECRET_KEY', '9b8bd7f3b1684c2988d44d9a53d9cc4ff6fee49d4efdfd9fc65a9f112f14e7f7');
-    $candidateSecrets = array_filter(array_unique([
-        $primarySecret,
-        '9b8bd7f3b1684c2988d44d9a53d9cc4ff6fee49d4efdfd9fc65a9f112f14e7f7',
-        'ufqEozm0UejRjcpUVF4ySMBER_IrpxFKrdRZn-sngA_dWam3s36zvRoSoBZXUMinqUk',
-        'datapoint-secret-key-change-in-production',
-    ]));
-
-    $user = null;
-    foreach ($candidateSecrets as $secret) {
-        if ($secret !== '') {
-            $user = getCurrentUser($db, $token, $secret, $algorithm);
-            if ($user !== null) {
-                break;
-            }
-        }
-    }
+    $user = getCurrentUser($db, $token, app_secret_key(), $algorithm);
 
     if (!$user) {
         header('WWW-Authenticate: Bearer');
@@ -927,11 +926,12 @@ function require_authenticated_user(PDO $db): object
     return $user;
 }
 
-function require_permission_for(PDO $db, object $user, string $module, string $action): void
+/** Whether the user may perform $action (view/create/edit/delete) on $module. Does not stop the request. */
+function user_has_permission(object $user, string $module, string $action): bool
 {
     $role = strtolower((string) ($user->role ?? ''));
     if ($role === 'admin') {
-        return; // Only Admin has full system access by default
+        return true; // Only Admin has full system access by default
     }
 
     $permissions = $user->permissions ?? [];
@@ -951,7 +951,12 @@ function require_permission_for(PDO $db, object $user, string $module, string $a
         $hasPerm = true;
     }
 
-    if (!$hasPerm) {
+    return $hasPerm;
+}
+
+function require_permission_for(PDO $db, object $user, string $module, string $action): void
+{
+    if (!user_has_permission($user, $module, $action)) {
         json_response(['detail' => "Permission denied: {$module}.{$action}"], 403);
     }
 }
@@ -1041,17 +1046,34 @@ function render_template(string $templateName, array $context = []): never
         return htmlspecialchars((string) ($val ?? ''), ENT_QUOTES, 'UTF-8');
     }, $content);
 
-    // Replace sidebar company folder placeholders
+    // Replace sidebar company folder placeholders (only for visitors who are logged in:
+    // company names and estimate counts must not be shown to anonymous visitors)
+    $showSidebarData = request_has_valid_login();
     if (str_contains($content, '<!-- SIDEBAR_COMPANY_LINKS_PLACEHOLDER -->')) {
-        $content = str_replace('<!-- SIDEBAR_COMPANY_LINKS_PLACEHOLDER -->', get_sidebar_company_links_html(), $content);
+        $content = str_replace('<!-- SIDEBAR_COMPANY_LINKS_PLACEHOLDER -->', $showSidebarData ? get_sidebar_company_links_html() : '', $content);
     }
     if (str_contains($content, '<!-- SIDEBAR_TOTAL_ESTIMATES_COUNT -->')) {
-        $content = str_replace('<!-- SIDEBAR_TOTAL_ESTIMATES_COUNT -->', (string) get_sidebar_total_estimates_count(), $content);
+        $content = str_replace('<!-- SIDEBAR_TOTAL_ESTIMATES_COUNT -->', $showSidebarData ? (string) get_sidebar_total_estimates_count() : '0', $content);
     }
 
     header('Content-Type: text/html; charset=utf-8');
     echo $content;
     exit;
+}
+
+/** True when the request carries a valid, active login token (header, cookie or ?token=). */
+function request_has_valid_login(): bool
+{
+    try {
+        $token = bearer_token();
+        if ($token === null || $token === '') {
+            return false;
+        }
+        $user = getCurrentUser(database_connection(), $token, app_secret_key(), (string) env_value('ALGORITHM', 'HS256'));
+        return $user !== null && (!isset($user->is_active) || (bool) $user->is_active);
+    } catch (\Throwable $e) {
+        return false;
+    }
 }
 
 function get_sidebar_company_links_html(): string

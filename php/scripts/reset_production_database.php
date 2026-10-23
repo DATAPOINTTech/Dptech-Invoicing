@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: this file must never run from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 /**
  * DATAPOINT Invoicing System - Production Database Reset Script
  * Clears all test/demo transaction records and restores a pristine production state.
@@ -124,7 +130,12 @@ foreach ($companies as $co) {
 echo "\n3. Creating clean Administrator Account...\n";
 $adminUsername = trim((string) env_value('ADMIN_USERNAME', 'admin'));
 $adminEmail = trim((string) env_value('ADMIN_EMAIL', 'admin@dptech.local'));
-$adminPassword = (string) env_value('ADMIN_PASSWORD', 'admin123');
+$adminPassword = (string) env_value('ADMIN_PASSWORD', '');
+if (strlen($adminPassword) < 8 || strtolower($adminPassword) === 'admin123') {
+    $adminPassword = bin2hex(random_bytes(8));
+    echo "   ADMIN_PASSWORD is not set (or too weak). Generated a random one: {$adminPassword}
+";
+}
 $adminHash = getPasswordHash($adminPassword);
 
 $adminStmt = $db->prepare('

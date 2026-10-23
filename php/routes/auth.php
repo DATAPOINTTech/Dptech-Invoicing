@@ -12,25 +12,35 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
             json_response(['detail' => 'username and password are required.'], 422);
         }
 
+        $clientIp = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $wait = login_throttle_wait($db, $username, $clientIp);
+        if ($wait > 0) {
+            header('Retry-After: ' . $wait);
+            json_response(['detail' => 'Too many failed login attempts. Please try again in ' . (int) ceil($wait / 60) . ' minute(s).'], 429);
+        }
+
         $user = authenticateUser($db, $username, $password);
         if ($user === null) {
+            login_throttle_record_failure($db, $username, $clientIp);
             json_response(['detail' => 'Incorrect username or password.'], 401);
         }
         if (isset($user->is_active) && !$user->is_active) {
             json_response(['detail' => 'Account is deactivated'], 401);
         }
+        login_throttle_clear($db, $username);
 
-        $secretKey = (string) env_value('SECRET_KEY', 'datapoint-secret-key-change-in-production');
+        $tokenMinutes = (int) env_value('ACCESS_TOKEN_EXPIRE_MINUTES', '1440');
         $token = createAccessToken(
             ['sub' => $username, 'role' => strtolower((string) ($user->role ?? 'staff'))],
-            $secretKey,
-            (int) env_value('ACCESS_TOKEN_EXPIRE_MINUTES', '1440'),
+            app_secret_key(),
+            $tokenMinutes,
             (string) env_value('ALGORITHM', 'HS256')
         );
 
         setcookie('token', $token, [
-            'expires' => time() + 86400 * 30,
+            'expires' => time() + $tokenMinutes * 60,
             'path' => '/',
+            'secure' => is_https_request(),
             'httponly' => false,
             'samesite' => 'Lax'
         ]);
@@ -56,6 +66,18 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
         ]);
     }
 
+    // Sign out: clear the login cookie (the browser also drops its stored token)
+    if ($method === 'POST' && $path === '/api/auth/logout') {
+        setcookie('token', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => is_https_request(),
+            'httponly' => false,
+            'samesite' => 'Lax'
+        ]);
+        json_response(['message' => 'Logged out']);
+    }
+
     // Change Password (Available for currently logged-in user)
     if ($method === 'POST' && ($path === '/api/auth/change-password' || $path === '/api/user/change-password')) {
         $currentUser = require_authenticated_user($db);
@@ -67,21 +89,19 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
         if ($newPassword === '') {
             json_response(['detail' => 'New password cannot be empty.'], 422);
         }
-        if (strlen($newPassword) < 4) {
-            json_response(['detail' => 'New password must be at least 4 characters.'], 422);
+        if (strlen($newPassword) < MIN_PASSWORD_LENGTH) {
+            json_response(['detail' => 'New password must be at least ' . MIN_PASSWORD_LENGTH . ' characters.'], 422);
         }
         if ($confirmPassword !== '' && $newPassword !== $confirmPassword) {
             json_response(['detail' => 'New password and confirmation do not match.'], 422);
         }
 
-        // Optional check for current password if supplied
-        if ($currentPassword !== '') {
-            $stmt = $db->prepare('SELECT hashed_password FROM users WHERE id = :id');
-            $stmt->execute(['id' => $currentUser->id]);
-            $currentHash = (string) $stmt->fetchColumn();
-            if (!verifyPassword($currentPassword, $currentHash)) {
-                json_response(['detail' => 'Current password is incorrect.'], 400);
-            }
+        // The current password is always required, so a stolen login token cannot take over the account
+        $stmt = $db->prepare('SELECT hashed_password FROM users WHERE id = :id');
+        $stmt->execute(['id' => $currentUser->id]);
+        $currentHash = (string) $stmt->fetchColumn();
+        if ($currentPassword === '' || !verifyPassword($currentPassword, $currentHash)) {
+            json_response(['detail' => 'Current password is incorrect.'], 400);
         }
 
         $newHash = getPasswordHash($newPassword);
@@ -116,6 +136,12 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
 
         if ($username === '' || $email === '' || $password === '' || $fullName === '') {
             json_response(['detail' => 'Username, email, password, and full name are required.'], 422);
+        }
+        if (strlen($password) < MIN_PASSWORD_LENGTH) {
+            json_response(['detail' => 'Password must be at least ' . MIN_PASSWORD_LENGTH . ' characters.'], 422);
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            json_response(['detail' => 'A valid email address is required.'], 422);
         }
 
         $stmt = $db->prepare('SELECT id FROM users WHERE username = :u OR email = :e LIMIT 1');
@@ -199,6 +225,9 @@ function handle_auth_routes(string $method, string $path, PDO $db): bool
             }
             $passwordUpdated = false;
             if (isset($body['password']) && trim((string) $body['password']) !== '') {
+                if (strlen(trim((string) $body['password'])) < MIN_PASSWORD_LENGTH) {
+                    json_response(['detail' => 'Password must be at least ' . MIN_PASSWORD_LENGTH . ' characters.'], 422);
+                }
                 $updates[] = 'hashed_password = :hp';
                 $params['hp'] = getPasswordHash(trim((string) $body['password']));
                 $passwordUpdated = true;

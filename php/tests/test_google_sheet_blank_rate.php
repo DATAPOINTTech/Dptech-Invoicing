@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: this file must never run from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 // Runs against a throwaway SQLite database so it never touches real data.
 $tmpDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dptech_sheet_test_' . bin2hex(random_bytes(4));
 mkdir($tmpDir, 0777, true);
@@ -43,7 +49,7 @@ try {
     // 1. First sync: a new product with a blank rate is still inserted (at 0).
     echo "[1] New product with blank rate is inserted at 0...\n";
     $url = write_sheet($tmpDir, 'a.csv', "Product Name,SKU,Category,Current Rate,Unit,Description\nCamera,CAM-1,CCTV,100,pcs,First\nBig NVR,NVR-64,CCTV,,pcs,No rate yet\n");
-    sync_products_from_google_sheet($db, $url, 10.0);
+    sync_products_from_google_sheet($db, $url, 10.0, true);
     $nvr = product_by_sku($db, 'NVR-64');
     assert_equal(0.0, $nvr['cost_price'], 'blank-rate insert cost');
     assert_equal(0.0, $nvr['unit_price'], 'blank-rate insert price');
@@ -53,7 +59,7 @@ try {
     echo "[2] Blank sheet rate keeps price set in the app...\n";
     $db->exec("UPDATE products SET cost_price = 150000, unit_price = 165000 WHERE sku = 'NVR-64'");
     $url = write_sheet($tmpDir, 'b.csv', "Product Name,SKU,Category,Current Rate,Unit,Description\nCamera,CAM-1,CCTV,200,pcs,Second\nBig NVR,NVR-64,Storage,,pcs,Updated text\n");
-    $result = sync_products_from_google_sheet($db, $url, 10.0);
+    $result = sync_products_from_google_sheet($db, $url, 10.0, true);
     if ($result['updated_count'] !== 2 || $result['created_count'] !== 0) {
         throw new RuntimeException('Expected 2 updated / 0 created, got ' . json_encode($result));
     }
@@ -71,7 +77,7 @@ try {
     assert_equal(200.0, $cam['cost_price'], 'camera cost');
     assert_equal(220.0, $cam['unit_price'], 'camera price');
     $url = write_sheet($tmpDir, 'c.csv', "Product Name,SKU,Category,Current Rate,Unit,Description\nBig NVR,NVR-64,Storage,160000,pcs,\n");
-    sync_products_from_google_sheet($db, $url, 10.0);
+    sync_products_from_google_sheet($db, $url, 10.0, true);
     $nvr = product_by_sku($db, 'NVR-64');
     assert_equal(160000.0, $nvr['cost_price'], 'new cost');
     assert_equal(176000.0, $nvr['unit_price'], 'new price');

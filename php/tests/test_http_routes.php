@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: this file must never run from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 require_once dirname(__DIR__) . '/bootstrap.php';
 
 $cookieFile = tempnam(sys_get_temp_dir(), 'cookie_');

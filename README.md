@@ -40,10 +40,11 @@ php -S 0.0.0.0:8000 -t php/public php/public/index.php
 
 Visit **`http://localhost:8000`** in your browser.
 
-### Default Admin Credentials
+### First Admin Login
 
-- **Username:** `admin` (or `info@datapointtechnology.com`)
-- **Password:** `admin123`
+- **Username:** `admin` (or the `ADMIN_USERNAME` you set in `.env`)
+- **Password:** the `ADMIN_PASSWORD` from your `.env` (8+ characters). If you did not set one, the app creates a
+  random password on first start and saves it in `php/storage/first_run_admin_password.txt`. Sign in, change it, then delete that file.
 
 ---
 

@@ -5,7 +5,8 @@ declare(strict_types=1);
 function handle_reports_routes(string $method, string $path, PDO $db): bool
 {
     if ($method === 'GET' && $path === '/api/reports') {
-        require_authenticated_user($db);
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'reports', 'view');
 
         $fd = $_GET['from_date'] ?? date('Y-01-01');
         $td = $_GET['to_date'] ?? date('Y-m-d');

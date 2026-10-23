@@ -1,4 +1,10 @@
 <?php
+// Command-line only: this file must never run from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 
 require_once __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../services/pdf_service.php';

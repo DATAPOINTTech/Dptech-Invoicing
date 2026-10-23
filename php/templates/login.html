@@ -172,7 +172,7 @@ $('#login-form').submit(function(e) {
     }).then(res => {
         localStorage.setItem('token', res.access_token);
         localStorage.setItem('user', JSON.stringify(res.user));
-        document.cookie = 'token=' + encodeURIComponent(res.access_token) + '; path=/; max-age=2592000; SameSite=Lax';
+        document.cookie = 'token=' + encodeURIComponent(res.access_token) + '; path=/; max-age=86400; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
         window.location.href = dashUrl;
     }).catch(err => {
         $('#error-text').text(err.message || 'Login failed');

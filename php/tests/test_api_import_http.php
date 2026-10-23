@@ -1,4 +1,10 @@
 <?php
+// Command-line only: this file must never run from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 
 // 1. Login to get token
 $loginCh = curl_init('http://127.0.0.1:8000/api/auth/login');

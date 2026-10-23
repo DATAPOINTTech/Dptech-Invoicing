@@ -273,7 +273,7 @@ $.ajax({
     // Company profile display
     const coName = e.company_name || 'DATAPOINT Technologies';
     $('#est-co-name').text(coName);
-    if (e.company_logo) {
+    if (e.company_logo && /^(\/static\/|https?:\/\/)/i.test(e.company_logo)) {
         $('#est-co-logo').attr('src', e.company_logo);
     }
     const details = [e.company_address, e.company_phone, e.company_email].filter(Boolean).join(' • ');
@@ -303,7 +303,7 @@ $.ajax({
                 : 'bg-white/10 hover:bg-white/20 text-white font-semibold border-white/20';
 
             return `
-                <a href="/estimates/${sib.id}" class="px-3.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-2 ${cls}">
+                <a href="/estimates/${Number(sib.id)}" class="px-3.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-2 ${cls}">
                     <span class="w-2.5 h-2.5 rounded-full ${dotColor} shrink-0"></span>
                     <span>${esc(sib.company_name)}</span>
                     <span class="text-[10px] opacity-80">(PKR ${Number(sib.total_amount).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
@@ -336,7 +336,7 @@ $.ajax({
         <tr class="transition-colors ${t.tableRowHover}">
             <td class="px-4 py-3 text-gray-800 font-medium">${esc(i.description)}</td>
             <td class="px-4 py-3 text-gray-600">${esc(i.model_make || '-')}</td>
-            <td class="px-4 py-3 text-right text-gray-600">${i.quantity}</td>
+            <td class="px-4 py-3 text-right text-gray-600">${esc(i.quantity)}</td>
             <td class="px-4 py-3 text-right text-gray-500">${esc(i.unit || 'pcs')}</td>
             <td class="px-4 py-3 text-right text-gray-600 font-mono">PKR ${Number(i.unit_price).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
             <td class="px-4 py-3 text-right font-bold text-gray-800 font-mono">PKR ${lineTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
