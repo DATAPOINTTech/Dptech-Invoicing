@@ -246,17 +246,19 @@ function sync_products_from_google_sheet(PDO $db, string $sheetUrl, float $profi
     $stmtFindSku = $db->prepare('SELECT id, cost_price, unit_price FROM products WHERE sku = :sku AND sku IS NOT NULL AND sku != "" LIMIT 1');
     $stmtFindName = $db->prepare('SELECT id, cost_price, unit_price FROM products WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name)) LIMIT 1');
 
-    $stmtUpdate = $db->prepare('
+    $updateSql = '
         UPDATE products SET
-            cost_price = :cost,
-            unit_price = :unit_price,
+            %s
             category = CASE WHEN :cat != "" THEN :cat ELSE category END,
             unit = CASE WHEN :unit != "" THEN :unit ELSE unit END,
             description = CASE WHEN :desc != "" THEN :desc ELSE description END,
             is_active = 1,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = :id
-    ');
+    ';
+    $stmtUpdate = $db->prepare(sprintf($updateSql, 'cost_price = :cost, unit_price = :unit_price,'));
+    // A blank/zero rate in the sheet must not wipe a price that was set in the app.
+    $stmtUpdateKeepPrice = $db->prepare(sprintf($updateSql, ''));
 
     $stmtInsert = $db->prepare('
         INSERT INTO products (
@@ -288,14 +290,17 @@ function sync_products_from_google_sheet(PDO $db, string $sheetUrl, float $profi
         }
 
         if ($existingId !== null) {
-            $stmtUpdate->execute([
-                'cost' => $costPrice,
-                'unit_price' => $sellingPrice,
+            $params = [
                 'cat' => $item['category'] ?? '',
                 'unit' => $item['unit'] ?? '',
                 'desc' => $item['description'] ?? '',
                 'id' => $existingId,
-            ]);
+            ];
+            if ($costPrice > 0) {
+                $stmtUpdate->execute($params + ['cost' => $costPrice, 'unit_price' => $sellingPrice]);
+            } else {
+                $stmtUpdateKeepPrice->execute($params);
+            }
             $updated++;
         } else {
             $stmtInsert->execute([
