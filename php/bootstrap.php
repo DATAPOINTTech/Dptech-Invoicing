@@ -774,21 +774,30 @@ function ensure_fbr_schema(PDO $db): void
         }
     }
 
-    // 4. Default FBR configuration in app_settings
+    // 4. Default FBR configuration in app_settings (FBR Digital Invoicing API v1)
     if (get_app_setting($db, 'fbr_enabled') === null) {
         set_app_setting($db, 'fbr_enabled', '1');
     }
     if (get_app_setting($db, 'fbr_environment') === null) {
         set_app_setting($db, 'fbr_environment', 'sandbox');
     }
-    if (get_app_setting($db, 'fbr_api_url') === null) {
-        set_app_setting($db, 'fbr_api_url', 'https://ims.pral.com.pk/api/Live/PostData');
+    $currApi = get_app_setting($db, 'fbr_api_url');
+    if ($currApi === null || str_contains($currApi, 'ims.pral.com.pk')) {
+        set_app_setting($db, 'fbr_api_url', 'https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb');
+    }
+    $currVal = get_app_setting($db, 'fbr_validate_url');
+    if ($currVal === null) {
+        set_app_setting($db, 'fbr_validate_url', 'https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb');
+    }
+    $currTok = get_app_setting($db, 'fbr_bearer_token');
+    if ($currTok === null || $currTok === '') {
+        set_app_setting($db, 'fbr_bearer_token', '18d1e4a2-145a-3ec1-b20b-02ccaab53457');
     }
     if (get_app_setting($db, 'fbr_pos_id') === null) {
         set_app_setting($db, 'fbr_pos_id', '100001');
     }
-    if (get_app_setting($db, 'fbr_mode') === null) {
-        set_app_setting($db, 'fbr_mode', 'simulation');
+    if (get_app_setting($db, 'fbr_mode') === null || get_app_setting($db, 'fbr_mode') === 'simulation') {
+        set_app_setting($db, 'fbr_mode', 'live');
     }
 }
 

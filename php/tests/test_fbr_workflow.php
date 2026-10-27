@@ -64,6 +64,18 @@ if ($approveResult['status'] === 'approved') {
     exit(1);
 }
 
+// 4b. Pre-validate with FBR Sandbox Gateway
+echo "3b. Pre-validating invoice with FBR Sandbox Gateway...\n";
+$valResult = validate_invoice_with_fbr($db, $invoiceId);
+echo "   Success: " . ($valResult['success'] ? 'YES' : 'NO') . "\n";
+echo "   Status: " . ($valResult['status'] ?? '') . "\n";
+if ($valResult['success'] && ($valResult['status'] === 'Valid' || ($valResult['statusCode'] ?? '') === '00')) {
+    echo "   -> PASS: FBR Pre-validation check succeeded (Status: Valid)!\n";
+} else {
+    echo "   -> FAIL: FBR Pre-validation failed: " . ($valResult['error'] ?? '') . "\n";
+    exit(1);
+}
+
 // 5. Post Approved Invoice to FBR Portal
 echo "4. Posting approved invoice to FBR Pakistan Portal...\n";
 $fbrResult = post_invoice_to_fbr($db, $invoiceId, 1);

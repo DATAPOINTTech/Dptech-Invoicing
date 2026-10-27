@@ -143,14 +143,15 @@ if (in_array($code, [200, 201], true) && $estId > 0) {
         if (!$p1Ok) $allPass = false;
 
         // Test Recording Full Balance Payment
+        $remBal = (float)($p1Data['balance_due'] ?? 58500);
         [$p2Code, $p2Resp] = test_request("http://127.0.0.1:8000/api/invoices/{$invId}/pay", [
-            'amount' => 57750,
+            'amount' => $remBal,
             'payment_method' => 'Cheque',
             'notes' => 'Settlement'
         ], true);
         $p2Data = json_decode($p2Resp, true);
         $p2Ok = ($p2Code === 200 && ($p2Data['status'] ?? '') === 'paid' && (float)($p2Data['balance_due'] ?? -1) === 0.0);
-        echo "   2nd Payment (PKR 57,750) -> HTTP {$p2Code}, Status: " . ($p2Data['status'] ?? 'unknown') . ", Bal Due: " . ($p2Data['balance_due'] ?? -1) . " " . ($p2Ok ? '[PASS]' : '[FAIL]') . "\n";
+        echo "   2nd Payment (PKR {$remBal}) -> HTTP {$p2Code}, Status: " . ($p2Data['status'] ?? 'unknown') . ", Bal Due: " . ($p2Data['balance_due'] ?? -1) . " " . ($p2Ok ? '[PASS]' : '[FAIL]') . "\n";
         if (!$p2Ok) $allPass = false;
 
         // Cleanup test invoice

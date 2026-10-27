@@ -21,3 +21,4 @@ foreach ($images as $img) {
         echo "FAIL: {$img}\n";
     }
 }
+

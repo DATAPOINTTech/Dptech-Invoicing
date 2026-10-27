@@ -568,7 +568,20 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             json_response($res);
         }
 
-        // FBR Workflow: 2. Manual Posting to FBR Pakistan Portal
+        // FBR Workflow: 2. Pre-Validation with FBR Sandbox / Portal
+        if ($sub === '/fbr-validate' && $method === 'POST') {
+            require_permission_for($db, $user, 'invoices', 'view');
+            $res = validate_invoice_with_fbr($db, $invoiceId);
+            if (!$res['success']) {
+                json_response([
+                    'detail' => $res['error'] ?? 'FBR validation failed',
+                    'data' => $res
+                ], 422);
+            }
+            json_response($res);
+        }
+
+        // FBR Workflow: 3. Manual Posting to FBR Pakistan Portal
         if ($sub === '/fbr-post' && $method === 'POST') {
             require_permission_for($db, $user, 'invoices', 'edit');
             $body = request_json();
