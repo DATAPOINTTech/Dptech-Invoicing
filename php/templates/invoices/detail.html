@@ -11,7 +11,10 @@
                     Invoice <span id="inv-header-no" class="text-cyan-700"></span>
                 </h1>
             </div>
-            <div class="flex gap-2" id="action-buttons">
+            <div class="flex gap-2 items-center flex-wrap" id="action-buttons">
+                <span id="header-fbr-posted-badge" class="hidden bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-600"></i> FBR: <span id="header-fbr-no"></span></span>
+                <button id="header-approve-btn" onclick="approveInvoice()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hidden flex items-center gap-2 shadow-sm"><i class="fas fa-check-double"></i> Approve Invoice</button>
+                <button id="header-fbr-btn" onclick="postToFbr()" class="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white px-4 py-2 rounded-lg text-sm font-bold hidden flex items-center gap-2 shadow-sm"><i class="fas fa-paper-plane"></i> Post to FBR</button>
                 <a id="pdf-btn" href="/api/invoices/{{ invoice_id }}/pdf" target="_blank" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 flex items-center gap-2"><i class="fas fa-file-pdf"></i> PDF</a>
                 <button id="whatsapp-quick-btn" onclick="sendInvoiceWhatsappDirect()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm"><i class="fab fa-whatsapp text-lg"></i> Send WhatsApp</button>
                 <a href="/invoices/{{ invoice_id }}/edit" id="edit-btn" class="bg-amber-50 text-amber-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-100 hidden flex items-center gap-2"><i class="fas fa-edit"></i> Edit</a>
@@ -29,6 +32,11 @@
                             </div>
                             <p class="text-gray-500 text-sm mt-1" id="inv-dates"></p>
                             <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide mt-1" id="inv-title" style="display:none"></p>
+                            <div class="mt-1 flex items-center gap-2" id="inv-fbr-container" style="display:none">
+                                <span class="bg-emerald-100 text-emerald-800 text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
+                                    <i class="fas fa-check-circle text-emerald-600"></i> FBR Invoice #: <span id="inv-fbr-no"></span>
+                                </span>
+                            </div>
                         </div>
                         <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold capitalize"></span>
                     </div>
@@ -126,8 +134,84 @@
                 </div>
             </div>
 
-            <!-- Right Column: Record Payment & Send -->
+            <!-- Right Column: FBR Portal, Record Payment & Send -->
             <div class="space-y-6">
+                <!-- FBR Pakistan Digital Invoicing Portal Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-emerald-200 overflow-hidden" id="fbr-card">
+                    <div class="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-4 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-emerald-500/30 flex items-center justify-center font-black text-xs border border-emerald-400/40">FBR</span>
+                            <div>
+                                <h3 class="font-bold text-sm leading-tight">FBR Pakistan Tax Portal</h3>
+                                <p class="text-[10px] text-emerald-200">Digital Invoicing &amp; Sales Tax System</p>
+                            </div>
+                        </div>
+                        <span id="fbr-status-pill" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider"></span>
+                    </div>
+
+                    <div class="p-5 space-y-3.5">
+                        <!-- State 1: Posted -->
+                        <div id="fbr-posted-state" class="hidden space-y-3">
+                            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">FBR Invoice Number</span>
+                                    <button type="button" onclick="copyFbrNumber()" class="text-[11px] text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1">
+                                        <i class="far fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                                <p id="fbr-inv-num" class="font-mono font-extrabold text-gray-900 text-sm tracking-wide select-all"></p>
+                                <p id="fbr-posted-time" class="text-[11px] text-emerald-700 mt-1"></p>
+                            </div>
+
+                            <!-- QR Code Preview & Verification -->
+                            <div class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                <div class="w-16 h-16 bg-white border border-slate-200 rounded-lg p-1 shrink-0 flex items-center justify-center shadow-xs overflow-hidden">
+                                    <img id="fbr-qr-img" src="" alt="FBR QR Code" class="w-full h-full object-contain">
+                                </div>
+                                <div class="text-xs space-y-0.5">
+                                    <p class="font-bold text-slate-800 flex items-center gap-1.5">
+                                        <i class="fas fa-qrcode text-emerald-600"></i> Tax Asaan QR Code
+                                    </p>
+                                    <p class="text-[11px] text-slate-500">Scan via FBR Tax Asaan app to verify official sales tax recording.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- State 2: Ready for Posting (Approved) -->
+                        <div id="fbr-approved-state" class="hidden space-y-3">
+                            <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1">
+                                <p class="font-bold flex items-center gap-1.5"><i class="fas fa-check-circle text-blue-600"></i> Invoice Approved &amp; Ready</p>
+                                <p class="text-blue-800 leading-relaxed">This invoice has been reviewed and approved. Click below to transmit and post directly to the Federal Board of Revenue portal.</p>
+                            </div>
+                            <button type="button" id="btn-post-fbr" onclick="postToFbr()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white py-2.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                                <i class="fas fa-paper-plane"></i> Post to FBR Portal
+                            </button>
+                        </div>
+
+                        <!-- State 3: Draft (Approval Needed) -->
+                        <div id="fbr-draft-state" class="hidden space-y-3">
+                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+                                <p class="font-bold flex items-center gap-1.5"><i class="fas fa-exclamation-triangle text-amber-600"></i> Approval Required</p>
+                                <p class="text-amber-800 leading-relaxed">FBR regulations require sales invoices to be reviewed and approved before submission.</p>
+                            </div>
+                            <button type="button" id="btn-approve-fbr" onclick="approveInvoice()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                                <i class="fas fa-check-double"></i> Approve Invoice Now
+                            </button>
+                        </div>
+
+                        <!-- State 4: Failed -->
+                        <div id="fbr-failed-state" class="hidden space-y-3">
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-900 space-y-1">
+                                <p class="font-bold flex items-center gap-1.5"><i class="fas fa-times-circle text-red-600"></i> FBR Submission Failed</p>
+                                <p id="fbr-error-msg" class="text-red-800 text-[11px] leading-relaxed break-words"></p>
+                            </div>
+                            <button type="button" onclick="postToFbr(true)" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                                <i class="fas fa-redo"></i> Retry Posting to FBR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Record Payment Box -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" id="payment-card">
                     <div class="flex items-center justify-between mb-3">
@@ -243,6 +327,7 @@ function loadInvoice() {
         const sc = {
             'paid': 'bg-emerald-100 text-emerald-800',
             'sent': 'bg-blue-100 text-blue-800',
+            'approved': 'bg-blue-100 text-blue-800',
             'overdue': 'bg-red-100 text-red-800',
             'partially_paid': 'bg-amber-100 text-amber-800',
             'draft': 'bg-slate-100 text-slate-700',
@@ -250,6 +335,47 @@ function loadInvoice() {
         };
         const statusText = (inv.status || 'draft').replace(/_/g, ' ');
         $('#inv-status-badge').text(statusText).attr('class', 'px-3 py-1 rounded-full text-xs font-semibold capitalize ' + (sc[inv.status] || 'bg-slate-100 text-slate-700'));
+
+        // FBR Status & Card Handling
+        const fbrStatus = inv.fbr_status || 'unposted';
+        $('#fbr-posted-state, #fbr-approved-state, #fbr-draft-state, #fbr-failed-state').addClass('hidden');
+        $('#header-fbr-posted-badge, #header-approve-btn, #header-fbr-btn').addClass('hidden');
+
+        if (fbrStatus === 'posted' && inv.fbr_invoice_no) {
+            $('#fbr-posted-state').removeClass('hidden');
+            $('#fbr-inv-num').text(inv.fbr_invoice_no);
+            $('#fbr-posted-time').text('Posted on: ' + (inv.fbr_posted_at || 'Verified'));
+            $('#fbr-status-pill').text('POSTED').attr('class', 'text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-emerald-400 text-slate-900');
+
+            if (inv.fbr_qr_data_uri) {
+                $('#fbr-qr-img').attr('src', inv.fbr_qr_data_uri).show();
+            } else {
+                $('#fbr-qr-img').hide();
+            }
+
+            $('#header-fbr-no').text(inv.fbr_invoice_no);
+            $('#header-fbr-posted-badge').removeClass('hidden');
+
+            $('#inv-fbr-no').text(inv.fbr_invoice_no);
+            $('#inv-fbr-container').show();
+        } else if (fbrStatus === 'failed') {
+            $('#fbr-failed-state').removeClass('hidden');
+            $('#fbr-error-msg').text(inv.fbr_response || 'Submission rejected by FBR portal');
+            $('#fbr-status-pill').text('FAILED').attr('class', 'text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-rose-400 text-slate-900');
+            $('#header-fbr-btn').removeClass('hidden').html('<i class="fas fa-redo"></i> Retry FBR');
+            $('#inv-fbr-container').hide();
+        } else if (inv.status === 'draft') {
+            $('#fbr-draft-state').removeClass('hidden');
+            $('#fbr-status-pill').text('DRAFT').attr('class', 'text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-amber-400 text-slate-900');
+            $('#header-approve-btn').removeClass('hidden');
+            $('#inv-fbr-container').hide();
+        } else {
+            // Approved / Sent / Partially Paid / Paid -> Ready for FBR
+            $('#fbr-approved-state').removeClass('hidden');
+            $('#fbr-status-pill').text('READY').attr('class', 'text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-blue-400 text-slate-900');
+            $('#header-fbr-btn').removeClass('hidden').html('<i class="fas fa-paper-plane"></i> Post to FBR');
+            $('#inv-fbr-container').hide();
+        }
 
         if (!['paid', 'cancelled'].includes(inv.status)) {
             $('#edit-btn').removeClass('hidden');
@@ -516,6 +642,54 @@ function sendInvoiceWhatsappDirect() {
     }).always(function() {
         btn.prop('disabled', false).html('<i class="fab fa-whatsapp text-lg"></i> Send WhatsApp');
     });
+}
+
+function approveInvoice() {
+    if (!confirm('Approve and finalize this invoice for official issuance and FBR transmission?')) return;
+    const btn = $('#btn-approve-fbr, #header-approve-btn');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Approving...');
+    $.ajax({
+        url: '/api/invoices/' + iid + '/approve',
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+    }).done(function(res) {
+        alert(res.message || 'Invoice approved successfully!');
+        loadInvoice();
+    }).fail(function(xhr) {
+        alert(xhr.responseJSON?.detail || 'Failed to approve invoice');
+    }).always(function() {
+        btn.prop('disabled', false).html('<i class="fas fa-check-double mr-1"></i> Approve Invoice');
+    });
+}
+
+function postToFbr(force = false) {
+    if (!confirm('Submit this sales invoice to the FBR Pakistan Digital Invoicing Portal?')) return;
+    const btn = $('#btn-post-fbr, #header-fbr-btn');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Transmitting to FBR...');
+    $.ajax({
+        url: '/api/invoices/' + iid + '/fbr-post',
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        data: JSON.stringify({ force: force })
+    }).done(function(res) {
+        alert(res.message || 'Successfully posted to FBR Pakistan Portal!');
+        loadInvoice();
+    }).fail(function(xhr) {
+        alert(xhr.responseJSON?.detail || 'FBR Submission Failed');
+        loadInvoice();
+    }).always(function() {
+        btn.prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i> Post to FBR Portal');
+    });
+}
+
+function copyFbrNumber() {
+    const num = $('#fbr-inv-num').text().trim();
+    if (!num) return;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(num).then(() => alert('FBR Invoice Number copied to clipboard: ' + num));
+    } else {
+        prompt('Copy FBR Invoice Number:', num);
+    }
 }
 </script>
 {% endblock %}

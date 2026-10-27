@@ -123,6 +123,7 @@ function database_connection(): PDO
     ensure_all_schema_tables($connection);
     ensure_default_admin($connection);
     ensure_multicompany_schema($connection);
+    ensure_fbr_schema($connection);
     check_emergency_password_reset($connection);
 
     return $connection;
@@ -696,6 +697,98 @@ SQL);
         foreach ($initialCompanies as $co) {
             $ins->execute($co);
         }
+    }
+}
+
+function ensure_fbr_schema(PDO $db): void
+{
+    ensure_app_settings_schema($db);
+
+    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+    $getColumns = function(string $table) use ($db, $driver): array {
+        if (!db_table_exists($db, $table)) return [];
+        try {
+            if ($driver === 'sqlite') {
+                $cols = $db->query("PRAGMA table_info({$table})")->fetchAll(PDO::FETCH_ASSOC);
+                return array_column($cols, 'name');
+            }
+            $cols = $db->query("SHOW COLUMNS FROM {$table}")->fetchAll(PDO::FETCH_ASSOC);
+            return array_column($cols, 'Field');
+        } catch (\Throwable $e) {
+            return [];
+        }
+    };
+
+    // 1. Invoices table FBR integration columns
+    if (db_table_exists($db, 'invoices')) {
+        $existing = $getColumns('invoices');
+        $fbrCols = [
+            'fbr_status' => "VARCHAR(50) DEFAULT 'unposted'",
+            'fbr_invoice_no' => 'VARCHAR(100)',
+            'fbr_pos_id' => 'VARCHAR(50)',
+            'fbr_code' => 'VARCHAR(20)',
+            'fbr_response' => 'TEXT',
+            'fbr_qr_code' => 'TEXT',
+            'fbr_posted_at' => 'DATETIME',
+            'fbr_posted_by' => 'INTEGER',
+            'approved_at' => 'DATETIME',
+            'approved_by' => 'INTEGER',
+        ];
+        foreach ($fbrCols as $col => $type) {
+            if (!in_array($col, $existing, true)) {
+                try {
+                    $db->exec("ALTER TABLE invoices ADD COLUMN {$col} {$type}");
+                } catch (\Throwable $e) {}
+            }
+        }
+    }
+
+    // 2. Companies table FBR per-company settings
+    if (db_table_exists($db, 'companies')) {
+        $existing = $getColumns('companies');
+        $coCols = [
+            'fbr_pos_id' => 'VARCHAR(50)',
+            'fbr_bearer_token' => 'TEXT',
+            'fbr_environment' => "VARCHAR(20) DEFAULT 'sandbox'",
+            'fbr_enabled' => 'BOOLEAN DEFAULT 1',
+        ];
+        foreach ($coCols as $col => $type) {
+            if (!in_array($col, $existing, true)) {
+                try {
+                    $db->exec("ALTER TABLE companies ADD COLUMN {$col} {$type}");
+                } catch (\Throwable $e) {}
+            }
+        }
+    }
+
+    // 3. Line items & products PCT/HS Code
+    foreach (['products', 'invoice_items'] as $tbl) {
+        if (db_table_exists($db, $tbl)) {
+            $existing = $getColumns($tbl);
+            if (!in_array('pct_code', $existing, true)) {
+                try {
+                    $db->exec("ALTER TABLE {$tbl} ADD COLUMN pct_code VARCHAR(50)");
+                } catch (\Throwable $e) {}
+            }
+        }
+    }
+
+    // 4. Default FBR configuration in app_settings
+    if (get_app_setting($db, 'fbr_enabled') === null) {
+        set_app_setting($db, 'fbr_enabled', '1');
+    }
+    if (get_app_setting($db, 'fbr_environment') === null) {
+        set_app_setting($db, 'fbr_environment', 'sandbox');
+    }
+    if (get_app_setting($db, 'fbr_api_url') === null) {
+        set_app_setting($db, 'fbr_api_url', 'https://ims.pral.com.pk/api/Live/PostData');
+    }
+    if (get_app_setting($db, 'fbr_pos_id') === null) {
+        set_app_setting($db, 'fbr_pos_id', '100001');
+    }
+    if (get_app_setting($db, 'fbr_mode') === null) {
+        set_app_setting($db, 'fbr_mode', 'simulation');
     }
 }
 

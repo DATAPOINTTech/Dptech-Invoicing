@@ -38,6 +38,76 @@
                 </button>
             </div>
         </form>
+
+        <!-- FBR Pakistan Tax Collection Portal Settings Card -->
+        <div class="mt-8 bg-white rounded-2xl shadow-sm border border-emerald-200 overflow-hidden">
+            <div class="p-5 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white flex justify-between items-center flex-wrap gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center font-black text-sm">
+                        FBR
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold">FBR Pakistan Digital Invoicing &amp; POS Setup</h2>
+                        <p class="text-xs text-emerald-200">Configure connection credentials for Federal Board of Revenue IMS tax collection portal</p>
+                    </div>
+                </div>
+                <span id="fbr-status-indicator" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-400 text-slate-900">Active</span>
+            </div>
+
+            <form id="fbr-settings-form" class="p-6 space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Integration Status</label>
+                        <select id="fbr-enabled" class="w-full px-3 py-2 border rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="1">Enabled (Active)</option>
+                            <option value="0">Disabled</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Environment</label>
+                        <select id="fbr-environment" class="w-full px-3 py-2 border rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="sandbox">Sandbox / Testing (PRAL IMS)</option>
+                            <option value="production">Production (Live FBR Gateway)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Transmission Mode</label>
+                        <select id="fbr-mode" class="w-full px-3 py-2 border rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="simulation">Sandbox Simulation (Test Posting)</option>
+                            <option value="live">Live Transmission (Direct to FBR API)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">FBR POS ID *</label>
+                        <input type="text" id="fbr-pos-id" placeholder="e.g. 100001" required class="w-full px-3 py-2 border rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-emerald-500">
+                        <p class="text-[11px] text-gray-500 mt-1">6-digit Point of Sale ID issued by FBR.</p>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Authorization Bearer Token</label>
+                        <input type="password" id="fbr-bearer-token" placeholder="Enter Bearer Token provided by FBR portal" class="w-full px-3 py-2 border rounded-xl text-sm font-mono text-gray-800 outline-none focus:ring-2 focus:ring-emerald-500">
+                        <p class="text-[11px] text-gray-500 mt-1">Generated from your FBR IRIS / POS portal account profile.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">FBR POST API Endpoint URL</label>
+                    <input type="url" id="fbr-api-url" value="https://ims.pral.com.pk/api/Live/PostData" class="w-full px-3 py-2 border rounded-xl text-sm font-mono text-gray-800 outline-none focus:ring-2 focus:ring-emerald-500">
+                    <p class="text-[11px] text-gray-500 mt-1">Official PRAL / FBR POST gateway endpoint.</p>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                    <button type="submit" id="save-fbr-btn" class="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all text-sm flex items-center gap-2">
+                        <i class="fas fa-save"></i> Save FBR Settings
+                    </button>
+                </div>
+            </form>
+        </div>
     </main>
 </div>
 
@@ -237,8 +307,61 @@ $('#companies-form').submit(function(e) {
     });
 });
 
+function loadFbrSettings() {
+    $.ajax({
+        url: '/api/fbr/settings',
+        method: 'GET',
+        headers
+    }).done(function(cfg) {
+        if (!cfg) return;
+        $('#fbr-enabled').val(cfg.enabled ? '1' : '0');
+        $('#fbr-environment').val(cfg.environment || 'sandbox');
+        $('#fbr-mode').val(cfg.mode || 'simulation');
+        $('#fbr-pos-id').val(cfg.pos_id || '100001');
+        $('#fbr-bearer-token').val(cfg.bearer_token || '');
+        if (cfg.api_url) $('#fbr-api-url').val(cfg.api_url);
+
+        if (cfg.enabled) {
+            $('#fbr-status-indicator').text(cfg.environment.toUpperCase() + ' (' + (cfg.mode || 'sim').toUpperCase() + ')').attr('class', 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-400 text-slate-900');
+        } else {
+            $('#fbr-status-indicator').text('DISABLED').attr('class', 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-400 text-white');
+        }
+    });
+}
+
+$('#fbr-settings-form').on('submit', function(e) {
+    e.preventDefault();
+    const btn = $('#save-fbr-btn');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+    const payload = {
+        fbr_enabled: $('#fbr-enabled').val() === '1',
+        fbr_environment: $('#fbr-environment').val(),
+        fbr_mode: $('#fbr-mode').val(),
+        fbr_pos_id: $('#fbr-pos-id').val().trim(),
+        fbr_bearer_token: $('#fbr-bearer-token').val().trim(),
+        fbr_api_url: $('#fbr-api-url').val().trim()
+    };
+
+    $.ajax({
+        url: '/api/fbr/settings',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        headers
+    }).done(function(res) {
+        alert(res.message || 'FBR settings saved successfully!');
+        loadFbrSettings();
+    }).fail(function(xhr) {
+        alert('Failed to save FBR settings: ' + (xhr.responseJSON?.detail || 'Error'));
+    }).always(function() {
+        btn.prop('disabled', false).html('<i class="fas fa-save mr-1"></i> Save FBR Settings');
+    });
+});
+
 $(function() {
     loadCompanies();
+    loadFbrSettings();
 });
 </script>
 {% endblock %}

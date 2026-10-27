@@ -2,8 +2,26 @@
 
 declare(strict_types=1);
 
+require_once dirname(__DIR__) . '/services/fbr_service.php';
+
 function handle_invoices_routes(string $method, string $path, PDO $db): bool
 {
+    // FBR Global Configuration Endpoints
+    if ($method === 'GET' && $path === '/api/fbr/settings') {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'invoices', 'view');
+        $companyId = !empty($_GET['company_id']) ? (int)$_GET['company_id'] : null;
+        json_response(fbr_get_config($db, $companyId));
+    }
+
+    if ($method === 'POST' && $path === '/api/fbr/settings') {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'invoices', 'edit');
+        $data = request_json();
+        fbr_save_settings($db, $data);
+        json_response(['success' => true, 'message' => 'FBR settings updated successfully', 'settings' => fbr_get_config($db)]);
+    }
+
     if ($method === 'GET' && $path === '/api/invoices') {
         $user = require_authenticated_user($db);
         require_permission_for($db, $user, 'invoices', 'view');
@@ -11,8 +29,14 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         $sql = 'SELECT i.*, c.name AS client_name FROM invoices i LEFT JOIN clients c ON c.id = i.client_id';
         $params = [];
         if ($status !== null && $status !== '') {
-            $sql .= ' WHERE i.status = :st';
-            $params['st'] = $status;
+            if ($status === 'fbr_posted') {
+                $sql .= " WHERE i.fbr_status = 'posted'";
+            } elseif ($status === 'fbr_unposted') {
+                $sql .= " WHERE (i.fbr_status IS NULL OR i.fbr_status != 'posted')";
+            } else {
+                $sql .= ' WHERE i.status = :st';
+                $params['st'] = $status;
+            }
         }
         $sql .= ' ORDER BY i.invoice_date DESC, i.id DESC';
         $stmt = $db->prepare($sql);
@@ -213,6 +237,10 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $payStmt = $db->prepare('SELECT * FROM payments WHERE invoice_id = :id ORDER BY payment_date DESC, id DESC');
             $payStmt->execute(['id' => $invoiceId]);
             $inv['payments'] = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($inv['fbr_invoice_no'])) {
+                $inv['fbr_qr_data_uri'] = PurePhpQr::toDataUri((string)($inv['fbr_qr_code'] ?: $inv['fbr_invoice_no']), 180);
+            }
 
             json_response($inv);
         }
@@ -527,6 +555,54 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $upd->execute(['id' => $invoiceId]);
 
             json_response(['message' => 'Invoice dispatch completed', 'results' => $results]);
+        }
+
+        // FBR Workflow: 1. Manual Approval of Invoice
+        if ($sub === '/approve' && $method === 'POST') {
+            require_permission_for($db, $user, 'invoices', 'edit');
+            $uid = isset($user->id) ? (int)$user->id : (isset($user['id']) ? (int)$user['id'] : null);
+            $res = approve_invoice($db, $invoiceId, $uid);
+            if (!$res['success']) {
+                json_response(['detail' => $res['error']], 422);
+            }
+            json_response($res);
+        }
+
+        // FBR Workflow: 2. Manual Posting to FBR Pakistan Portal
+        if ($sub === '/fbr-post' && $method === 'POST') {
+            require_permission_for($db, $user, 'invoices', 'edit');
+            $body = request_json();
+            $force = !empty($body['force']);
+            $uid = isset($user->id) ? (int)$user->id : (isset($user['id']) ? (int)$user['id'] : null);
+            $res = post_invoice_to_fbr($db, $invoiceId, $uid, $force);
+            if (!$res['success']) {
+                json_response([
+                    'detail' => $res['error'] ?? 'FBR submission failed',
+                    'data' => $res
+                ], 422);
+            }
+            json_response($res);
+        }
+
+        // FBR Workflow: 3. Realtime FBR Status & QR Data
+        if ($sub === '/fbr-status' && $method === 'GET') {
+            require_permission_for($db, $user, 'invoices', 'view');
+            $stmt = $db->prepare('
+                SELECT id, invoice_no, status, fbr_status, fbr_invoice_no, fbr_pos_id, fbr_code, fbr_response, fbr_qr_code, fbr_posted_at, approved_at
+                FROM invoices
+                WHERE id = :id
+            ');
+            $stmt->execute(['id' => $invoiceId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                json_response(['detail' => 'Invoice not found'], 404);
+            }
+            if (!empty($row['fbr_invoice_no'])) {
+                $qrTarget = (string)($row['fbr_qr_code'] ?: $row['fbr_invoice_no']);
+                $row['qr_svg'] = PurePhpQr::toSvg($qrTarget, 180);
+                $row['qr_data_uri'] = PurePhpQr::toDataUri($qrTarget, 180);
+            }
+            json_response($row);
         }
 
         if ($sub === '' && $method === 'DELETE') {

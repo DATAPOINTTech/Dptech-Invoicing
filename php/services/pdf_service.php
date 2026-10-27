@@ -490,6 +490,33 @@ class DpPdfEngine
         $this->append(sprintf("%.2F %.2F m\n%.2F %.2F l\nS\n", $x1, $y1, $x2, $y2));
     }
 
+    public function drawQrCode(float $x, float $y, string $text, float $size = 50.0): void
+    {
+        require_once __DIR__ . '/qrcode_service.php';
+        $matrix = PurePhpQr::encode($text);
+        $n = count($matrix);
+        if ($n === 0) return;
+        $quiet = 1;
+        $totalCells = $n + ($quiet * 2);
+        $cellW = $size / $totalCells;
+
+        // Clean white background
+        $this->setFillColor(1, 1, 1);
+        $this->drawRect($x, $y, $size, $size, true, false);
+
+        // Draw dark modules
+        $this->setFillColor(0.06, 0.09, 0.16);
+        for ($r = 0; $r < $n; $r++) {
+            for ($c = 0; $c < $n; $c++) {
+                if ($matrix[$r][$c] === 1) {
+                    $modX = $x + (($c + $quiet) * $cellW);
+                    $modY = $y + (($n - 1 - $r + $quiet) * $cellW);
+                    $this->drawRect($modX, $modY, $cellW + 0.12, $cellW + 0.12, true, false);
+                }
+            }
+        }
+    }
+
     public function getTextWidth(string $text, string $font = 'F1', float $size = 10.0): float
     {
         static $widthsF1 = [
@@ -978,6 +1005,10 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $pdf->setFillColorArray($theme['primary']);
     $pdf->drawText($rightMetaX, $metaY, 'Date: ' . $formattedDate, 'F1', 9.0, 'right', $rightMetaW);
     $pdf->drawText($rightMetaX, $metaY - 13.0, $numLabel . ' ' . $docNo, 'F2', 9.5, 'right', $rightMetaW);
+    if ($type === 'INVOICE' && !empty($doc['fbr_invoice_no'])) {
+        $pdf->setFillColor(0.06, 0.48, 0.28);
+        $pdf->drawText($rightMetaX, $metaY - 24.0, 'FBR Inv #: ' . $doc['fbr_invoice_no'], 'F2', 8.0, 'right', $rightMetaW);
+    }
 
     // 6. Section Title Banner
     $bannerY = $metaY - 34.0;
@@ -1186,8 +1217,9 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $pdf->drawText($barX, $y - 12.0, number_format($totalAmount, 2), 'F2', 10.5, 'right', $barW - 8.0);
     $y -= 26.0;
 
-    // 7. Stamp Box (Right) & Terms (Left)
-    $stampW = 118.0;
+    // 7. Stamp Box (Right), FBR Verification Box (Middle if posted), & Terms (Left)
+    $hasFbr = ($type === 'INVOICE' && !empty($doc['fbr_invoice_no']));
+    $stampW = $hasFbr ? 110.0 : 118.0;
     $stampH = 75.0;
     $stampX = $left + $width - $stampW;
     $stampY = $y - $stampH;
@@ -1215,8 +1247,37 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $pdf->drawText($stampX, $stampY + ($stampH / 2.0) - 4.0, $theme['stamp_label'] ?? 'STAMP', 'F2', 9.5, 'center', $stampW);
     }
 
+    // FBR Digital Invoicing & Tax Asaan Verification Box
+    if ($hasFbr) {
+        $fbrBoxW = 95.0;
+        $fbrBoxH = $stampH;
+        $fbrBoxX = $stampX - $fbrBoxW - 10.0;
+        $termsW = $fbrBoxX - $left - 10.0;
+
+        $pdf->setFillColorArray($theme['terms_bg']);
+        $pdf->setStrokeColor(0.12, 0.55, 0.35); // subtle green border
+        $pdf->setLineWidth(0.8);
+        $pdf->drawRoundedRect($fbrBoxX, $stampY, $fbrBoxW, $fbrBoxH, 4.0, true, true);
+
+        // Header caption
+        $pdf->setFillColor(0.08, 0.45, 0.25);
+        $pdf->drawText($fbrBoxX, $stampY + $fbrBoxH - 10.0, 'FBR DIGITAL INVOICE', 'F2', 6.5, 'center', $fbrBoxW);
+
+        // Vector QR Code
+        $qrCodeData = (string)($doc['fbr_qr_code'] ?: $doc['fbr_invoice_no']);
+        $qrSize = 51.0;
+        $qrX = $fbrBoxX + (($fbrBoxW - $qrSize) / 2.0);
+        $qrY = $stampY + 12.0;
+        $pdf->drawQrCode($qrX, $qrY, $qrCodeData, $qrSize);
+
+        // Footer caption
+        $pdf->setFillColor(0.30, 0.35, 0.42);
+        $pdf->drawText($fbrBoxX, $stampY + 3.0, 'SCAN WITH TAX ASAAN', 'F2', 5.5, 'center', $fbrBoxW);
+    } else {
+        $termsW = $stampX - $left - 15.0;
+    }
+
     // Terms / Notes Box (Left)
-    $termsW = $stampX - $left - 15.0;
     $termsH = $stampH;
     $termsY = $stampY;
 
