@@ -110,3 +110,4 @@ assert(str_contains($pdfData, 'FBR DIGITAL INVOICE'));
 assert(str_contains($pdfData, 'TAX ASAAN'));
 
 echo "\nALL FBR INTEGRATION WORKFLOW CHECKS PASSED 100%!\n";
+

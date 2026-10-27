@@ -916,8 +916,32 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $pdf->setFillColorArray($theme['primary']);
     $pdf->drawText($companyTextX, 796.0, $companyName, 'F2', $compFontSize);
 
-    // Document Title on top right (right-aligned to exact page margin)
-    $pdf->drawText($rightAreaX, 796.0, $docTitle, 'F2', $docTitleSize, 'right', $rightAreaW);
+    // Document Title & FBR Logo on the other corner
+    if ($type === 'INVOICE') {
+        // Place FBR Pakistan Official Logo on top-right corner of the header
+        $fbrLogoPath = resolve_company_logo_path('/static/img/fbr_logo.png');
+        if ($fbrLogoPath && file_exists($fbrLogoPath)) {
+            $fbrW = 66.0;
+            $fbrH = 26.6;
+            $fbrX = $left + $width - $fbrW;
+            $pdf->addImage($fbrLogoPath, $fbrX, 816.0, $fbrW, $fbrH);
+        } else {
+            // Elegant Vector Fallback Emblem for FBR Pakistan
+            $fbrW = 64.0;
+            $fbrH = 24.0;
+            $fbrX = $left + $width - $fbrW;
+            $pdf->setFillColor(0.04, 0.45, 0.25);
+            $pdf->drawRoundedRect($fbrX, 816.0 - $fbrH, $fbrW, $fbrH, 3.0, true, false);
+            $pdf->setFillColor(1, 1, 1);
+            $pdf->drawText($fbrX, 804.0, 'FBR PAKISTAN', 'F2', 7.5, 'center', $fbrW);
+            $pdf->drawText($fbrX, 795.0, 'DIGITAL INVOICING', 'F1', 5.5, 'center', $fbrW);
+        }
+
+        // Document Title right below the FBR logo
+        $pdf->drawText($rightAreaX, 783.0, $docTitle, 'F2', min($docTitleSize, 14.0), 'right', $rightAreaW);
+    } else {
+        $pdf->drawText($rightAreaX, 796.0, $docTitle, 'F2', $docTitleSize, 'right', $rightAreaW);
+    }
 
     // 2. Slogan & Document Subtitle
     $slogan = $theme['slogan'] ?? 'Offering complete Suite of IT and Security solutions';
@@ -927,7 +951,12 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     }
     $pdf->setFillColorArray($theme['accent']);
     $pdf->drawText($companyTextX, 783.0, $slogan, 'F2', $sloganSize);
-    $pdf->drawText($rightAreaX, 783.0, $docSubtitle, 'F2', 8.5, 'right', $rightAreaW);
+
+    if ($type === 'INVOICE') {
+        $pdf->drawText($rightAreaX, 771.0, $docSubtitle, 'F2', 7.5, 'right', $rightAreaW);
+    } else {
+        $pdf->drawText($rightAreaX, 783.0, $docSubtitle, 'F2', 8.5, 'right', $rightAreaW);
+    }
 
     // 3. Address & NTN
     $addrText = $companyAddress;
@@ -937,8 +966,14 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     }
     $pdf->setFillColor(0.35, 0.40, 0.48);
     $pdf->drawText($companyTextX, 771.0, $addrText, 'F1', $addrSize);
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($rightAreaX, 771.0, "NTN: {$companyNtn}", 'F2', 8.5, 'right', $rightAreaW);
+
+    if ($type === 'INVOICE') {
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawText($rightAreaX, 759.0, "NTN: {$companyNtn}  |  STRN: {$companyStrn}", 'F2', 7.5, 'right', $rightAreaW);
+    } else {
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawText($rightAreaX, 771.0, "NTN: {$companyNtn}", 'F2', 8.5, 'right', $rightAreaW);
+    }
 
     // 4. Contact & STRN
     $contactText = "Tel: {$companyPhone} | Email: {$companyEmail}";
@@ -948,8 +983,11 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     }
     $pdf->setFillColor(0.35, 0.40, 0.48);
     $pdf->drawText($companyTextX, 760.0, $contactText, 'F1', $contactSize);
-    $pdf->setFillColorArray($theme['primary']);
-    $pdf->drawText($rightAreaX, 760.0, "STRN: {$companyStrn}", 'F1', 8.0, 'right', $rightAreaW);
+
+    if ($type !== 'INVOICE') {
+        $pdf->setFillColorArray($theme['primary']);
+        $pdf->drawText($rightAreaX, 760.0, "STRN: {$companyStrn}", 'F1', 8.0, 'right', $rightAreaW);
+    }
 
     // Distinct divider rule under the header
     if (($theme['header_style'] ?? '') === 'corporate_letterhead') {

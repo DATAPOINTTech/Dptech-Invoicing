@@ -24,21 +24,32 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex justify-between items-start mb-6">
-                        <div>
-                            <div class="flex items-center gap-3">
-                                <h2 class="text-xl font-bold text-gray-800" id="inv-no"></h2>
-                                <span id="inv-company-badge" class="px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700"></span>
+                    <div class="flex justify-between items-start border-b border-gray-100 pb-5 mb-5">
+                        <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-xl border border-gray-200 bg-white flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-xs">
+                                <img id="inv-co-logo" src="/static/img/logo.png" alt="Company Logo" class="max-w-full max-h-full object-contain">
                             </div>
-                            <p class="text-gray-500 text-sm mt-1" id="inv-dates"></p>
-                            <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide mt-1" id="inv-title" style="display:none"></p>
-                            <div class="mt-1 flex items-center gap-2" id="inv-fbr-container" style="display:none">
-                                <span class="bg-emerald-100 text-emerald-800 text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
-                                    <i class="fas fa-check-circle text-emerald-600"></i> FBR Invoice #: <span id="inv-fbr-no"></span>
-                                </span>
+                            <div>
+                                <div class="flex items-center gap-2.5">
+                                    <h2 class="text-xl font-bold text-gray-900" id="inv-no"></h2>
+                                    <span id="inv-company-badge" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700"></span>
+                                </div>
+                                <p class="text-gray-500 text-xs mt-0.5" id="inv-dates"></p>
+                                <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide mt-1" id="inv-title" style="display:none"></p>
+                                <div class="mt-1.5 flex items-center gap-2" id="inv-fbr-container" style="display:none">
+                                    <span class="bg-emerald-100 text-emerald-800 text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
+                                        <i class="fas fa-check-circle text-emerald-600"></i> FBR Invoice #: <span id="inv-fbr-no"></span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                        <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold capitalize"></span>
+                        <div class="flex flex-col items-end gap-2">
+                            <div class="h-10 px-3 py-1 bg-white border border-emerald-200 rounded-lg flex items-center gap-2 shadow-xs" title="Federal Board of Revenue Pakistan">
+                                <img src="/static/img/fbr_logo.png" alt="FBR Pakistan" class="h-7 w-auto object-contain">
+                                <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-tight hidden sm:inline">FBR IMS</span>
+                            </div>
+                            <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-semibold capitalize"></span>
+                        </div>
                     </div>
 
                     <div class="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-lg">
@@ -311,6 +322,9 @@ function loadInvoice() {
         $('#inv-header-no').text(inv.invoice_no);
         $('#inv-no').text(inv.invoice_no);
         $('#inv-dates').text(`Invoice Date: ${inv.invoice_date || 'N/A'} | Due Date: ${inv.due_date || 'N/A'}`);
+
+        const coLogo = inv.company_logo || (inv.company_id === 2 ? '/static/uploads/logo_6ac6793528d74.png' : (inv.company_id === 3 ? '/static/uploads/logo_6ac6794d40860.png' : '/static/img/logo.png'));
+        $('#inv-co-logo').attr('src', coLogo);
 
         if (inv.company_name) {
             $('#inv-company-badge').text(inv.company_name).show();

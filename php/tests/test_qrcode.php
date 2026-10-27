@@ -15,3 +15,4 @@ $uri = PurePhpQr::toDataUri($sampleFbrInvoice);
 echo "Data URI generated: " . substr($uri, 0, 40) . "..." . PHP_EOL;
 
 echo "SUCCESS!\n";
+

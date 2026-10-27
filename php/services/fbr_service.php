@@ -503,3 +503,4 @@ function post_invoice_to_fbr(PDO $db, int $invoiceId, ?int $userId = null, bool 
         'raw_response' => $rawResponse,
     ];
 }
+
