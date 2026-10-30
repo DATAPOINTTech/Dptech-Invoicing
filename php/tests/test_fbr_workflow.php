@@ -119,7 +119,7 @@ $pdfData = generate_invoice_pdf($invFull);
 echo "   PDF Generated: " . strlen($pdfData) . " bytes\n";
 assert(str_contains($pdfData, $invRow['fbr_invoice_no']));
 assert(str_contains($pdfData, 'FBR DIGITAL INVOICE'));
-assert(str_contains($pdfData, 'TAX ASAAN'));
+assert(str_contains($pdfData, 'SCAN TO VERIFY INVOICE'));
 
 echo "\nALL FBR INTEGRATION WORKFLOW CHECKS PASSED 100%!\n";
 

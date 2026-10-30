@@ -259,6 +259,13 @@ function handle_request(): never
                 render_template('estimates/form.html', ['estimate_id' => (int) $m[1]]);
             }
 
+            if (preg_match('#^/verify/fbr/([^/]+)$#', $path, $m)) {
+                $fbrNo = urldecode($m[1]);
+                $verifyUrl = fbr_resolve_qr_verification_url($fbrNo);
+                header('Location: ' . $verifyUrl);
+                exit;
+            }
+
             if (preg_match('#^/invoices/([1-9][0-9]*)$#', $path, $m)) {
                 render_template('invoices/detail.html', ['invoice_id' => (int) $m[1]]);
             }

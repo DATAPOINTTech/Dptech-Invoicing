@@ -17,6 +17,7 @@ const FBR_DEFAULT_SANDBOX_VALIDATE_URL = 'https://gw.fbr.gov.pk/di_data/v1/di/va
 const FBR_DEFAULT_PROD_POST_URL = 'https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata';
 const FBR_DEFAULT_PROD_VALIDATE_URL = 'https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata';
 const FBR_DEFAULT_SANDBOX_TOKEN = '18d1e4a2-145a-3ec1-b20b-02ccaab53457';
+const FBR_DEFAULT_VERIFY_URL = 'https://e.fbr.gov.pk/esr/InvoiceVerification.aspx?InvoiceNo={INVOICE_NO}';
 
 /**
  * Retrieve active FBR configuration for a company or system-wide default.
@@ -36,6 +37,7 @@ function fbr_get_config(PDO $db, ?int $companyId = null): array
     $globalEnv = get_app_setting($db, 'fbr_environment', 'sandbox');
     $globalApiUrl = get_app_setting($db, 'fbr_api_url', FBR_DEFAULT_SANDBOX_POST_URL);
     $globalValidateUrl = get_app_setting($db, 'fbr_validate_url', FBR_DEFAULT_SANDBOX_VALIDATE_URL);
+    $globalVerifyUrl = get_app_setting($db, 'fbr_verify_url', FBR_DEFAULT_VERIFY_URL);
     $globalPosId = get_app_setting($db, 'fbr_pos_id', '100001');
     $globalToken = get_app_setting($db, 'fbr_bearer_token', FBR_DEFAULT_SANDBOX_TOKEN);
     $globalMode = get_app_setting($db, 'fbr_mode', 'live');
@@ -47,6 +49,7 @@ function fbr_get_config(PDO $db, ?int $companyId = null): array
     $bearerToken = $company && !empty($company['fbr_bearer_token']) ? (string) $company['fbr_bearer_token'] : $globalToken;
     $apiUrl = $globalApiUrl;
     $validateUrl = $globalValidateUrl;
+    $verifyUrl = $globalVerifyUrl;
     $mode = $globalMode;
 
     // Environment variable overrides
@@ -62,6 +65,9 @@ function fbr_get_config(PDO $db, ?int $companyId = null): array
     if (getenv('FBR_VALIDATE_URL')) {
         $validateUrl = (string) getenv('FBR_VALIDATE_URL');
     }
+    if (getenv('FBR_VERIFY_URL')) {
+        $verifyUrl = (string) getenv('FBR_VERIFY_URL');
+    }
     if (getenv('FBR_POS_ID')) {
         $posId = (string) getenv('FBR_POS_ID');
     }
@@ -74,6 +80,9 @@ function fbr_get_config(PDO $db, ?int $companyId = null): array
 
     if (empty($bearerToken)) {
         $bearerToken = FBR_DEFAULT_SANDBOX_TOKEN;
+    }
+    if (empty($verifyUrl)) {
+        $verifyUrl = FBR_DEFAULT_VERIFY_URL;
     }
 
     // Determine correct endpoint according to environment if not explicitly customized
@@ -90,6 +99,7 @@ function fbr_get_config(PDO $db, ?int $companyId = null): array
         'environment' => $environment,
         'api_url' => $apiUrl,
         'validate_url' => $validateUrl,
+        'verify_url' => $verifyUrl,
         'pos_id' => $posId,
         'bearer_token' => $bearerToken,
         'mode' => $mode, // 'live' or 'simulation'
@@ -115,6 +125,9 @@ function fbr_save_settings(PDO $db, array $settings): void
     if (isset($settings['fbr_validate_url'])) {
         set_app_setting($db, 'fbr_validate_url', trim((string) $settings['fbr_validate_url']));
     }
+    if (isset($settings['fbr_verify_url'])) {
+        set_app_setting($db, 'fbr_verify_url', trim((string) $settings['fbr_verify_url']));
+    }
     if (isset($settings['fbr_pos_id'])) {
         set_app_setting($db, 'fbr_pos_id', trim((string) $settings['fbr_pos_id']));
     }
@@ -124,6 +137,65 @@ function fbr_save_settings(PDO $db, array $settings): void
     if (isset($settings['fbr_mode'])) {
         set_app_setting($db, 'fbr_mode', trim((string) $settings['fbr_mode']));
     }
+}
+
+/**
+ * Resolve any QR string or invoice number into an official FBR verification URL.
+ */
+function fbr_resolve_qr_verification_url(string $qrOrNo, ?string $templateUrl = null): string
+{
+    $val = trim($qrOrNo);
+    if ($val === '') {
+        return '';
+    }
+    if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://')) {
+        return $val;
+    }
+    $tpl = $templateUrl ?: FBR_DEFAULT_VERIFY_URL;
+    if (str_contains($tpl, '{INVOICE_NO}')) {
+        return str_replace('{INVOICE_NO}', rawurlencode($val), $tpl);
+    }
+    if (str_contains($tpl, '{FBR_NO}')) {
+        return str_replace('{FBR_NO}', rawurlencode($val), $tpl);
+    }
+    $sep = str_contains($tpl, '?') ? '&' : '?';
+    return $tpl . $sep . 'InvoiceNo=' . rawurlencode($val);
+}
+
+/**
+ * Build the full FBR invoice verification URL for a given FBR invoice number.
+ */
+function fbr_build_verification_url(?PDO $db, string $fbrInvoiceNo, ?int $companyId = null): string
+{
+    $cleanNo = trim($fbrInvoiceNo);
+    if ($cleanNo === '') {
+        return '';
+    }
+    $template = null;
+    if ($db !== null) {
+        $config = fbr_get_config($db, $companyId);
+        $template = $config['verify_url'] ?? null;
+    }
+    return fbr_resolve_qr_verification_url($cleanNo, $template);
+}
+
+/**
+ * Return the QR code payload (the verification URL) for an invoice record.
+ * If fbr_qr_code already contains a full URL (http:// or https://), return it.
+ * Otherwise, build the official FBR verification URL from fbr_invoice_no.
+ */
+function fbr_get_invoice_qr_target(?PDO $db, array $inv): string
+{
+    $storedQr = trim((string)($inv['fbr_qr_code'] ?? ''));
+    if ($storedQr !== '' && (str_starts_with($storedQr, 'http://') || str_starts_with($storedQr, 'https://'))) {
+        return $storedQr;
+    }
+    $fbrNo = trim((string)($inv['fbr_invoice_no'] ?? ($storedQr ?: '')));
+    if ($fbrNo === '') {
+        return '';
+    }
+    $companyId = !empty($inv['company_id']) ? (int)$inv['company_id'] : null;
+    return fbr_build_verification_url($db, $fbrNo, $companyId);
 }
 
 /**
@@ -553,7 +625,7 @@ function post_invoice_to_fbr(PDO $db, int $invoiceId, ?int $userId = null, bool 
     if ($config['mode'] === 'simulation') {
         $dateStr = date('Ymd');
         $simulatedFbrNo = '4130643' . $dateStr . 'SIM' . str_pad((string)$invoiceId, 6, '0', STR_PAD_LEFT);
-        $qrData = $simulatedFbrNo;
+        $qrData = fbr_build_verification_url($db, $simulatedFbrNo, $companyId);
         $simResponse = json_encode([
             'invoiceNumber' => $simulatedFbrNo,
             'dated' => date('Y-m-d H:i:s'),
@@ -592,6 +664,7 @@ function post_invoice_to_fbr(PDO $db, int $invoiceId, ?int $userId = null, bool 
             'fbr_status' => 'posted',
             'fbr_pos_id' => $config['pos_id'],
             'fbr_qr_code' => $qrData,
+            'fbr_verify_url' => $qrData,
             'mode' => 'sandbox_simulation',
             'message' => "Successfully posted to FBR Pakistan Portal (Sandbox Simulation). Official FBR Invoice #: {$simulatedFbrNo}",
         ];
@@ -640,7 +713,7 @@ function post_invoice_to_fbr(PDO $db, int $invoiceId, ?int $userId = null, bool 
     }
 
     if ($isSuccess && !empty($fbrInvoiceNo)) {
-        $qrData = $fbrInvoiceNo;
+        $qrData = fbr_build_verification_url($db, $fbrInvoiceNo, $companyId);
         $upd = $db->prepare('
             UPDATE invoices SET
                 fbr_status = :status,
@@ -671,6 +744,7 @@ function post_invoice_to_fbr(PDO $db, int $invoiceId, ?int $userId = null, bool 
             'fbr_status' => 'posted',
             'fbr_pos_id' => $config['pos_id'],
             'fbr_qr_code' => $qrData,
+            'fbr_verify_url' => $qrData,
             'mode' => 'live',
             'message' => "Invoice successfully posted to FBR Pakistan Portal. Official FBR Invoice #: {$fbrInvoiceNo}",
         ];

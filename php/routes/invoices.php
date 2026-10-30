@@ -239,7 +239,10 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $inv['payments'] = $payStmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (!empty($inv['fbr_invoice_no'])) {
-                $inv['fbr_qr_data_uri'] = PurePhpQr::toDataUri((string)($inv['fbr_qr_code'] ?: $inv['fbr_invoice_no']), 180);
+                $qrTarget = fbr_get_invoice_qr_target($db, $inv);
+                $inv['fbr_verify_url'] = $qrTarget;
+                $inv['fbr_qr_target'] = $qrTarget;
+                $inv['fbr_qr_data_uri'] = PurePhpQr::toDataUri($qrTarget, 180);
             }
 
             json_response($inv);
@@ -484,6 +487,10 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $itStmt->execute(['id' => $invoiceId]);
             $inv['items'] = $itStmt->fetchAll(PDO::FETCH_ASSOC);
 
+            if (!empty($inv['fbr_invoice_no'])) {
+                $inv['fbr_qr_code'] = fbr_get_invoice_qr_target($db, $inv);
+            }
+
             $pdf = generate_invoice_pdf($inv);
             header('Content-Type: application/pdf');
             header('Content-Disposition: inline; filename="' . $inv['invoice_no'] . '.pdf"');
@@ -515,6 +522,9 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $targetEmail = !empty($body['recipient_email']) ? (string) $body['recipient_email'] : ($inv['client_email'] ?? '');
             $targetPhone = !empty($body['recipient_phone']) ? (string) $body['recipient_phone'] : ($inv['client_mobile'] ?? $inv['client_phone'] ?? '');
 
+            if (!empty($inv['fbr_invoice_no'])) {
+                $inv['fbr_qr_code'] = fbr_get_invoice_qr_target($db, $inv);
+            }
             $pdfData = generate_invoice_pdf($inv);
             $results = [];
 
@@ -611,7 +621,9 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 json_response(['detail' => 'Invoice not found'], 404);
             }
             if (!empty($row['fbr_invoice_no'])) {
-                $qrTarget = (string)($row['fbr_qr_code'] ?: $row['fbr_invoice_no']);
+                $qrTarget = fbr_get_invoice_qr_target($db, $row);
+                $row['fbr_verify_url'] = $qrTarget;
+                $row['fbr_qr_target'] = $qrTarget;
                 $row['qr_svg'] = PurePhpQr::toSvg($qrTarget, 180);
                 $row['qr_data_uri'] = PurePhpQr::toDataUri($qrTarget, 180);
             }

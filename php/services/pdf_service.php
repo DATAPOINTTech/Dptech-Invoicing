@@ -1301,8 +1301,10 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $pdf->setFillColor(0.08, 0.45, 0.25);
         $pdf->drawText($fbrBoxX, $stampY + $fbrBoxH - 10.0, 'FBR DIGITAL INVOICE', 'F2', 6.5, 'center', $fbrBoxW);
 
-        // Vector QR Code
-        $qrCodeData = (string)($doc['fbr_qr_code'] ?: $doc['fbr_invoice_no']);
+        // Vector QR Code pointing to FBR invoice verification URL
+        require_once __DIR__ . '/fbr_service.php';
+        $rawQr = (string)($doc['fbr_qr_code'] ?: $doc['fbr_invoice_no']);
+        $qrCodeData = fbr_resolve_qr_verification_url($rawQr);
         $qrSize = 51.0;
         $qrX = $fbrBoxX + (($fbrBoxW - $qrSize) / 2.0);
         $qrY = $stampY + 12.0;
@@ -1310,7 +1312,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
 
         // Footer caption
         $pdf->setFillColor(0.30, 0.35, 0.42);
-        $pdf->drawText($fbrBoxX, $stampY + 3.0, 'SCAN WITH TAX ASAAN', 'F2', 5.5, 'center', $fbrBoxW);
+        $pdf->drawText($fbrBoxX, $stampY + 3.0, 'SCAN TO VERIFY INVOICE', 'F2', 5.5, 'center', $fbrBoxW);
     } else {
         $termsW = $stampX - $left - 15.0;
     }

@@ -789,6 +789,10 @@ function ensure_fbr_schema(PDO $db): void
     if ($currVal === null) {
         set_app_setting($db, 'fbr_validate_url', 'https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb');
     }
+    $currVerify = get_app_setting($db, 'fbr_verify_url');
+    if ($currVerify === null) {
+        set_app_setting($db, 'fbr_verify_url', 'https://e.fbr.gov.pk/esr/InvoiceVerification.aspx?InvoiceNo={INVOICE_NO}');
+    }
     $currTok = get_app_setting($db, 'fbr_bearer_token');
     if ($currTok === null || $currTok === '') {
         set_app_setting($db, 'fbr_bearer_token', '18d1e4a2-145a-3ec1-b20b-02ccaab53457');
