@@ -10,7 +10,18 @@ function handle_dashboard_routes(string $method, string $path, PDO $db): bool
         $totalClients = (int) $db->query('SELECT COUNT(*) FROM clients WHERE is_active = 1')->fetchColumn();
         $activeProjects = (int) $db->query("SELECT COUNT(*) FROM projects WHERE status IN ('planning','in_progress','on_hold')")->fetchColumn();
         $pendingInvoices = (int) $db->query("SELECT COUNT(*) FROM invoices WHERE status IN ('draft','sent')")->fetchColumn();
-        $receivables = (float) $db->query("SELECT COALESCE(SUM(balance_due), 0) FROM invoices WHERE status IN ('sent','partially_paid')")->fetchColumn();
+
+        // Total received / collected amount
+        $totalReceivedInvoices = (float) $db->query("SELECT COALESCE(SUM(amount_paid), 0) FROM invoices WHERE status != 'cancelled'")->fetchColumn();
+        $totalReceivedPayments = (float) $db->query("SELECT COALESCE(SUM(amount), 0) FROM payments")->fetchColumn();
+        $totalReceived = max($totalReceivedInvoices, $totalReceivedPayments);
+
+        // Month received
+        $monthReceived = (float) $db->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')")->fetchColumn();
+
+        // Total invoiced & receivables
+        $totalInvoiced = (float) $db->query("SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status != 'cancelled'")->fetchColumn();
+        $receivables = (float) $db->query("SELECT COALESCE(SUM(balance_due), 0) FROM invoices WHERE status NOT IN ('cancelled', 'paid') AND balance_due > 0")->fetchColumn();
 
         $recentInvoices = $db->query("
             SELECT i.id, i.invoice_no AS no, COALESCE(c.name, 'Unknown') AS client, i.status, i.total_amount AS total
@@ -63,6 +74,9 @@ function handle_dashboard_routes(string $method, string $path, PDO $db): bool
             'total_clients' => $totalClients,
             'active_projects' => $activeProjects,
             'pending_invoices' => $pendingInvoices,
+            'total_received' => round($totalReceived, 2),
+            'month_received' => round($monthReceived, 2),
+            'total_invoiced' => round($totalInvoiced, 2),
             'total_receivables' => round($receivables, 2),
             'low_stock_count' => count($lowStock),
             'low_stock_items' => $lowStock,

@@ -20,7 +20,7 @@
         <main class="flex-1 p-6 space-y-6">
 
             <!-- Stats -->
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div class="stats-card flex items-center gap-4">
                     <div class="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
                         <i class="fas fa-users text-blue-600"></i>
@@ -48,13 +48,14 @@
                         <p class="text-xl font-bold text-slate-800" id="stat-pending">—</p>
                     </div>
                 </div>
-                <div class="stats-card flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-credit-card text-red-500"></i>
+                <div class="stats-card flex items-center gap-4 border-l-4 border-emerald-500 bg-white shadow-xs">
+                    <div class="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-hand-holding-dollar text-emerald-600 text-lg"></i>
                     </div>
                     <div>
-                        <p class="text-xs text-slate-500 font-medium">Expenses</p>
-                        <p class="text-base font-bold text-slate-800" id="stat-month-expenses">—</p>
+                        <p class="text-xs text-emerald-800 font-semibold uppercase tracking-wider">Total Received</p>
+                        <p class="text-base font-bold text-emerald-700" id="stat-received">—</p>
+                        <p class="text-[10px] text-slate-400 truncate" id="stat-received-sub">Collected</p>
                     </div>
                 </div>
                 <div class="stats-card flex items-center gap-4">
@@ -64,6 +65,15 @@
                     <div>
                         <p class="text-xs text-slate-500 font-medium">Receivables</p>
                         <p class="text-base font-bold text-slate-800" id="stat-receivables">—</p>
+                    </div>
+                </div>
+                <div class="stats-card flex items-center gap-4">
+                    <div class="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-credit-card text-red-500"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Expenses</p>
+                        <p class="text-base font-bold text-slate-800" id="stat-month-expenses">—</p>
                     </div>
                 </div>
             </div>
@@ -178,8 +188,12 @@ $(function() {
         $('#stat-clients').text(d.total_clients);
         $('#stat-projects').text(d.active_projects);
         $('#stat-pending').text(d.pending_invoices);
-        $('#stat-month-expenses').text('PKR '+(d.month_expenses||0).toLocaleString());
+        $('#stat-received').text('PKR '+(d.total_received||0).toLocaleString());
+        if (d.month_received !== undefined) {
+            $('#stat-received-sub').text('This Month: PKR '+(d.month_received||0).toLocaleString());
+        }
         $('#stat-receivables').text('PKR '+(d.total_receivables||0).toLocaleString());
+        $('#stat-month-expenses').text('PKR '+(d.month_expenses||0).toLocaleString());
 
         // Recent clients
         if (d.recent_clients?.length) {

@@ -3,79 +3,253 @@
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
-    <main class="flex-1 ml-64 p-6">
-        <div class="flex justify-between items-center mb-6">
+    <main class="flex-1 ml-64 p-6 space-y-6">
+        <!-- Topbar Filter Controls -->
+        <div class="flex flex-wrap justify-between items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Reports & Analytics</h1>
-                <p class="text-gray-500 text-sm">Business performance overview</p>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-chart-line text-cyan-600"></i> Reports &amp; Analytics
+                </h1>
+                <p class="text-gray-500 text-xs mt-0.5">Party-wise business performance, separated paid &amp; due invoices</p>
             </div>
-            <div class="flex gap-2 items-center">
-                <input type="date" id="from_date" class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none">
-                <span class="text-gray-400 text-sm">to</span>
-                <input type="date" id="to_date" class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none">
-                <button onclick="loadReports()" class="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg">
-                    <i class="fas fa-filter mr-1"></i>Apply
+            <div class="flex flex-wrap gap-2.5 items-center">
+                <!-- Party / Client Selector -->
+                <div class="relative">
+                    <select id="client_id" onchange="loadReports()" class="px-3 py-2 border rounded-xl text-sm bg-white font-medium focus:ring-2 focus:ring-cyan-500 outline-none max-w-[220px] text-gray-700 shadow-xs">
+                        <option value="">All Parties / Clients</option>
+                    </select>
+                </div>
+                <!-- Date Range -->
+                <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-xs">
+                    <i class="far fa-calendar-alt text-slate-400 text-xs"></i>
+                    <input type="date" id="from_date" class="bg-transparent text-xs font-semibold text-gray-700 outline-none">
+                    <span class="text-gray-400 text-xs font-bold">to</span>
+                    <input type="date" id="to_date" class="bg-transparent text-xs font-semibold text-gray-700 outline-none">
+                </div>
+                <button onclick="loadReports()" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:shadow transition flex items-center gap-1.5">
+                    <i class="fas fa-filter text-xs"></i> Apply
+                </button>
+                <button onclick="window.print()" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3.5 py-2 rounded-xl text-sm font-semibold shadow-xs flex items-center gap-1.5 transition">
+                    <i class="fas fa-print text-xs"></i> Print
                 </button>
             </div>
         </div>
 
+        <!-- Active Party Filter Banner -->
+        <div id="active-party-banner" class="hidden p-3.5 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl flex justify-between items-center shadow-xs">
+            <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-cyan-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                    <i class="fas fa-user-check"></i>
+                </span>
+                <div>
+                    <span class="text-xs text-cyan-800">Viewing filtered party statement for:</span>
+                    <span id="active-party-name" class="font-bold text-cyan-950 text-sm ml-1"></span>
+                </div>
+            </div>
+            <button onclick="clearPartyFilter()" class="text-xs bg-white text-cyan-700 hover:text-cyan-900 border border-cyan-300 font-bold px-3 py-1.5 rounded-lg shadow-2xs hover:bg-cyan-50 transition">
+                <i class="fas fa-times mr-1"></i> Show All Parties
+            </button>
+        </div>
+
         <!-- KPI Cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Total Revenue</p>
-                <p class="text-xl font-bold text-gray-800 mt-1" id="kpi-revenue">—</p>
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Revenue</p>
+                    <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs"><i class="fas fa-file-invoice"></i></span>
+                </div>
+                <p class="text-xl font-bold text-gray-900 mt-2" id="kpi-revenue">—</p>
+                <p class="text-[11px] text-gray-400 mt-1" id="kpi-invoice-count">0 invoices</p>
             </div>
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Amount Paid</p>
-                <p class="text-xl font-bold text-green-600 mt-1" id="kpi-paid">—</p>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-emerald-800 uppercase font-bold tracking-wider">Total Received (Paid)</p>
+                    <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs"><i class="fas fa-hand-holding-dollar"></i></span>
+                </div>
+                <p class="text-xl font-bold text-emerald-600 mt-2" id="kpi-paid">—</p>
+                <p class="text-[11px] text-emerald-700 font-medium mt-1"><span id="kpi-paid-count">0</span> invoices cleared</p>
             </div>
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Outstanding</p>
-                <p class="text-xl font-bold text-amber-600 mt-1" id="kpi-outstanding">—</p>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-amber-100 border-l-4 border-l-amber-500 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-amber-800 uppercase font-bold tracking-wider">Total Due (Receivable)</p>
+                    <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs"><i class="fas fa-clock"></i></span>
+                </div>
+                <p class="text-xl font-bold text-amber-600 mt-2" id="kpi-outstanding">—</p>
+                <p class="text-[11px] text-amber-700 font-medium mt-1"><span id="kpi-due-count">0</span> invoices awaiting</p>
             </div>
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Total Expenses</p>
-                <p class="text-xl font-bold text-red-600 mt-1" id="kpi-expenses">—</p>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Expenses</p>
+                    <span class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xs"><i class="fas fa-receipt"></i></span>
+                </div>
+                <p class="text-xl font-bold text-red-600 mt-2" id="kpi-expenses">—</p>
+                <p class="text-[11px] text-gray-400 mt-1">Operational outgoings</p>
             </div>
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Net Profit</p>
-                <p class="text-xl font-bold mt-1" id="kpi-profit">—</p>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Net Profit</p>
+                    <span class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-xs"><i class="fas fa-wallet"></i></span>
+                </div>
+                <p class="text-xl font-bold mt-2" id="kpi-profit">—</p>
+                <p class="text-[11px] text-gray-400 mt-1">Revenue minus expenses</p>
+            </div>
+        </div>
+
+        <!-- Party-Wise Reports & Invoice Breakdown (Paid vs Due) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex flex-wrap justify-between items-center gap-4 bg-slate-50/70">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <i class="fas fa-users-line text-cyan-600"></i> Party-Wise Invoices &amp; Ledger
+                    </h2>
+                    <p class="text-xs text-gray-500" id="party-report-subtitle">Client account statements with separated paid &amp; due balances</p>
+                </div>
+                <!-- Tabs -->
+                <div class="flex items-center gap-1.5 bg-gray-200/70 p-1 rounded-xl text-xs font-semibold">
+                    <button type="button" onclick="switchReportTab('parties')" id="tab-btn-parties" class="px-3.5 py-1.5 rounded-lg transition bg-white text-gray-900 shadow-xs font-bold">
+                        <i class="fas fa-users text-cyan-600 mr-1"></i> Party Summary (<span id="count-parties">0</span>)
+                    </button>
+                    <button type="button" onclick="switchReportTab('due')" id="tab-btn-due" class="px-3.5 py-1.5 rounded-lg transition text-gray-600 hover:text-gray-900 font-semibold">
+                        <i class="fas fa-clock text-amber-500 mr-1"></i> Due Invoices (<span id="count-due">0</span>)
+                    </button>
+                    <button type="button" onclick="switchReportTab('paid')" id="tab-btn-paid" class="px-3.5 py-1.5 rounded-lg transition text-gray-600 hover:text-gray-900 font-semibold">
+                        <i class="fas fa-check-circle text-emerald-500 mr-1"></i> Paid Invoices (<span id="count-paid">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 1: Party Summary Table -->
+            <div id="tab-content-parties" class="p-5">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">Party / Client Name</th>
+                                <th class="py-3 px-4">Company / NTN</th>
+                                <th class="py-3 px-4 text-center">Invoices</th>
+                                <th class="py-3 px-4 text-right">Total Billed</th>
+                                <th class="py-3 px-4 text-right text-emerald-700">Total Received</th>
+                                <th class="py-3 px-4 text-right text-amber-700">Total Due</th>
+                                <th class="py-3 px-4 text-center">Status</th>
+                                <th class="py-3 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="party-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="8" class="text-center py-6 text-gray-400">Loading party ledger...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 2: Due Invoices Table -->
+            <div id="tab-content-due" class="hidden p-5 space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div class="text-xs text-amber-900 font-semibold bg-amber-50 px-3.5 py-2 rounded-xl border border-amber-200 flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-amber-600"></i>
+                        <span>Total Receivables Due:</span>
+                        <span id="due-total-amount" class="font-extrabold text-amber-800 text-sm">PKR 0.00</span>
+                    </div>
+                    <span class="text-xs text-gray-500 font-medium">Unpaid &amp; partially paid invoices with outstanding balance</span>
+                </div>
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-amber-50/70 text-[11px] font-bold uppercase tracking-wider text-amber-900 border-b border-amber-200/80">
+                            <tr>
+                                <th class="py-3 px-4">Invoice #</th>
+                                <th class="py-3 px-4">Party / Client</th>
+                                <th class="py-3 px-4">Invoice Date</th>
+                                <th class="py-3 px-4">Due Date</th>
+                                <th class="py-3 px-4 text-right">Invoice Total</th>
+                                <th class="py-3 px-4 text-right text-emerald-700">Received</th>
+                                <th class="py-3 px-4 text-right text-rose-700 font-bold">Balance Due</th>
+                                <th class="py-3 px-4 text-center">Status</th>
+                                <th class="py-3 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="due-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="9" class="text-center py-6 text-gray-400">No due invoices.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 3: Paid Invoices Table -->
+            <div id="tab-content-paid" class="hidden p-5 space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div class="text-xs text-emerald-900 font-semibold bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 flex items-center gap-2">
+                        <i class="fas fa-check-circle text-emerald-600"></i>
+                        <span>Total Amount Received:</span>
+                        <span id="paid-total-amount" class="font-extrabold text-emerald-800 text-sm">PKR 0.00</span>
+                    </div>
+                    <span class="text-xs text-gray-500 font-medium">Invoices settled and cleared in full</span>
+                </div>
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-emerald-50/70 text-[11px] font-bold uppercase tracking-wider text-emerald-900 border-b border-emerald-200/80">
+                            <tr>
+                                <th class="py-3 px-4">Invoice #</th>
+                                <th class="py-3 px-4">Party / Client</th>
+                                <th class="py-3 px-4">Invoice Date</th>
+                                <th class="py-3 px-4 text-right">Invoice Total</th>
+                                <th class="py-3 px-4 text-right text-emerald-700 font-bold">Received (100%)</th>
+                                <th class="py-3 px-4 text-center">FBR Clearance</th>
+                                <th class="py-3 px-4 text-center">Status</th>
+                                <th class="py-3 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paid-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="8" class="text-center py-6 text-gray-400">No paid invoices.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <!-- Revenue Chart + Invoice Status -->
-        <div class="grid grid-cols-3 gap-6 mb-6">
-            <div class="col-span-2 bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                <h3 class="font-semibold text-gray-800 mb-4">Revenue by Month</h3>
-                <div id="revenue-chart" class="space-y-2"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-chart-column text-cyan-600"></i> Revenue by Month
+                </h3>
+                <div id="revenue-chart" class="space-y-2.5"></div>
             </div>
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                <h3 class="font-semibold text-gray-800 mb-4">Invoice Status</h3>
-                <div id="status-chart" class="space-y-2"></div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-chart-pie text-cyan-600"></i> Invoice Status
+                </h3>
+                <div id="status-chart" class="space-y-2.5"></div>
             </div>
         </div>
 
         <!-- Top Clients + Expenses by Category -->
-        <div class="grid grid-cols-2 gap-6 mb-6">
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                <h3 class="font-semibold text-gray-800 mb-4">Top Clients by Revenue</h3>
-                <div id="clients-chart" class="space-y-2"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-trophy text-amber-500"></i> Top Clients by Revenue
+                </h3>
+                <div id="clients-chart" class="space-y-2.5"></div>
             </div>
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                <h3 class="font-semibold text-gray-800 mb-4">Expenses by Category</h3>
-                <div id="expenses-chart" class="space-y-2"></div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-tags text-cyan-600"></i> Expenses by Category
+                </h3>
+                <div id="expenses-chart" class="space-y-2.5"></div>
             </div>
         </div>
 
         <!-- Tax Summary + Receivables Aging -->
-        <div class="grid grid-cols-2 gap-6">
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                <h3 class="font-semibold text-gray-800 mb-4">Tax Summary</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-scale-balanced text-cyan-600"></i> Tax Summary (FBR GST &amp; WHT)
+                </h3>
                 <div id="tax-summary" class="space-y-3"></div>
             </div>
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                <h3 class="font-semibold text-gray-800 mb-4">Receivables Aging</h3>
-                <div id="aging-chart" class="space-y-2"></div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-calendar-week text-cyan-600"></i> Receivables Aging
+                </h3>
+                <div id="aging-chart" class="space-y-2.5"></div>
             </div>
         </div>
     </main>
@@ -86,50 +260,249 @@ const token = localStorage.getItem('token');
 if (!token) window.location.href = '/login';
 
 const STATUS_COLORS = {
-    draft: 'bg-gray-400', sent: 'bg-blue-500', paid: 'bg-green-500',
-    partially_paid: 'bg-amber-500', cancelled: 'bg-red-400'
+    draft: 'bg-gray-400',
+    approved: 'bg-blue-400',
+    sent: 'bg-blue-500',
+    paid: 'bg-emerald-500',
+    partially_paid: 'bg-amber-500',
+    overdue: 'bg-rose-500',
+    cancelled: 'bg-red-400'
 };
 const CAT_COLORS = ['bg-cyan-500','bg-blue-500','bg-indigo-500','bg-purple-500','bg-pink-500','bg-rose-500','bg-amber-500','bg-orange-500'];
 
-function fmt(n) { return 'PKR ' + Number(n).toLocaleString('en-PK', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmt(n) {
+    return 'PKR ' + Number(n || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function switchReportTab(tab) {
+    const tabs = ['parties', 'due', 'paid'];
+    tabs.forEach(t => {
+        const isMatch = (t === tab);
+        $(`#tab-content-${t}`).toggleClass('hidden', !isMatch);
+        const $btn = $(`#tab-btn-${t}`);
+        if (isMatch) {
+            $btn.addClass('bg-white text-gray-900 shadow-xs font-bold').removeClass('text-gray-600');
+        } else {
+            $btn.removeClass('bg-white text-gray-900 shadow-xs font-bold').addClass('text-gray-600');
+        }
+    });
+}
+
+function filterByParty(clientId) {
+    if (!clientId) return;
+    $('#client_id').val(clientId);
+    loadReports();
+}
+
+function clearPartyFilter() {
+    $('#client_id').val('');
+    loadReports();
+}
 
 function barChart(containerId, items, labelKey, valueKey, colorClass) {
-    if (!items || !items.length) { $('#'+containerId).html('<p class="text-sm text-gray-400 text-center py-4">No data</p>'); return; }
+    if (!items || !items.length) {
+        $('#' + containerId).html('<p class="text-sm text-gray-400 text-center py-4">No data</p>');
+        return;
+    }
     const max = Math.max(...items.map(i => i[valueKey])) || 1;
     const html = items.map((item, idx) => {
         const pct = Math.max(2, (item[valueKey] / max * 100)).toFixed(1);
         const color = Array.isArray(colorClass) ? colorClass[idx % colorClass.length] : colorClass;
         return `<div>
             <div class="flex justify-between text-xs text-gray-600 mb-1">
-                <span class="truncate max-w-[60%]">${escHtml(item[labelKey])}</span>
-                <span class="font-medium">${fmt(item[valueKey])}</span>
+                <span class="truncate max-w-[60%] font-medium">${escHtml(item[labelKey])}</span>
+                <span class="font-semibold text-gray-800">${fmt(item[valueKey])}</span>
             </div>
             <div class="w-full bg-gray-100 rounded-full h-2">
                 <div class="${color} h-2 rounded-full" style="width:${pct}%"></div>
             </div>
         </div>`;
     }).join('');
-    $('#'+containerId).html(html);
+    $('#' + containerId).html(html);
 }
 
 function loadReports() {
     const from = $('#from_date').val();
     const to = $('#to_date').val();
+    const clientId = $('#client_id').val();
+
     let url = '/api/reports';
     const params = [];
-    if (from) params.push('from_date='+from);
-    if (to) params.push('to_date='+to);
+    if (from) params.push('from_date=' + encodeURIComponent(from));
+    if (to) params.push('to_date=' + encodeURIComponent(to));
+    if (clientId) params.push('client_id=' + encodeURIComponent(clientId));
     if (params.length) url += '?' + params.join('&');
 
-    $.ajax({url, headers: {Authorization: 'Bearer '+token}})
+    $.ajax({ url, headers: { Authorization: 'Bearer ' + token } })
     .done(function(d) {
+        // Populate Client Dropdown if empty
+        if ($('#client_id option').length <= 1 && d.clients_list?.length) {
+            d.clients_list.forEach(c => {
+                const label = c.company ? `${c.name} (${c.company})` : c.name;
+                $('#client_id').append(`<option value="${c.id}">${escHtml(label)}</option>`);
+            });
+            if (clientId) {
+                $('#client_id').val(clientId);
+            }
+        }
+
+        // Active Party Filter Banner
+        if (d.selected_client_id) {
+            const selectedOpt = $('#client_id option:selected').text();
+            $('#active-party-name').text(selectedOpt || `Client #${d.selected_client_id}`);
+            $('#active-party-banner').removeClass('hidden');
+            $('#party-report-subtitle').text(`Showing account transactions and invoices for: ${selectedOpt}`);
+        } else {
+            $('#active-party-banner').addClass('hidden');
+            $('#party-report-subtitle').text('Client account statements with separated paid & due balances');
+        }
+
         // KPIs
         const p = d.kpis.net_profit;
         $('#kpi-revenue').text(fmt(d.kpis.total_revenue));
         $('#kpi-paid').text(fmt(d.kpis.total_paid));
         $('#kpi-outstanding').text(fmt(d.kpis.total_outstanding));
         $('#kpi-expenses').text(fmt(d.kpis.total_expenses));
-        $('#kpi-profit').text(fmt(p)).removeClass('text-green-600 text-red-600').addClass(p >= 0 ? 'text-green-600' : 'text-red-600');
+        $('#kpi-profit').text(fmt(p)).removeClass('text-emerald-600 text-rose-600').addClass(p >= 0 ? 'text-emerald-600' : 'text-rose-600');
+        $('#kpi-invoice-count').text(`${d.kpis.invoice_count} invoices total`);
+        $('#kpi-paid-count').text(d.kpis.paid_count || 0);
+        $('#kpi-due-count').text(d.kpis.due_count || 0);
+
+        // Tab Counts & Totals
+        const partyList = d.party_reports || [];
+        const dueList = d.due_invoices || [];
+        const paidList = d.paid_invoices || [];
+
+        $('#count-parties').text(partyList.length);
+        $('#count-due').text(dueList.length);
+        $('#count-paid').text(paidList.length);
+
+        const totalDueAmount = dueList.reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+        const totalPaidAmount = paidList.reduce((sum, inv) => sum + (inv.amount_paid || inv.total_amount || 0), 0);
+
+        $('#due-total-amount').text(fmt(totalDueAmount));
+        $('#paid-total-amount').text(fmt(totalPaidAmount));
+
+        // 1. Render Party Summary Table
+        if (partyList.length) {
+            $('#party-table-body').html(partyList.map(p => {
+                const hasDue = (p.total_due > 0.01);
+                const statusBadge = hasDue
+                    ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">DUE: ${fmt(p.total_due)}</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><i class="fas fa-check-circle"></i> ALL PAID</span>`;
+                
+                const filterBtn = p.client_id
+                    ? `<button type="button" onclick="filterByParty(${p.client_id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 transition">
+                         <i class="fas fa-filter text-[10px]"></i> Statement
+                       </button>`
+                    : '-';
+
+                return `<tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-gray-900">${escHtml(p.name)}</div>
+                        ${p.email || p.phone ? `<div class="text-xs text-gray-400">${escHtml(p.phone || p.email)}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="text-gray-700 font-medium">${escHtml(p.company || '—')}</div>
+                        ${p.ntn ? `<div class="text-[11px] text-gray-400 font-mono">NTN: ${escHtml(p.ntn)}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-semibold text-xs">${p.invoice_count}</span>
+                    </td>
+                    <td class="py-3 px-4 text-right font-semibold text-gray-800">${fmt(p.total_billed)}</td>
+                    <td class="py-3 px-4 text-right font-bold text-emerald-600">${fmt(p.total_received)}</td>
+                    <td class="py-3 px-4 text-right font-bold ${hasDue ? 'text-amber-600' : 'text-gray-400'}">${fmt(p.total_due)}</td>
+                    <td class="py-3 px-4 text-center">${statusBadge}</td>
+                    <td class="py-3 px-4 text-right">${filterBtn}</td>
+                </tr>`;
+            }).join(''));
+        } else {
+            $('#party-table-body').html('<tr><td colspan="8" class="text-center py-6 text-gray-400">No parties found in selected period.</td></tr>');
+        }
+
+        // 2. Render Due Invoices Table
+        if (dueList.length) {
+            $('#due-table-body').html(dueList.map(inv => {
+                const isOverdue = inv.is_overdue;
+                const dueDateBadge = isOverdue
+                    ? `<span class="text-rose-600 font-bold text-xs"><i class="fas fa-triangle-exclamation mr-1"></i>${escHtml(inv.due_date)}</span>`
+                    : (inv.due_date ? escHtml(inv.due_date) : '—');
+                
+                return `<tr class="hover:bg-amber-50/40 transition border-b border-slate-100">
+                    <td class="py-3 px-4 font-mono font-bold text-cyan-700">
+                        <a href="/invoices/${inv.id}" class="hover:underline flex items-center gap-1">
+                            <i class="fas fa-file-invoice"></i> ${escHtml(inv.invoice_no)}
+                        </a>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-gray-900">${escHtml(inv.client_name)}</div>
+                        ${inv.client_company ? `<div class="text-xs text-gray-400">${escHtml(inv.client_company)}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4 text-gray-600 text-xs">${escHtml(inv.invoice_date)}</td>
+                    <td class="py-3 px-4 text-xs">${dueDateBadge}</td>
+                    <td class="py-3 px-4 text-right font-medium text-gray-700">${fmt(inv.total_amount)}</td>
+                    <td class="py-3 px-4 text-right font-bold text-emerald-600">${fmt(inv.amount_paid)}</td>
+                    <td class="py-3 px-4 text-right font-black text-rose-600 bg-rose-50/40">${fmt(inv.balance_due)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[inv.status] || 'bg-slate-200 text-slate-800'} text-white">
+                            ${escHtml(inv.status.replace('_', ' '))}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <a href="/invoices/${inv.id}" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs inline-flex items-center gap-1 transition">
+                            <i class="fas fa-dollar-sign"></i> Pay / View
+                        </a>
+                    </td>
+                </tr>`;
+            }).join(''));
+        } else {
+            $('#due-table-body').html('<tr><td colspan="9" class="text-center py-6 text-gray-400"><i class="fas fa-check-double text-emerald-500 mr-1.5"></i> All invoices are paid in full! No due invoices.</td></tr>');
+        }
+
+        // 3. Render Paid Invoices Table
+        if (paidList.length) {
+            $('#paid-table-body').html(paidList.map(inv => {
+                const fbrBadge = (inv.fbr_status === 'posted' && inv.fbr_invoice_no)
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center gap-1"><i class="fas fa-check-circle text-emerald-600"></i> FBR: ${escHtml(inv.fbr_invoice_no.slice(-8))}</span>`
+                    : `<span class="text-xs text-gray-400">—</span>`;
+
+                return `<tr class="hover:bg-emerald-50/40 transition border-b border-slate-100">
+                    <td class="py-3 px-4 font-mono font-bold text-cyan-700">
+                        <a href="/invoices/${inv.id}" class="hover:underline flex items-center gap-1">
+                            <i class="fas fa-file-invoice"></i> ${escHtml(inv.invoice_no)}
+                        </a>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-gray-900">${escHtml(inv.client_name)}</div>
+                        ${inv.client_company ? `<div class="text-xs text-gray-400">${escHtml(inv.client_company)}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4 text-gray-600 text-xs">${escHtml(inv.invoice_date)}</td>
+                    <td class="py-3 px-4 text-right font-medium text-gray-700">${fmt(inv.total_amount)}</td>
+                    <td class="py-3 px-4 text-right font-black text-emerald-600 bg-emerald-50/40">${fmt(inv.amount_paid || inv.total_amount)}</td>
+                    <td class="py-3 px-4 text-center">${fbrBadge}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-2xs">
+                            <i class="fas fa-check mr-1"></i> PAID
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right flex justify-end gap-1.5 items-center">
+                        <a href="/invoices/${inv.id}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+                            View
+                        </a>
+                        <a href="/api/invoices/${inv.id}/pdf" target="_blank" class="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition flex items-center gap-1">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </a>
+                    </td>
+                </tr>`;
+            }).join(''));
+        } else {
+            $('#paid-table-body').html('<tr><td colspan="8" class="text-center py-6 text-gray-400">No paid invoices found in this period.</td></tr>');
+        }
 
         // Revenue by month
         barChart('revenue-chart', d.revenue_by_month, 'month', 'revenue', 'bg-cyan-500');
@@ -137,9 +510,9 @@ function loadReports() {
         // Invoice status
         const statusItems = Object.entries(d.invoice_status).map(([k,v]) => ({label: k, count: v}));
         if (statusItems.length) {
-            const total = statusItems.reduce((s,i) => s+i.count, 0);
+            const total = statusItems.reduce((s,i) => s + i.count, 0);
             $('#status-chart').html(statusItems.map(item => {
-                const pct = (item.count/total*100).toFixed(1);
+                const pct = (item.count / total * 100).toFixed(1);
                 const color = STATUS_COLORS[item.label] || 'bg-gray-400';
                 return `<div class="flex items-center gap-3">
                     <div class="w-3 h-3 rounded-full ${color} flex-shrink-0"></div>
@@ -162,35 +535,39 @@ function loadReports() {
         const tax = d.tax_summary;
         const totalTax = tax.gst + tax.wht + tax.fed;
         $('#tax-summary').html(`
-            <div class="flex justify-between py-2 border-b border-gray-50"><span class="text-sm text-gray-600">GST Collected</span><span class="font-semibold text-gray-800">${fmt(tax.gst)}</span></div>
-            <div class="flex justify-between py-2 border-b border-gray-50"><span class="text-sm text-gray-600">WHT Deducted</span><span class="font-semibold text-red-600">- ${fmt(tax.wht)}</span></div>
-            <div class="flex justify-between py-2 border-b border-gray-50"><span class="text-sm text-gray-600">FED Collected</span><span class="font-semibold text-gray-800">${fmt(tax.fed)}</span></div>
-            <div class="flex justify-between py-3 mt-1"><span class="text-sm font-bold text-gray-800">Net Tax Payable</span><span class="font-bold text-lg text-gray-800">${fmt(totalTax - tax.wht)}</span></div>
+            <div class="flex justify-between py-2 border-b border-gray-50"><span class="text-sm text-gray-600 font-medium">GST Collected (18%)</span><span class="font-bold text-gray-800">${fmt(tax.gst)}</span></div>
+            <div class="flex justify-between py-2 border-b border-gray-50"><span class="text-sm text-gray-600 font-medium">WHT Deducted</span><span class="font-bold text-rose-600">- ${fmt(tax.wht)}</span></div>
+            <div class="flex justify-between py-2 border-b border-gray-50"><span class="text-sm text-gray-600 font-medium">FED Collected</span><span class="font-bold text-gray-800">${fmt(tax.fed)}</span></div>
+            <div class="flex justify-between py-3 mt-1 bg-slate-50 px-3 rounded-xl border border-slate-200"><span class="text-sm font-bold text-gray-800">Net Tax Payable</span><span class="font-extrabold text-lg text-emerald-700">${fmt(totalTax - tax.wht)}</span></div>
         `);
 
         // Receivables aging
         const aging = d.receivables_aging;
         const agingItems = [
-            {label: 'Current (not due)', value: aging.current, color: 'bg-green-500'},
+            {label: 'Current (not due)', value: aging.current, color: 'bg-emerald-500'},
             {label: '1–30 days overdue', value: aging['1_30'], color: 'bg-amber-400'},
             {label: '31–60 days overdue', value: aging['31_60'], color: 'bg-orange-500'},
-            {label: '61–90 days overdue', value: aging['61_90'], color: 'bg-red-500'},
+            {label: '61–90 days overdue', value: aging['61_90'], color: 'bg-rose-500'},
             {label: 'Over 90 days', value: aging.over_90, color: 'bg-red-800'},
         ];
         const maxAging = Math.max(...agingItems.map(i => i.value)) || 1;
         $('#aging-chart').html(agingItems.map(item => {
-            const pct = Math.max(2, item.value/maxAging*100).toFixed(1);
+            const pct = Math.max(2, item.value / maxAging * 100).toFixed(1);
             return `<div>
                 <div class="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>${item.label}</span><span class="font-medium">${fmt(item.value)}</span>
+                    <span class="font-medium">${item.label}</span><span class="font-bold text-gray-800">${fmt(item.value)}</span>
                 </div>
                 <div class="w-full bg-gray-100 rounded-full h-2">
-                    <div class="${item.color} h-2 rounded-full" style="width:${item.value>0?pct:'0'}%"></div>
+                    <div class="${item.color} h-2 rounded-full" style="width:${item.value > 0 ? pct : '0'}%"></div>
                 </div>
             </div>`;
         }).join(''));
     })
-    .fail(function() { window.location.href = '/login'; });
+    .fail(function(x) {
+        if (x.status === 401) {
+            window.location.href = '/login';
+        }
+    });
 }
 
 $(function() {
