@@ -4,78 +4,413 @@
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
     <main class="flex-1 ml-64 p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Clients</h1>
-            <a href="/clients/new" class="bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-700"><i class="fas fa-plus mr-2"></i>Add Client</a>
+        <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Clients</h1>
+                <p class="text-xs text-gray-500 mt-1">Manage parties, accounts, and contact directories. Duplicates are strictly guarded.</p>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" onclick="openDuplicatesModal()" id="btn-duplicates" class="hidden bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-2xs">
+                    <i class="fas fa-clone text-amber-600"></i>
+                    <span>Review Duplicates</span>
+                    <span id="dup-badge-count" class="bg-amber-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </button>
+                <a href="/clients/new" class="bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-700 shadow-sm transition flex items-center gap-2">
+                    <i class="fas fa-plus"></i> Add Client
+                </a>
+            </div>
         </div>
+
+        <!-- Duplicate Warning Alert Banner (Visible when duplicates exist) -->
+        <div id="duplicate-alert-banner" class="hidden mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-amber-950">Duplicate Client or Company Records Detected</h3>
+                    <p class="text-xs text-amber-800 mt-0.5">Found <span id="banner-dup-count" class="font-bold">0</span> duplicate groups. In accordance with data integrity rules, you can safely merge all invoices, estimates, and projects into a primary client.</p>
+                </div>
+            </div>
+            <button type="button" onclick="openDuplicatesModal()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1.5">
+                <i class="fas fa-code-merge"></i> Merge with Permission
+            </button>
+        </div>
+
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="p-4 border-b border-gray-100"><input type="text" id="search" class="w-full md:w-96 px-4 py-2 border rounded-lg text-sm" placeholder="Search clients..." onkeyup="loadClients(this.value)"></div>
-            <table class="w-full" id="clients-table"><thead class="bg-dptech-50"><tr><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Company</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Phone</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Email</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">City</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th></tr></thead><tbody id="clients-body"></tbody></table>
+            <div class="p-4 border-b border-gray-100 flex flex-wrap justify-between items-center gap-3">
+                <div class="relative w-full md:w-96">
+                    <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-xs"></i>
+                    <input type="text" id="search" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 outline-none" placeholder="Search by name, company, phone, email, city..." onkeyup="loadClients(this.value)">
+                </div>
+                <div class="text-xs text-gray-500">
+                    <span id="client-total-count" class="font-bold text-gray-800">0</span> active client(s)
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full" id="clients-table">
+                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                        <tr>
+                            <th class="text-left px-6 py-3">Client Name</th>
+                            <th class="text-left px-6 py-3">Company</th>
+                            <th class="text-left px-6 py-3">Phone / Mobile</th>
+                            <th class="text-left px-6 py-3">Email</th>
+                            <th class="text-left px-6 py-3">City</th>
+                            <th class="text-right px-6 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clients-body"></tbody>
+                </table>
+            </div>
         </div>
     </main>
 </div>
+
+<!-- Modal: Duplicate Clients Review & Merge with Permission -->
+<div id="duplicate-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-3xl mx-auto shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center pb-4 border-b border-gray-100">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-base">
+                    <i class="fas fa-code-merge"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Merge Duplicate Clients</h3>
+                    <p class="text-xs text-gray-500">Consolidate duplicate records by assigning all invoices, estimates, and projects to the selected primary client.</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeDuplicatesModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+
+        <div id="duplicate-modal-content" class="py-4 space-y-6">
+            <!-- Dynamically populated duplicate groups -->
+        </div>
+
+        <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
+            <button type="button" onclick="closeDuplicatesModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg">Close</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function() {
     var token = localStorage.getItem('token');
     if (!token) { window.location.href = '/login'; return; }
+    var authHeaders = { 'Authorization': 'Bearer ' + token };
+
+    var allClientsCache = [];
+    var duplicateGroupsCache = [];
+
+    function checkDuplicates() {
+        $.ajax({
+            url: '/api/clients/duplicates',
+            method: 'GET',
+            headers: authHeaders
+        }).done(function(res) {
+            duplicateGroupsCache = res.duplicate_groups || [];
+            var totalGroups = res.total_groups || 0;
+            if (totalGroups > 0) {
+                $('#btn-duplicates').removeClass('hidden');
+                $('#dup-badge-count').text(totalGroups);
+                $('#duplicate-alert-banner').removeClass('hidden');
+                $('#banner-dup-count').text(totalGroups);
+            } else {
+                $('#btn-duplicates').addClass('hidden');
+                $('#duplicate-alert-banner').addClass('hidden');
+            }
+        });
+    }
 
     function loadClients(search) {
         var url = '/api/clients';
         if (search) url = url + '?search=' + encodeURIComponent(search);
 
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== 4) return;
-            if (xhr.status !== 200) {
-                document.getElementById('clients-body').innerHTML =
-                    '<tr><td colspan="6" class="text-center py-8 text-red-400">Error loading clients (status ' + xhr.status + ')</td></tr>';
+        $.ajax({
+            url: url,
+            method: 'GET',
+            headers: authHeaders
+        }).done(function(clients) {
+            allClientsCache = clients || [];
+            $('#client-total-count').text(allClientsCache.length);
+
+            if (!allClientsCache.length) {
+                $('#clients-body').html('<tr><td colspan="6" class="text-center py-8 text-gray-400">No clients found</td></tr>');
                 return;
             }
-            var clients = JSON.parse(xhr.responseText);
-            if (!clients || !clients.length) {
-                document.getElementById('clients-body').innerHTML =
-                    '<tr><td colspan="6" class="text-center py-8 text-gray-400">No clients found</td></tr>';
-                return;
-            }
+
             var html = '';
-            for (var i = 0; i < clients.length; i++) {
-                var c = clients[i];
-                html += '<tr class="border-b border-gray-50 hover:bg-dptech-50">' +
-                    '<td class="px-6 py-4 font-medium text-gray-800">' + escHtml(c.name || '') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.company || '-') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.phone || '-') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.email || '-') + '</td>' +
-                    '<td class="px-6 py-4 text-gray-600">' + escHtml(c.city || '-') + '</td>' +
-                    '<td class="px-6 py-4 text-right">' +
-                    '<a href="/clients/new?id=' + encodeURIComponent(c.id) + '" class="text-cyan-600 hover:text-cyan-800 mr-3"><i class="fas fa-edit"></i></a>' +
-                    '<button onclick="deleteClient(' + Number(c.id) + ')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>' +
+            for (var i = 0; i < allClientsCache.length; i++) {
+                var c = allClientsCache[i];
+                var contact = c.phone || c.mobile || '-';
+                html += '<tr class="border-b border-gray-50 hover:bg-slate-50 transition">' +
+                    '<td class="px-6 py-4 font-bold text-gray-900">' + escHtml(c.name || '') + '</td>' +
+                    '<td class="px-6 py-4 font-medium text-gray-700">' + (c.company ? escHtml(c.company) : '<span class="text-gray-400 italic">None</span>') + '</td>' +
+                    '<td class="px-6 py-4 text-gray-600 text-sm">' + escHtml(contact) + '</td>' +
+                    '<td class="px-6 py-4 text-gray-600 text-sm">' + escHtml(c.email || '-') + '</td>' +
+                    '<td class="px-6 py-4 text-gray-600 text-sm">' + escHtml(c.city || '-') + '</td>' +
+                    '<td class="px-6 py-4 text-right space-x-2">' +
+                    '<a href="/clients/new?id=' + encodeURIComponent(c.id) + '" class="text-cyan-600 hover:text-cyan-800 p-1.5 rounded hover:bg-cyan-50" title="Edit Client"><i class="fas fa-edit"></i></a>' +
+                    '<button onclick="startRowMerge(' + Number(c.id) + ')" class="text-amber-600 hover:text-amber-800 p-1.5 rounded hover:bg-amber-50" title="Merge this client"><i class="fas fa-code-merge"></i></button>' +
+                    '<button onclick="deleteClient(' + Number(c.id) + ')" class="text-red-500 hover:text-red-700 p-1.5 rounded hover:bg-red-50" title="Deactivate Client"><i class="fas fa-trash"></i></button>' +
                     '</td></tr>';
             }
-            document.getElementById('clients-body').innerHTML = html;
-        };
-        xhr.send();
+            $('#clients-body').html(html);
+        }).fail(function(x) {
+            $('#clients-body').html('<tr><td colspan="6" class="text-center py-8 text-red-400">Error loading clients</td></tr>');
+        });
+    }
+
+    function openDuplicatesModal() {
+        if (!duplicateGroupsCache.length) {
+            // Re-fetch to ensure fresh data
+            $.ajax({
+                url: '/api/clients/duplicates',
+                method: 'GET',
+                headers: authHeaders
+            }).done(function(res) {
+                duplicateGroupsCache = res.duplicate_groups || [];
+                renderDuplicatesModal();
+                $('#duplicate-modal').removeClass('hidden').addClass('flex');
+            });
+            return;
+        }
+        renderDuplicatesModal();
+        $('#duplicate-modal').removeClass('hidden').addClass('flex');
+    }
+
+    function closeDuplicatesModal() {
+        $('#duplicate-modal').addClass('hidden').removeClass('flex');
+    }
+
+    function renderDuplicatesModal() {
+        if (!duplicateGroupsCache.length) {
+            $('#duplicate-modal-content').html(`
+                <div class="text-center py-10">
+                    <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl mb-3">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-gray-800">No Duplicate Clients Found</h4>
+                    <p class="text-xs text-gray-500 mt-1">All registered client names and company names in the system are currently unique!</p>
+                </div>
+            `);
+            return;
+        }
+
+        var html = duplicateGroupsCache.map(function(grp, gIdx) {
+            var primaryId = grp.suggested_primary_id;
+            var clientRows = grp.clients.map(function(c) {
+                var isPrimary = (c.id === primaryId);
+                return `
+                    <div class="p-3 rounded-xl border ${isPrimary ? 'border-cyan-400 bg-cyan-50/40' : 'border-gray-200 bg-white'} flex flex-wrap items-center justify-between gap-3 client-card-${gIdx}" id="card-c-${c.id}">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="primary_${gIdx}" value="${c.id}" ${isPrimary ? 'checked' : ''} onchange="onPrimaryChange(${gIdx}, ${c.id})" class="text-cyan-600 focus:ring-cyan-500 w-4 h-4 cursor-pointer">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-sm text-gray-900">${escHtml(c.name)}</span>
+                                    ${c.company ? `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-700">${escHtml(c.company)}</span>` : ''}
+                                    <span id="badge-primary-${c.id}" class="${isPrimary ? '' : 'hidden'} px-2 py-0.2 rounded text-[10px] font-bold bg-cyan-600 text-white uppercase tracking-wider">Keep as Primary</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-2">
+                                    <span>ID: #${c.id}</span>
+                                    <span>&bull;</span>
+                                    <span>Phone: ${escHtml(c.phone || c.mobile || 'None')}</span>
+                                    <span>&bull;</span>
+                                    <span>Email: ${escHtml(c.email || 'None')}</span>
+                                    <span>&bull;</span>
+                                    <span>City: ${escHtml(c.city || 'None')}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200" title="Invoices linked">
+                                <i class="fas fa-file-invoice"></i> ${c.invoice_count || 0} Inv
+                            </span>
+                            <span class="px-2 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Estimates linked">
+                                <i class="fas fa-file-alt"></i> ${c.estimate_count || 0} Est
+                            </span>
+                            <span class="px-2 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200" title="Projects linked">
+                                <i class="fas fa-folder-open"></i> ${c.project_count || 0} Proj
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="border border-amber-200 bg-amber-50/20 rounded-2xl p-4 shadow-xs" id="grp-container-${gIdx}">
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-amber-200/60">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">${gIdx + 1}</span>
+                            <span class="text-xs font-bold text-amber-900">${escHtml(grp.reason)}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">${grp.clients.length} duplicate records</span>
+                    </div>
+
+                    <div class="space-y-2 mb-4">
+                        ${clientRows}
+                    </div>
+
+                    <div class="bg-white p-3 rounded-xl border border-amber-200/80 flex flex-wrap items-center justify-between gap-3">
+                        <label class="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                            <input type="checkbox" id="perm-check-${gIdx}" class="w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500">
+                            <span>I authorize merging these records into the selected Primary Client</span>
+                        </label>
+                        <button type="button" onclick="executeGroupMerge(${gIdx})" id="btn-merge-${gIdx}" class="px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                            <i class="fas fa-code-merge"></i> Merge Group with Permission
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        $('#duplicate-modal-content').html(html);
+    }
+
+    function onPrimaryChange(gIdx, newPrimaryId) {
+        var grp = duplicateGroupsCache[gIdx];
+        if (!grp) return;
+        grp.suggested_primary_id = newPrimaryId;
+
+        grp.clients.forEach(function(c) {
+            var isPrimary = (c.id === newPrimaryId);
+            var $card = $('#card-c-' + c.id);
+            var $badge = $('#badge-primary-' + c.id);
+            if (isPrimary) {
+                $card.removeClass('border-gray-200 bg-white').addClass('border-cyan-400 bg-cyan-50/40');
+                $badge.removeClass('hidden');
+            } else {
+                $card.removeClass('border-cyan-400 bg-cyan-50/40').addClass('border-gray-200 bg-white');
+                $badge.addClass('hidden');
+            }
+        });
+    }
+
+    function executeGroupMerge(gIdx) {
+        var grp = duplicateGroupsCache[gIdx];
+        if (!grp) return;
+
+        var isAuthorized = $('#perm-check-' + gIdx).is(':checked');
+        if (!isAuthorized) {
+            alert('Permission Required: Please check the authorization box to confirm merging these duplicate clients.');
+            return;
+        }
+
+        var primaryId = grp.suggested_primary_id;
+        var dupIds = grp.clients.map(function(c) { return c.id; }).filter(function(id) { return id !== primaryId; });
+
+        if (!dupIds.length) {
+            alert('No secondary duplicate records selected to merge.');
+            return;
+        }
+
+        var primaryClient = grp.clients.find(function(c) { return c.id === primaryId; }) || grp.clients[0];
+        if (!confirm('Execute client merge?\n\n' + dupIds.length + ' duplicate client(s) will be merged into: "' + primaryClient.name + '" (# ' + primaryId + ').\nAll invoices, estimates, and projects will be safely moved.\n\nProceed?')) {
+            return;
+        }
+
+        var $btn = $('#btn-merge-' + gIdx);
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Merging...');
+
+        $.ajax({
+            url: '/api/clients/merge',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                primary_id: primaryId,
+                duplicate_ids: dupIds,
+                confirm_merge: true
+            }),
+            headers: authHeaders
+        }).done(function(res) {
+            alert(res.message || 'Clients merged successfully!');
+            $('#grp-container-' + gIdx).fadeOut(300, function() {
+                $(this).remove();
+            });
+            checkDuplicates();
+            loadClients($('#search').val());
+        }).fail(function(x) {
+            alert('Error merging clients: ' + (x.responseJSON?.detail || 'Unknown error'));
+            $btn.prop('disabled', false).html('<i class="fas fa-code-merge mr-1"></i> Merge Group with Permission');
+        });
+    }
+
+    function startRowMerge(sourceId) {
+        var sourceClient = allClientsCache.find(function(c) { return c.id === sourceId; });
+        if (!sourceClient) return;
+
+        // Populate prompt to choose target primary client
+        var otherClients = allClientsCache.filter(function(c) { return c.id !== sourceId; });
+        if (!otherClients.length) {
+            alert('No other clients available to merge with.');
+            return;
+        }
+
+        var optionsList = otherClients.map(function(c) {
+            return '#' + c.id + ': ' + c.name + (c.company ? ' (' + c.company + ')' : '');
+        }).join('\n');
+
+        var targetPrompt = prompt('Merge Client #' + sourceId + ' ("' + sourceClient.name + '") into another primary client.\n\nEnter the TARGET Client ID from the list below:\n\n' + optionsList, '');
+        if (!targetPrompt) return;
+
+        var targetId = parseInt(targetPrompt);
+        if (!targetId || targetId === sourceId) {
+            alert('Invalid target client ID.');
+            return;
+        }
+
+        var targetClient = allClientsCache.find(function(c) { return c.id === targetId; });
+        if (!targetClient) {
+            alert('Target client #' + targetId + ' not found.');
+            return;
+        }
+
+        if (!confirm('CONFIRM CLIENT MERGE WITH PERMISSION:\n\nClient #' + sourceId + ' ("' + sourceClient.name + '") will be merged into #' + targetId + ' ("' + targetClient.name + '").\nAll associated invoices, estimates, and projects will be transferred.\n\nProceed?')) {
+            return;
+        }
+
+        $.ajax({
+            url: '/api/clients/merge',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                primary_id: targetId,
+                duplicate_ids: [sourceId],
+                confirm_merge: true
+            }),
+            headers: authHeaders
+        }).done(function(res) {
+            alert(res.message || 'Clients successfully merged!');
+            checkDuplicates();
+            loadClients($('#search').val());
+        }).fail(function(x) {
+            alert('Error: ' + (x.responseJSON?.detail || 'Merge failed'));
+        });
     }
 
     function deleteClient(id) {
-        if (!confirm('Delete this client?')) return;
-        var xhr = new XMLHttpRequest();
-        xhr.open('DELETE', '/api/clients/' + id, true);
-        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                var searchVal = document.getElementById('search').value;
-                loadClients(searchVal);
-            }
-        };
-        xhr.send();
+        if (!confirm('Deactivate this client record?')) return;
+        $.ajax({
+            url: '/api/clients/' + id,
+            method: 'DELETE',
+            headers: authHeaders
+        }).done(function() {
+            loadClients($('#search').val());
+            checkDuplicates();
+        }).fail(function(x) {
+            alert('Error: ' + (x.responseJSON?.detail || 'Could not deactivate'));
+        });
     }
 
     window.loadClients = loadClients;
     window.deleteClient = deleteClient;
+    window.openDuplicatesModal = openDuplicatesModal;
+    window.closeDuplicatesModal = closeDuplicatesModal;
+    window.onPrimaryChange = onPrimaryChange;
+    window.executeGroupMerge = executeGroupMerge;
+    window.startRowMerge = startRowMerge;
 
     loadClients('');
+    checkDuplicates();
 })();
 </script>
 {% endblock %}

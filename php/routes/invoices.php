@@ -474,7 +474,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         if ($sub === '/pdf' && $method === 'GET') {
             require_permission_for($db, $user, 'invoices', 'view');
             $stmt = $db->prepare('
-                SELECT i.*, c.name AS client_name, c.email AS client_email, c.phone AS client_phone, c.address AS client_address
+                SELECT i.*, c.name AS client_name, c.company AS client_company, c.email AS client_email, c.phone AS client_phone, c.mobile AS client_mobile, c.address AS client_address, c.city AS client_city, c.ntn AS client_ntn, c.strn AS client_strn
                 FROM invoices i
                 LEFT JOIN clients c ON c.id = i.client_id
                 WHERE i.id = :id

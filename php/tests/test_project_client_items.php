@@ -192,3 +192,4 @@ echo " -> PASS: Project deleted and linked items preserved standalone.\n";
 $db->prepare("DELETE FROM estimates WHERE id = {$estId}")->execute();
 $db->prepare("DELETE FROM invoices WHERE id = {$invId}")->execute();
 echo "\n=== ALL PROJECT-CLIENT-ITEMS TESTS PASSED! ===\n";
+

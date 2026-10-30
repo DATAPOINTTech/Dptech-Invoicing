@@ -853,6 +853,23 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         } catch (\Throwable $e) {}
     }
 
+    // Refresh client party details (company name, contact name, phone, address)
+    if (!empty($doc['client_id']) && (empty($doc['client_company']) || empty($doc['client_name']))) {
+        try {
+            $db = database_connection();
+            $clStmt = $db->prepare('SELECT name, company, phone, mobile, address, city, ntn, strn FROM clients WHERE id = :cid LIMIT 1');
+            $clStmt->execute(['cid' => (int)$doc['client_id']]);
+            $cl = $clStmt->fetch(PDO::FETCH_ASSOC);
+            if ($cl) {
+                if (empty($doc['client_name']) && !empty($cl['name'])) $doc['client_name'] = $cl['name'];
+                if (empty($doc['client_company']) && !empty($cl['company'])) $doc['client_company'] = $cl['company'];
+                if (empty($doc['client_phone'])) $doc['client_phone'] = $cl['phone'] ?: $cl['mobile'];
+                if (empty($doc['client_address'])) $doc['client_address'] = $cl['address'];
+                if (empty($doc['client_ntn'])) $doc['client_ntn'] = $cl['ntn'];
+            }
+        } catch (\Throwable $e) {}
+    }
+
     $theme = get_company_color_theme($doc);
     $pdf = new DpPdfEngine($theme, $companyName, $companyPhone, $companyNtn);
 
@@ -1014,21 +1031,50 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     // 5. Metadata Section (Client & Document info)
     $metaY = 736.0;
 
-    // Left Column: Client Details
-    $clientName = !empty($doc['client_name']) ? (string)$doc['client_name'] : 'Valued Customer';
-    $clientCompany = !empty($doc['client_company']) ? (string)$doc['client_company'] : '';
+    // Right Column: Date & Document Number coordinates
+    $rightMetaW = 180.0;
+    $rightMetaX = $left + $width - $rightMetaW;
+    $maxLeftW = ($rightMetaX - 12.0) - ($left + 65.0);
+
+    // Left Column: Client / Party Details - Always Company Name as Bold and Client Name as Sub
+    $clientName = !empty($doc['client_name']) ? trim((string)$doc['client_name']) : '';
+    $clientCompany = !empty($doc['client_company']) ? trim((string)$doc['client_company']) : '';
     $clientPhone = $doc['client_phone'] ?? $doc['client_mobile'] ?? '';
     $clientAddress = $doc['client_address'] ?? '';
     $toLabel = ($type === 'INVOICE') ? 'Invoice To' : 'Quotation To';
 
+    // Primary Bold Text: Company Name if available, otherwise Client Name
+    $boldName = $clientCompany !== '' ? $clientCompany : ($clientName !== '' ? $clientName : 'Valued Customer');
+    $boldText = ': ' . $boldName;
+    $boldFontSize = 9.5;
+    while ($pdf->getTextWidth($boldText, 'F2', $boldFontSize) > $maxLeftW && $boldFontSize > 7.5) {
+        $boldFontSize -= 0.5;
+    }
+
     $pdf->setFillColorArray($theme['primary']);
     $pdf->drawText($left, $metaY, $toLabel, 'F2', 9.0);
-    $pdf->drawText($left + 65.0, $metaY, ': ' . $clientName . ($clientCompany !== '' ? " ({$clientCompany})" : ''), 'F2', 9.0);
+    $pdf->drawText($left + 65.0, $metaY, $boldText, 'F2', $boldFontSize);
 
-    $clientSub = array_filter([$clientPhone, $clientAddress]);
-    if (!empty($clientSub)) {
+    // Secondary Sub Text: Client Name (as Sub) followed by phone / address
+    $subParts = [];
+    if ($clientCompany !== '' && $clientName !== '' && strtolower($clientName) !== 'valued customer' && strcasecmp($clientName, $clientCompany) !== 0) {
+        $subParts[] = $clientName;
+    }
+    if (!empty($clientPhone)) {
+        $subParts[] = 'Tel: ' . $clientPhone;
+    }
+    if (!empty($clientAddress)) {
+        $subParts[] = $clientAddress;
+    }
+
+    if (!empty($subParts)) {
+        $subText = ': ' . implode(' | ', $subParts);
+        $subFontSize = 8.0;
+        while ($pdf->getTextWidth($subText, 'F1', $subFontSize) > $maxLeftW && $subFontSize > 6.0) {
+            $subFontSize -= 0.5;
+        }
         $pdf->setFillColor(0.35, 0.40, 0.48);
-        $pdf->drawText($left + 65.0, $metaY - 13.0, ': ' . implode(' | ', $clientSub), 'F1', 8.0);
+        $pdf->drawText($left + 65.0, $metaY - 13.0, $subText, 'F1', $subFontSize);
     }
 
     // Right Column: Date & Document Number

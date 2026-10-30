@@ -324,8 +324,14 @@ $.ajax({
     };
     $('#est-status-badge').text(e.status).addClass(statusColors[e.status] || 'bg-gray-100');
 
-    $('#client-name').text(e.client_name || e.client?.name || 'Valued Client');
-    const cinfo = [e.client_company, e.client_phone, e.client_email, e.client_address].filter(Boolean).join(' • ');
+    // Client info - Always Company Name as Bold and Client Name as Sub
+    const cName = e.client_name || e.client?.name || 'Valued Client';
+    const cComp = e.client_company || e.client?.company || '';
+    const boldTitle = cComp ? cComp : cName;
+    const subClientName = (cComp && cName && cName.toLowerCase() !== cComp.toLowerCase() && cName !== 'Valued Client') ? cName : '';
+
+    $('#client-name').text(boldTitle);
+    const cinfo = [subClientName, e.client_phone, e.client_email, e.client_address].filter(Boolean).join(' • ');
     $('#client-info').text(cinfo);
     currentClientPhone = e.client_phone || e.client_mobile || e.client?.phone || e.client?.mobile || '';
 

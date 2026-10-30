@@ -39,7 +39,17 @@ $('#client-form').submit(function(e) {
     const data = {name:$('#name').val(),company:$('#company').val(),email:$('#email').val(),phone:$('#phone').val(),mobile:$('#mobile').val(),city:$('#city').val(),province:$('#province').val(),ntn:$('#ntn').val(),strn:$('#strn').val(),address:$('#address').val(),notes:$('#notes').val()};
     const method = editId ? 'PUT' : 'POST';
     const url = editId ? '/api/clients/'+editId : '/api/clients';
-    $.ajax({url, method, contentType:'application/json', data:JSON.stringify(data), headers:{Authorization:'Bearer '+token}}).done(function(){window.location.href='/clients';}).fail(function(x){alert('Error: '+(x.responseJSON?.detail||'Unknown'));});
+    $.ajax({url, method, contentType:'application/json', data:JSON.stringify(data), headers:{Authorization:'Bearer '+token}})
+        .done(function(){
+            window.location.href='/clients';
+        })
+        .fail(function(x){
+            if (x.status === 409) {
+                alert(x.responseJSON?.detail || 'Duplicate not allowed: A client with this Name or Company already exists. Please merge with permission or use unique names.');
+            } else {
+                alert('Error: ' + (x.responseJSON?.detail || 'Unknown error occurred'));
+            }
+        });
 });
 </script>
 {% endblock %}

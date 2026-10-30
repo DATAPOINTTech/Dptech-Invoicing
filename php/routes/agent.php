@@ -24,16 +24,16 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
             $inv = null;
             if ($ref) {
                 if (str_starts_with(strtoupper($ref), 'INV')) {
-                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE UPPER(i.invoice_no) = :no');
+                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email, c.address AS client_address FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE UPPER(i.invoice_no) = :no');
                     $st->execute(['no' => strtoupper($ref)]);
                     $inv = $st->fetch(PDO::FETCH_ASSOC);
                 } else {
-                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.id = :id');
+                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email, c.address AS client_address FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.id = :id');
                     $st->execute(['id' => (int) $ref]);
                     $inv = $st->fetch(PDO::FETCH_ASSOC);
                 }
             } elseif ($useLatest || empty($ref)) {
-                $inv = $db->query('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email FROM invoices i LEFT JOIN clients c ON c.id = i.client_id ORDER BY i.created_at DESC, i.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+                $inv = $db->query('SELECT i.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email, c.address AS client_address FROM invoices i LEFT JOIN clients c ON c.id = i.client_id ORDER BY i.created_at DESC, i.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
             }
 
             if ($inv) {
@@ -99,16 +99,16 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
             $est = null;
             if ($ref) {
                 if (str_starts_with(strtoupper($ref), 'EST')) {
-                    $st = $db->prepare('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE UPPER(e.estimate_no) = :no');
+                    $st = $db->prepare('SELECT e.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email, c.address AS client_address FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE UPPER(e.estimate_no) = :no');
                     $st->execute(['no' => strtoupper($ref)]);
                     $est = $st->fetch(PDO::FETCH_ASSOC);
                 } else {
-                    $st = $db->prepare('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE e.id = :id');
+                    $st = $db->prepare('SELECT e.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email, c.address AS client_address FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE e.id = :id');
                     $st->execute(['id' => (int) $ref]);
                     $est = $st->fetch(PDO::FETCH_ASSOC);
                 }
             } elseif ($useLatest || empty($ref)) {
-                $est = $db->query('SELECT e.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email FROM estimates e LEFT JOIN clients c ON c.id = e.client_id ORDER BY e.created_at DESC, e.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+                $est = $db->query('SELECT e.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.email AS client_email, c.address AS client_address FROM estimates e LEFT JOIN clients c ON c.id = e.client_id ORDER BY e.created_at DESC, e.id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
             }
 
             if ($est) {

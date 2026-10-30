@@ -419,16 +419,19 @@ function loadInvoice() {
             $('#delete-btn').addClass('hidden');
         }
 
-        // Client info
+        // Client info - Always Company Name as Bold and Client Name as Sub
         const cName = inv.client_name || inv.client?.name || 'Walk-in / Cash Customer';
         const cComp = inv.client_company || inv.client?.company || '';
         const cNtn = inv.client_ntn || inv.client?.ntn || '';
         const cPhone = inv.client_phone || inv.client_mobile || inv.client?.phone || '';
         const cAddr = inv.client_address || inv.client?.address || '';
 
-        $('#client-name').text(cName);
+        const boldTitle = cComp ? cComp : cName;
+        const subClientName = (cComp && cName && cName.toLowerCase() !== cComp.toLowerCase() && cName !== 'Walk-in / Cash Customer') ? cName : '';
+
+        $('#client-name').text(boldTitle);
         const infoParts = [];
-        if (cComp) infoParts.push(cComp);
+        if (subClientName) infoParts.push(subClientName);
         if (cNtn) infoParts.push('NTN: ' + cNtn);
         if (cPhone) infoParts.push(cPhone);
         $('#client-info').text(infoParts.join(' | '));

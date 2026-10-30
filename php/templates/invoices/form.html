@@ -216,9 +216,21 @@ $('#new-client-form').submit(function(e){
     .done(function(c){
         $('#client_id').append(`<option value="${esc(c.id)}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}${c.phone?' — '+esc(c.phone):''}</option>`);
         $('#client_id').val(c.id);
+        loadClientProjects(c.id);
         hideNewClient();
     })
-    .fail(function(x){ alert('Error creating client: '+(x.responseJSON?.detail||'Unknown')); });
+    .fail(function(x){
+        if (x.status === 409 && x.responseJSON?.duplicate) {
+            const dup = x.responseJSON.duplicate;
+            if (confirm(x.responseJSON.detail + '\n\nWould you like to select the existing client instead?')) {
+                $('#client_id').val(dup.id);
+                loadClientProjects(dup.id);
+                hideNewClient();
+                return;
+            }
+        }
+        alert('Error creating client: ' + (x.responseJSON?.detail || 'Unknown error'));
+    });
 });
 $(function(){
     if (!invoiceId) {

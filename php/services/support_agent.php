@@ -561,16 +561,16 @@ class SupportAgent
             $inv = null;
             if ($invMatch) {
                 if (str_starts_with(strtoupper($invMatch), 'INV')) {
-                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE UPPER(i.invoice_no) = :no');
+                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.address AS client_address FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE UPPER(i.invoice_no) = :no');
                     $st->execute(['no' => strtoupper($invMatch)]);
                     $inv = $st->fetch(PDO::FETCH_ASSOC);
                 } else {
-                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.id = :id');
+                    $st = $db->prepare('SELECT i.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.address AS client_address FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.id = :id');
                     $st->execute(['id' => (int) $invMatch]);
                     $inv = $st->fetch(PDO::FETCH_ASSOC);
                 }
             } elseif ($client) {
-                $st = $db->prepare('SELECT i.*, c.name AS client_name, c.mobile AS client_mobile, c.phone AS client_phone FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.client_id = :cid ORDER BY i.created_at DESC, i.id DESC LIMIT 1');
+                $st = $db->prepare('SELECT i.*, c.name AS client_name, c.company AS client_company, c.mobile AS client_mobile, c.phone AS client_phone, c.address AS client_address FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.client_id = :cid ORDER BY i.created_at DESC, i.id DESC LIMIT 1');
                 $st->execute(['cid' => $client['id']]);
                 $inv = $st->fetch(PDO::FETCH_ASSOC);
             }
