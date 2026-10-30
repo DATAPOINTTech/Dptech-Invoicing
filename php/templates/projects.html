@@ -24,30 +24,55 @@
 
         <!-- KPI Summary Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Projects</p>
-                <p class="text-xl font-bold text-gray-900 mt-1" id="stat-total-projects">0</p>
-                <p class="text-[11px] text-gray-400 mt-1"><span id="stat-active-projects">0</span> in progress / planning</p>
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Projects</p>
+                    <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-diagram-project"></i></span>
+                </div>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-gray-900 tracking-tight truncate" id="stat-total-projects">0</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5 truncate"><span id="stat-active-projects">0</span> in progress / planning</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Budget</p>
-                <p class="text-xl font-bold text-cyan-700 mt-1" id="stat-total-budget">PKR 0.00</p>
-                <p class="text-[11px] text-gray-400 mt-1">Planned allocation</p>
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Budget</p>
+                    <span class="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-coins"></i></span>
+                </div>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-cyan-700 tracking-tight truncate" id="stat-total-budget">PKR 0.00</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5 truncate">Planned allocation</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Linked Invoices</p>
-                <p class="text-xl font-bold text-blue-600 mt-1" id="stat-total-invoiced">PKR 0.00</p>
-                <p class="text-[11px] text-gray-400 mt-1"><span id="stat-invoice-count">0</span> invoices billed</p>
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Linked Invoices</p>
+                    <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-file-invoice-dollar"></i></span>
+                </div>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-blue-600 tracking-tight truncate" id="stat-total-invoiced">PKR 0.00</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5 truncate"><span id="stat-invoice-count">0</span> invoices billed</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 flex flex-col justify-between">
-                <p class="text-xs text-emerald-800 uppercase font-bold tracking-wider">Received (Paid)</p>
-                <p class="text-xl font-bold text-emerald-600 mt-1" id="stat-total-received">PKR 0.00</p>
-                <p class="text-[11px] text-emerald-700 mt-1">Payments collected</p>
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-emerald-100 border-l-4 border-l-emerald-500 flex flex-col justify-between min-h-[115px]">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-emerald-800 uppercase font-bold tracking-wider">Received (Paid)</p>
+                    <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-hand-holding-dollar"></i></span>
+                </div>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-emerald-600 tracking-tight truncate" id="stat-total-received">PKR 0.00</p>
+                    <p class="text-[11px] text-emerald-700 font-medium mt-0.5 truncate">Payments collected</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-amber-100 border-l-4 border-l-amber-500 flex flex-col justify-between">
-                <p class="text-xs text-amber-800 uppercase font-bold tracking-wider">Balance Due</p>
-                <p class="text-xl font-bold text-amber-600 mt-1" id="stat-total-due">PKR 0.00</p>
-                <p class="text-[11px] text-amber-700 mt-1">Receivables remaining</p>
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-amber-100 border-l-4 border-l-amber-500 flex flex-col justify-between min-h-[115px]">
+                <div class="flex justify-between items-start">
+                    <p class="text-xs text-amber-800 uppercase font-bold tracking-wider">Balance Due</p>
+                    <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-clock"></i></span>
+                </div>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-amber-600 tracking-tight truncate" id="stat-total-due">PKR 0.00</p>
+                    <p class="text-[11px] text-amber-700 font-medium mt-0.5 truncate">Receivables remaining</p>
+                </div>
             </div>
         </div>
 
@@ -234,19 +259,19 @@
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                     <p class="text-[11px] font-bold text-slate-500 uppercase">Budget</p>
-                    <p class="text-base font-bold text-gray-900 mt-0.5" id="view-pbudget">PKR 0.00</p>
+                    <p class="text-base font-black font-mono text-gray-900 mt-0.5 truncate" id="view-pbudget">PKR 0.00</p>
                 </div>
                 <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl">
                     <p class="text-[11px] font-bold text-blue-700 uppercase">Total Invoiced</p>
-                    <p class="text-base font-bold text-blue-900 mt-0.5" id="view-ptotal-invoiced">PKR 0.00</p>
+                    <p class="text-base font-black font-mono text-blue-900 mt-0.5 truncate" id="view-ptotal-invoiced">PKR 0.00</p>
                 </div>
                 <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                     <p class="text-[11px] font-bold text-emerald-700 uppercase">Received (Paid)</p>
-                    <p class="text-base font-bold text-emerald-900 mt-0.5" id="view-ptotal-received">PKR 0.00</p>
+                    <p class="text-base font-black font-mono text-emerald-900 mt-0.5 truncate" id="view-ptotal-received">PKR 0.00</p>
                 </div>
                 <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     <p class="text-[11px] font-bold text-amber-700 uppercase">Balance Due</p>
-                    <p class="text-base font-bold text-amber-900 mt-0.5" id="view-ptotal-due">PKR 0.00</p>
+                    <p class="text-base font-black font-mono text-amber-900 mt-0.5 truncate" id="view-ptotal-due">PKR 0.00</p>
                 </div>
             </div>
 

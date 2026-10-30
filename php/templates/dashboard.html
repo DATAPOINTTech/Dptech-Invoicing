@@ -3,77 +3,105 @@
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
-    <div class="flex-1 ml-64 flex flex-col min-h-screen">
+    <div class="flex-1 ml-64 flex flex-col min-h-screen bg-slate-50/50">
 
         <!-- Topbar -->
-        <header class="topbar no-print">
+        <header class="topbar no-print bg-white border-b border-slate-200/80 px-6 py-4 flex justify-between items-center shadow-2xs">
             <div>
-                <h1 class="text-lg font-bold text-slate-800">Dashboard</h1>
-                <p class="text-xs text-slate-400" id="topbar-greeting">Welcome back</p>
+                <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
+                <p class="text-xs text-slate-400 font-medium" id="topbar-greeting">Welcome back</p>
             </div>
             <div class="flex items-center gap-3">
-                <a href="/estimates/new" class="btn btn-outline btn-sm"><i class="fas fa-plus"></i> Estimate</a>
-                <a href="/invoices/new" class="btn btn-success btn-sm"><i class="fas fa-file-invoice-dollar"></i> Invoice</a>
+                <a href="/estimates/new" class="btn btn-outline text-xs px-3.5 py-2 font-semibold"><i class="fas fa-plus"></i> Estimate</a>
+                <a href="/invoices/new" class="btn btn-success text-xs px-3.5 py-2 font-bold shadow-xs"><i class="fas fa-file-invoice-dollar"></i> New Invoice</a>
             </div>
         </header>
 
         <main class="flex-1 p-6 space-y-6">
 
-            <!-- Stats -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div class="stats-card flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-users text-blue-600"></i>
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+                <!-- 1. Clients -->
+                <div class="bg-white rounded-2xl p-4 shadow-2xs border border-slate-200/80 hover:shadow-md transition-all flex flex-col justify-between min-h-[112px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Clients</span>
+                        <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm shrink-0">
+                            <i class="fas fa-users"></i>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">Clients</p>
-                        <p class="text-xl font-bold text-slate-800" id="stat-clients">—</p>
-                    </div>
-                </div>
-                <div class="stats-card flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-cyan-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-diagram-project text-cyan-600"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">Projects</p>
-                        <p class="text-xl font-bold text-slate-800" id="stat-projects">—</p>
+                    <div class="mt-2">
+                        <p class="text-2xl font-black text-slate-900 font-mono tracking-tight" id="stat-clients">—</p>
+                        <p class="text-[11px] text-slate-400 font-medium truncate mt-0.5">Active accounts</p>
                     </div>
                 </div>
-                <div class="stats-card flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-clock text-amber-600"></i>
+
+                <!-- 2. Projects -->
+                <div class="bg-white rounded-2xl p-4 shadow-2xs border border-slate-200/80 hover:shadow-md transition-all flex flex-col justify-between min-h-[112px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Projects</span>
+                        <div class="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center text-sm shrink-0">
+                            <i class="fas fa-diagram-project"></i>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">Pending</p>
-                        <p class="text-xl font-bold text-slate-800" id="stat-pending">—</p>
-                    </div>
-                </div>
-                <div class="stats-card flex items-center gap-4 border-l-4 border-emerald-500 bg-white shadow-xs">
-                    <div class="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-hand-holding-dollar text-emerald-600 text-lg"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs text-emerald-800 font-semibold uppercase tracking-wider">Total Received</p>
-                        <p class="text-base font-bold text-emerald-700" id="stat-received">—</p>
-                        <p class="text-[10px] text-slate-400 truncate" id="stat-received-sub">Collected</p>
+                    <div class="mt-2">
+                        <p class="text-2xl font-black text-slate-900 font-mono tracking-tight" id="stat-projects">—</p>
+                        <p class="text-[11px] text-slate-400 font-medium truncate mt-0.5">In progress / planning</p>
                     </div>
                 </div>
-                <div class="stats-card flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-money-bill-trend-up text-green-600"></i>
+
+                <!-- 3. Pending Invoices -->
+                <div class="bg-white rounded-2xl p-4 shadow-2xs border border-slate-200/80 hover:shadow-md transition-all flex flex-col justify-between min-h-[112px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending</span>
+                        <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-sm shrink-0">
+                            <i class="fas fa-clock"></i>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">Receivables</p>
-                        <p class="text-base font-bold text-slate-800" id="stat-receivables">—</p>
+                    <div class="mt-2">
+                        <p class="text-2xl font-black text-slate-900 font-mono tracking-tight" id="stat-pending">—</p>
+                        <p class="text-[11px] text-slate-400 font-medium truncate mt-0.5">Draft &amp; sent invoices</p>
                     </div>
                 </div>
-                <div class="stats-card flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-credit-card text-red-500"></i>
+
+                <!-- 4. Total Received (Collected) -->
+                <div class="bg-white rounded-2xl p-4 shadow-2xs border border-emerald-200 border-l-4 border-l-emerald-500 hover:shadow-md transition-all flex flex-col justify-between min-h-[112px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Received</span>
+                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm shrink-0">
+                            <i class="fas fa-hand-holding-dollar"></i>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs text-slate-500 font-medium">Expenses</p>
-                        <p class="text-base font-bold text-slate-800" id="stat-month-expenses">—</p>
+                    <div class="mt-2">
+                        <p class="text-base sm:text-lg font-black text-emerald-600 font-mono tracking-tight truncate" id="stat-received">—</p>
+                        <p class="text-[11px] text-emerald-700 font-medium truncate mt-0.5" id="stat-received-sub">Total collected</p>
+                    </div>
+                </div>
+
+                <!-- 5. Receivables (Due) -->
+                <div class="bg-white rounded-2xl p-4 shadow-2xs border border-amber-200 border-l-4 border-l-amber-500 hover:shadow-md transition-all flex flex-col justify-between min-h-[112px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-amber-800 uppercase tracking-wider">Receivables</span>
+                        <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-sm shrink-0">
+                            <i class="fas fa-money-bill-trend-up"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <p class="text-base sm:text-lg font-black text-amber-600 font-mono tracking-tight truncate" id="stat-receivables">—</p>
+                        <p class="text-[11px] text-amber-700 font-medium truncate mt-0.5">Outstanding balance</p>
+                    </div>
+                </div>
+
+                <!-- 6. Month Expenses -->
+                <div class="bg-white rounded-2xl p-4 shadow-2xs border border-rose-200 border-l-4 border-l-rose-500 hover:shadow-md transition-all flex flex-col justify-between min-h-[112px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-rose-800 uppercase tracking-wider">Expenses</span>
+                        <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-sm shrink-0">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <p class="text-base sm:text-lg font-black text-rose-600 font-mono tracking-tight truncate" id="stat-month-expenses">—</p>
+                        <p class="text-[11px] text-rose-700 font-medium truncate mt-0.5">Month outgoings</p>
                     </div>
                 </div>
             </div>
@@ -81,87 +109,101 @@
             <!-- Recent rows -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <!-- Recent Clients -->
-                <div class="card">
-                    <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-                        <h2 class="font-semibold text-slate-800 text-sm"><i class="fas fa-users text-blue-500 mr-2"></i>Recent Clients</h2>
-                        <a href="/clients" class="text-xs text-blue-600 hover:underline font-medium">View all</a>
+                <div class="card overflow-hidden flex flex-col">
+                    <div class="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fas fa-users text-blue-500"></i> Recent Clients
+                        </h2>
+                        <a href="/clients" class="text-xs text-blue-600 hover:underline font-semibold">View all</a>
                     </div>
-                    <div class="divide-y divide-slate-50" id="recent-clients">
-                        <p class="text-slate-400 text-sm text-center py-6">Loading...</p>
+                    <div class="divide-y divide-slate-50 flex-1" id="recent-clients">
+                        <p class="text-slate-400 text-sm text-center py-8">Loading clients...</p>
                     </div>
                 </div>
+
                 <!-- Recent Invoices -->
-                <div class="card">
-                    <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-                        <h2 class="font-semibold text-slate-800 text-sm"><i class="fas fa-file-invoice-dollar text-green-500 mr-2"></i>Recent Invoices</h2>
-                        <a href="/invoices" class="text-xs text-blue-600 hover:underline font-medium">View all</a>
+                <div class="card overflow-hidden flex flex-col">
+                    <div class="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fas fa-file-invoice-dollar text-emerald-600"></i> Recent Invoices
+                        </h2>
+                        <a href="/invoices" class="text-xs text-blue-600 hover:underline font-semibold">View all</a>
                     </div>
-                    <div class="divide-y divide-slate-50" id="recent-invoices">
-                        <p class="text-slate-400 text-sm text-center py-6">Loading...</p>
+                    <div class="divide-y divide-slate-50 flex-1" id="recent-invoices">
+                        <p class="text-slate-400 text-sm text-center py-8">Loading invoices...</p>
                     </div>
                 </div>
+
                 <!-- Recent Estimates -->
-                <div class="card">
-                    <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-                        <h2 class="font-semibold text-slate-800 text-sm"><i class="fas fa-file-lines text-purple-500 mr-2"></i>Recent Estimates</h2>
-                        <a href="/estimates" class="text-xs text-blue-600 hover:underline font-medium">View all</a>
+                <div class="card overflow-hidden flex flex-col">
+                    <div class="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fas fa-file-lines text-purple-600"></i> Recent Estimates
+                        </h2>
+                        <a href="/estimates" class="text-xs text-blue-600 hover:underline font-semibold">View all</a>
                     </div>
-                    <div class="divide-y divide-slate-50" id="recent-estimates">
-                        <p class="text-slate-400 text-sm text-center py-6">Loading...</p>
+                    <div class="divide-y divide-slate-50 flex-1" id="recent-estimates">
+                        <p class="text-slate-400 text-sm text-center py-8">Loading estimates...</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Expenses + AI -->
+            <!-- Expenses + AI Agent -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <!-- Expense summary -->
-                <div class="card lg:col-span-2">
-                    <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-                        <h2 class="font-semibold text-slate-800 text-sm"><i class="fas fa-chart-pie text-red-500 mr-2"></i>Expense Summary</h2>
-                        <a href="/expenses" class="text-xs text-blue-600 hover:underline font-medium">View all</a>
+                <div class="card lg:col-span-2 overflow-hidden">
+                    <div class="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fas fa-chart-pie text-rose-500"></i> Expense Summary
+                        </h2>
+                        <a href="/expenses" class="text-xs text-blue-600 hover:underline font-semibold">View all</a>
                     </div>
                     <div class="p-5">
-                        <div class="flex gap-6 mb-4">
+                        <div class="grid grid-cols-3 gap-4 mb-5 pb-4 border-b border-slate-100">
                             <div>
-                                <p class="text-xs text-slate-500">This Month</p>
-                                <p class="text-lg font-bold text-slate-800" id="exp-month-amount">PKR 0</p>
+                                <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">This Month</p>
+                                <p class="text-xl font-black text-slate-900 font-mono mt-1 truncate" id="exp-month-amount">PKR 0.00</p>
                             </div>
                             <div>
-                                <p class="text-xs text-slate-500">Last Month</p>
-                                <p class="text-base font-semibold text-slate-600" id="exp-last-month-amount">PKR 0</p>
+                                <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Last Month</p>
+                                <p class="text-base font-bold text-slate-600 font-mono mt-1 truncate" id="exp-last-month-amount">PKR 0.00</p>
                             </div>
-                            <div class="ml-auto text-right">
-                                <p class="text-xs text-slate-500">Change</p>
-                                <p class="text-sm font-semibold" id="exp-month-compare">—</p>
+                            <div class="text-right">
+                                <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Change</p>
+                                <div class="mt-1 flex justify-end" id="exp-month-compare">
+                                    <span class="text-sm font-bold text-slate-400">—</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2 mb-5">
+                        <div class="w-full bg-slate-100 rounded-full h-2 mb-5 overflow-hidden">
                             <div id="exp-month-progress" class="bg-gradient-to-r from-red-500 to-orange-400 h-2 rounded-full transition-all duration-700" style="width:0%"></div>
                         </div>
-                        <div id="expense-categories" class="space-y-3"></div>
+                        <div id="expense-categories" class="space-y-3.5"></div>
                     </div>
                 </div>
 
                 <!-- AI Agent -->
-                <div class="card flex flex-col justify-between">
-                    <div class="px-5 py-4 border-b border-slate-100">
-                        <h2 class="font-semibold text-slate-800 text-sm"><i class="fas fa-robot text-blue-500 mr-2"></i>AI Support Agent</h2>
+                <div class="card flex flex-col justify-between overflow-hidden">
+                    <div class="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50">
+                        <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fas fa-robot text-blue-500"></i> AI Support Agent
+                        </h2>
                     </div>
                     <div class="p-5 flex-1 flex flex-col items-center justify-center text-center gap-4">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                            <i class="fas fa-headset text-white text-2xl"></i>
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+                            <i class="fas fa-headset text-white text-xl"></i>
                         </div>
                         <div>
-                            <p class="font-semibold text-slate-800 mb-1">24/7 Assistant</p>
-                            <p class="text-xs text-slate-500 leading-relaxed">Ask about invoices, products, quotations, or tax calculations.</p>
+                            <p class="font-bold text-slate-900 text-sm mb-1">24/7 Intelligent Assistant</p>
+                            <p class="text-xs text-slate-500 leading-relaxed">Ask about invoices, clients, products, tax rules, or statements.</p>
                         </div>
-                        <a href="/agent" class="btn btn-primary w-full justify-center">
-                            <i class="fas fa-comments"></i> Chat Now
+                        <a href="/agent" class="btn btn-primary w-full justify-center text-xs font-bold py-2.5">
+                            <i class="fas fa-comments mr-1.5"></i> Chat with Agent
                         </a>
                     </div>
-                    <div class="px-5 py-4 border-t border-slate-100" id="recent-expenses-mini">
-                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Recent Expenses</p>
-                        <div id="recent-expenses"></div>
+                    <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/30" id="recent-expenses-mini">
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">Recent Expenses</p>
+                        <div id="recent-expenses" class="space-y-1"></div>
                     </div>
                 </div>
             </div>
@@ -174,100 +216,125 @@
 const token = localStorage.getItem('token') || '';
 const authHeaders = token ? { Authorization: 'Bearer ' + token } : {};
 
+function fmt(n) {
+    return 'PKR ' + Number(n || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtShort(n) {
+    return 'PKR ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+}
+
 const statusBadge = s => {
-    const map = {paid:'badge-green',sent:'badge-blue',approved:'badge-green',draft:'badge-gray',overdue:'badge-red',rejected:'badge-red',converted:'badge-purple',partially_paid:'badge-amber'};
-    return `<span class="badge ${map[s]||'badge-gray'}">${escHtml(s.replace('_',' '))}</span>`;
+    const map = {
+        paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+        sent: 'bg-blue-100 text-blue-800 border-blue-200',
+        approved: 'bg-green-100 text-green-800 border-green-200',
+        draft: 'bg-slate-100 text-slate-700 border-slate-200',
+        overdue: 'bg-rose-100 text-rose-800 border-rose-200',
+        rejected: 'bg-red-100 text-red-800 border-red-200',
+        converted: 'bg-purple-100 text-purple-800 border-purple-200',
+        partially_paid: 'bg-amber-100 text-amber-800 border-amber-200'
+    };
+    return `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${map[s] || 'bg-slate-100 text-slate-700 border-slate-200'}">${escHtml(s.replace(/_/g,' '))}</span>`;
 };
+
 $(function() {
     if (!token) { window.location.href = '/login'; return; }
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    $('#topbar-greeting').text(`Welcome back, ${user.name || 'User'}`);
+    $('#topbar-greeting').text(`Welcome back, ${user.name || user.full_name || 'User'}`);
 
     $.ajax({url:'/api/dashboard', headers: authHeaders})
     .done(function(d) {
-        $('#stat-clients').text(d.total_clients);
-        $('#stat-projects').text(d.active_projects);
-        $('#stat-pending').text(d.pending_invoices);
-        $('#stat-received').text('PKR '+(d.total_received||0).toLocaleString());
-        if (d.month_received !== undefined) {
-            $('#stat-received-sub').text('This Month: PKR '+(d.month_received||0).toLocaleString());
+        $('#stat-clients').text(Number(d.total_clients || 0).toLocaleString());
+        $('#stat-projects').text(Number(d.active_projects || 0).toLocaleString());
+        $('#stat-pending').text(Number(d.pending_invoices || 0).toLocaleString());
+        $('#stat-received').text(fmtShort(d.total_received));
+        if (d.month_received !== undefined && d.month_received > 0) {
+            $('#stat-received-sub').text('Month: ' + fmtShort(d.month_received));
+        } else {
+            $('#stat-received-sub').text('Total payments collected');
         }
-        $('#stat-receivables').text('PKR '+(d.total_receivables||0).toLocaleString());
-        $('#stat-month-expenses').text('PKR '+(d.month_expenses||0).toLocaleString());
+        $('#stat-receivables').text(fmtShort(d.total_receivables));
+        $('#stat-month-expenses').text(fmtShort(d.month_expenses));
 
         // Recent clients
         if (d.recent_clients?.length) {
             $('#recent-clients').html(d.recent_clients.map(c=>`
-                <a href="/clients" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-all">
-                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">${escHtml(c.name.charAt(0))}</div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-slate-800 truncate">${escHtml(c.name)}</p>
-                        <p class="text-xs text-slate-400 truncate">${escHtml(c.company||c.phone||c.email||'—')}</p>
+                <a href="/clients/new?id=${Number(c.id)}" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-all group">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                        ${escHtml((c.name || 'C').charAt(0).toUpperCase())}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-bold text-slate-800 group-hover:text-blue-600 truncate">${escHtml(c.name)}</p>
+                        <p class="text-xs text-slate-400 truncate mt-0.5">${escHtml(c.company ? c.company : (c.phone || c.email || '—'))}</p>
+                    </div>
+                    <div class="text-slate-300 group-hover:text-blue-600 text-xs shrink-0 transition-colors">
+                        <i class="fas fa-chevron-right"></i>
                     </div>
                 </a>`).join(''));
-        } else { $('#recent-clients').html('<p class="text-slate-400 text-sm text-center py-6">No clients yet</p>'); }
+        } else { $('#recent-clients').html('<p class="text-slate-400 text-xs text-center py-8">No clients yet</p>'); }
 
         // Recent invoices
         if (d.recent_invoices?.length) {
             $('#recent-invoices').html(d.recent_invoices.map(i=>`
-                <a href="/invoices/${Number(i.id)}" class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-all">
-                    <div>
-                        <p class="text-sm font-medium text-slate-800">${escHtml(i.no)}</p>
-                        <p class="text-xs text-slate-400">${escHtml(i.client)}</p>
+                <a href="/invoices/${Number(i.id)}" class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 transition-all group">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-bold font-mono text-cyan-700 group-hover:underline truncate">${escHtml(i.no)}</p>
+                        <p class="text-xs text-slate-500 truncate mt-0.5">${escHtml(i.client || 'Valued Customer')}</p>
                     </div>
-                    <div class="text-right">
-                        <p class="text-sm font-semibold text-slate-800">PKR ${i.total?.toLocaleString()}</p>
-                        ${statusBadge(i.status)}
+                    <div class="text-right shrink-0">
+                        <p class="text-sm font-extrabold font-mono text-slate-900">${fmt(i.total)}</p>
+                        <div class="mt-1">${statusBadge(i.status)}</div>
                     </div>
                 </a>`).join(''));
-        } else { $('#recent-invoices').html('<p class="text-slate-400 text-sm text-center py-6">No invoices yet</p>'); }
+        } else { $('#recent-invoices').html('<p class="text-slate-400 text-xs text-center py-8">No invoices yet</p>'); }
 
         // Recent estimates
         if (d.recent_estimates?.length) {
             $('#recent-estimates').html(d.recent_estimates.map(e=>`
-                <a href="/estimates/${Number(e.id)}" class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-all">
-                    <div>
-                        <p class="text-sm font-medium text-slate-800">${escHtml(e.no)}</p>
-                        <p class="text-xs text-slate-400">${escHtml(e.client)}</p>
+                <a href="/estimates/${Number(e.id)}" class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 transition-all group">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-bold font-mono text-purple-700 group-hover:underline truncate">${escHtml(e.no)}</p>
+                        <p class="text-xs text-slate-500 truncate mt-0.5">${escHtml(e.client || 'Valued Customer')}</p>
                     </div>
-                    <div class="text-right">
-                        <p class="text-sm font-semibold text-slate-800">PKR ${e.total?.toLocaleString()}</p>
-                        ${statusBadge(e.status)}
+                    <div class="text-right shrink-0">
+                        <p class="text-sm font-extrabold font-mono text-slate-900">${fmt(e.total)}</p>
+                        <div class="mt-1">${statusBadge(e.status)}</div>
                     </div>
                 </a>`).join(''));
-        } else { $('#recent-estimates').html('<p class="text-slate-400 text-sm text-center py-6">No estimates yet</p>'); }
+        } else { $('#recent-estimates').html('<p class="text-slate-400 text-xs text-center py-8">No estimates yet</p>'); }
 
         // Expenses
-        $('#exp-month-amount').text('PKR '+(d.month_expenses||0).toLocaleString());
-        $('#exp-last-month-amount').text('PKR '+(d.last_month_expenses||0).toLocaleString());
-        const maxE = Math.max(d.month_expenses||0, d.last_month_expenses||0);
+        $('#exp-month-amount').text(fmt(d.month_expenses));
+        $('#exp-last-month-amount').text(fmt(d.last_month_expenses));
+        const maxE = Math.max(d.month_expenses || 0, d.last_month_expenses || 0);
         if (maxE > 0) $('#exp-month-progress').css('width', Math.round((d.month_expenses||0)/maxE*100)+'%');
         if (d.last_month_expenses > 0) {
             const diff = ((d.month_expenses||0) - d.last_month_expenses) / d.last_month_expenses * 100;
-            const cls = diff > 0 ? 'text-red-600' : 'text-green-600';
-            $('#exp-month-compare').html(`<span class="${cls}">${diff>=0?'+':''}${diff.toFixed(1)}%</span>`);
+            const cls = diff > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200';
+            $('#exp-month-compare').html(`<span class="px-2 py-0.5 rounded text-xs font-bold border ${cls}">${diff>=0?'+':''}${diff.toFixed(1)}%</span>`);
         }
-        const catColors = ['bg-red-500','bg-blue-500','bg-green-500','bg-amber-500','bg-purple-500','bg-cyan-500','bg-pink-500','bg-teal-500'];
+        const catColors = ['bg-rose-500','bg-blue-500','bg-emerald-500','bg-amber-500','bg-purple-500','bg-cyan-500','bg-pink-500','bg-teal-500'];
         if (d.expenses_by_category?.length) {
             $('#expense-categories').html(d.expenses_by_category.map((c,i)=>`
                 <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span class="text-slate-600 font-medium capitalize">${escHtml(c.category.replace(/_/g,' '))}</span>
-                        <span class="text-slate-400">PKR ${c.amount.toLocaleString()} · ${Number(c.percentage)}%</span>
+                    <div class="flex justify-between items-center text-xs mb-1.5">
+                        <span class="text-slate-700 font-semibold capitalize truncate pr-2">${escHtml(c.category.replace(/_/g,' '))}</span>
+                        <span class="font-mono text-xs font-bold text-slate-800 shrink-0">${fmt(c.amount)} <span class="text-slate-400 font-normal">(${Number(c.percentage)}%)</span></span>
                     </div>
-                    <div class="w-full bg-slate-100 rounded-full h-1.5">
-                        <div class="${catColors[i%catColors.length]} h-1.5 rounded-full" style="width:${Number(c.percentage)}%"></div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div class="${catColors[i%catColors.length]} h-1.5 rounded-full transition-all duration-500" style="width:${Math.min(100, Number(c.percentage))}%"></div>
                     </div>
                 </div>`).join(''));
-        } else { $('#expense-categories').html('<p class="text-slate-400 text-xs text-center py-2">No expense data</p>'); }
+        } else { $('#expense-categories').html('<p class="text-slate-400 text-xs text-center py-4">No expense breakdown data</p>'); }
 
         if (d.recent_expenses?.length) {
-            $('#recent-expenses').html(d.recent_expenses.slice(0,3).map(e=>`
-                <div class="flex justify-between items-center py-1.5">
-                    <p class="text-xs text-slate-700 truncate flex-1">${escHtml(e.description)}</p>
-                    <p class="text-xs font-semibold text-slate-800 ml-2">PKR ${e.amount?.toLocaleString()}</p>
+            $('#recent-expenses').html(d.recent_expenses.slice(0,4).map(e=>`
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-100/60 last:border-0">
+                    <p class="text-xs font-medium text-slate-700 truncate min-w-0 flex-1 pr-2">${escHtml(e.description || 'Expense')}</p>
+                    <p class="text-xs font-bold font-mono text-slate-900 shrink-0">${fmt(e.amount)}</p>
                 </div>`).join(''));
-        } else { $('#recent-expenses').html('<p class="text-xs text-slate-400">No recent expenses</p>'); }
+        } else { $('#recent-expenses').html('<p class="text-xs text-slate-400 py-2 text-center">No recent expenses</p>'); }
     }).fail(function() { window.location.href = '/login'; });
 });
 </script>

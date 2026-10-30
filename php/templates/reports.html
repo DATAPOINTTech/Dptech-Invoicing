@@ -53,45 +53,55 @@
 
         <!-- KPI Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Revenue</p>
-                    <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs"><i class="fas fa-file-invoice"></i></span>
+                    <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-file-invoice"></i></span>
                 </div>
-                <p class="text-xl font-bold text-gray-900 mt-2" id="kpi-revenue">—</p>
-                <p class="text-[11px] text-gray-400 mt-1" id="kpi-invoice-count">0 invoices</p>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-gray-900 tracking-tight truncate" id="kpi-revenue">—</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5 truncate" id="kpi-invoice-count">0 invoices</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 flex flex-col justify-between">
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-emerald-100 border-l-4 border-l-emerald-500 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
-                    <p class="text-xs text-emerald-800 uppercase font-bold tracking-wider">Total Received (Paid)</p>
-                    <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs"><i class="fas fa-hand-holding-dollar"></i></span>
+                    <p class="text-xs text-emerald-800 uppercase font-bold tracking-wider">Total Received</p>
+                    <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-hand-holding-dollar"></i></span>
                 </div>
-                <p class="text-xl font-bold text-emerald-600 mt-2" id="kpi-paid">—</p>
-                <p class="text-[11px] text-emerald-700 font-medium mt-1"><span id="kpi-paid-count">0</span> invoices cleared</p>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-emerald-600 tracking-tight truncate" id="kpi-paid">—</p>
+                    <p class="text-[11px] text-emerald-700 font-medium mt-0.5 truncate"><span id="kpi-paid-count">0</span> invoices cleared</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-amber-100 border-l-4 border-l-amber-500 flex flex-col justify-between">
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-amber-100 border-l-4 border-l-amber-500 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
-                    <p class="text-xs text-amber-800 uppercase font-bold tracking-wider">Total Due (Receivable)</p>
-                    <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs"><i class="fas fa-clock"></i></span>
+                    <p class="text-xs text-amber-800 uppercase font-bold tracking-wider">Balance Due</p>
+                    <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-clock"></i></span>
                 </div>
-                <p class="text-xl font-bold text-amber-600 mt-2" id="kpi-outstanding">—</p>
-                <p class="text-[11px] text-amber-700 font-medium mt-1"><span id="kpi-due-count">0</span> invoices awaiting</p>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-amber-600 tracking-tight truncate" id="kpi-outstanding">—</p>
+                    <p class="text-[11px] text-amber-700 font-medium mt-0.5 truncate"><span id="kpi-due-count">0</span> invoices awaiting</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Expenses</p>
-                    <span class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xs"><i class="fas fa-receipt"></i></span>
+                    <span class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-receipt"></i></span>
                 </div>
-                <p class="text-xl font-bold text-red-600 mt-2" id="kpi-expenses">—</p>
-                <p class="text-[11px] text-gray-400 mt-1">Operational outgoings</p>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono text-red-600 tracking-tight truncate" id="kpi-expenses">—</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5 truncate">Operational outgoings</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Net Profit</p>
-                    <span class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-xs"><i class="fas fa-wallet"></i></span>
+                    <span class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-wallet"></i></span>
                 </div>
-                <p class="text-xl font-bold mt-2" id="kpi-profit">—</p>
-                <p class="text-[11px] text-gray-400 mt-1">Revenue minus expenses</p>
+                <div class="mt-2">
+                    <p class="text-lg xl:text-xl font-black font-mono tracking-tight truncate" id="kpi-profit">—</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5 truncate">Revenue minus expenses</p>
+                </div>
             </div>
         </div>
 
@@ -402,21 +412,27 @@ function loadReports() {
                        </button>`
                     : '-';
 
+                const pComp = p.company || '';
+                const pName = p.name || 'Valued Party';
+                const boldParty = pComp ? pComp : pName;
+                const subParty = (pComp && pName && pName.toLowerCase() !== pComp.toLowerCase()) ? pName : '';
+
                 return `<tr class="hover:bg-slate-50 transition border-b border-slate-100">
                     <td class="py-3 px-4">
-                        <div class="font-bold text-gray-900">${escHtml(p.name)}</div>
-                        ${p.email || p.phone ? `<div class="text-xs text-gray-400">${escHtml(p.phone || p.email)}</div>` : ''}
+                        <div class="font-bold text-gray-900">${escHtml(boldParty)}</div>
+                        ${subParty ? `<div class="text-xs text-gray-500">${escHtml(subParty)}</div>` : ''}
+                        ${p.phone || p.email ? `<div class="text-[11px] text-gray-400">${escHtml(p.phone || p.email)}</div>` : ''}
                     </td>
                     <td class="py-3 px-4">
-                        <div class="text-gray-700 font-medium">${escHtml(p.company || '—')}</div>
+                        <div class="text-gray-700 font-medium">${escHtml(p.city || p.company || '—')}</div>
                         ${p.ntn ? `<div class="text-[11px] text-gray-400 font-mono">NTN: ${escHtml(p.ntn)}</div>` : ''}
                     </td>
                     <td class="py-3 px-4 text-center">
-                        <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-semibold text-xs">${p.invoice_count}</span>
+                        <span class="inline-block px-2.5 py-0.5 bg-slate-100 text-slate-800 rounded font-semibold text-xs font-mono">${p.invoice_count}</span>
                     </td>
-                    <td class="py-3 px-4 text-right font-semibold text-gray-800">${fmt(p.total_billed)}</td>
-                    <td class="py-3 px-4 text-right font-bold text-emerald-600">${fmt(p.total_received)}</td>
-                    <td class="py-3 px-4 text-right font-bold ${hasDue ? 'text-amber-600' : 'text-gray-400'}">${fmt(p.total_due)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-semibold text-gray-800">${fmt(p.total_billed)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-bold text-emerald-600">${fmt(p.total_received)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-bold ${hasDue ? 'text-amber-600' : 'text-gray-400'}">${fmt(p.total_due)}</td>
                     <td class="py-3 px-4 text-center">${statusBadge}</td>
                     <td class="py-3 px-4 text-right">${filterBtn}</td>
                 </tr>`;
@@ -432,7 +448,12 @@ function loadReports() {
                 const dueDateBadge = isOverdue
                     ? `<span class="text-rose-600 font-bold text-xs"><i class="fas fa-triangle-exclamation mr-1"></i>${escHtml(inv.due_date)}</span>`
                     : (inv.due_date ? escHtml(inv.due_date) : '—');
-                
+
+                const iComp = inv.client_company || '';
+                const iName = inv.client_name || 'Valued Customer';
+                const boldClient = iComp ? iComp : iName;
+                const subClient = (iComp && iName && iName.toLowerCase() !== iComp.toLowerCase()) ? iName : '';
+
                 return `<tr class="hover:bg-amber-50/40 transition border-b border-slate-100">
                     <td class="py-3 px-4 font-mono font-bold text-cyan-700">
                         <a href="/invoices/${inv.id}" class="hover:underline flex items-center gap-1">
@@ -440,14 +461,14 @@ function loadReports() {
                         </a>
                     </td>
                     <td class="py-3 px-4">
-                        <div class="font-bold text-gray-900">${escHtml(inv.client_name)}</div>
-                        ${inv.client_company ? `<div class="text-xs text-gray-400">${escHtml(inv.client_company)}</div>` : ''}
+                        <div class="font-bold text-gray-900">${escHtml(boldClient)}</div>
+                        ${subClient ? `<div class="text-xs text-gray-500">${escHtml(subClient)}</div>` : ''}
                     </td>
-                    <td class="py-3 px-4 text-gray-600 text-xs">${escHtml(inv.invoice_date)}</td>
-                    <td class="py-3 px-4 text-xs">${dueDateBadge}</td>
-                    <td class="py-3 px-4 text-right font-medium text-gray-700">${fmt(inv.total_amount)}</td>
-                    <td class="py-3 px-4 text-right font-bold text-emerald-600">${fmt(inv.amount_paid)}</td>
-                    <td class="py-3 px-4 text-right font-black text-rose-600 bg-rose-50/40">${fmt(inv.balance_due)}</td>
+                    <td class="py-3 px-4 text-center text-gray-600 text-xs font-mono">${escHtml(inv.invoice_date)}</td>
+                    <td class="py-3 px-4 text-center text-xs font-mono">${dueDateBadge}</td>
+                    <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">${fmt(inv.total_amount)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-bold text-emerald-600">${fmt(inv.amount_paid)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-black text-rose-600 bg-rose-50/40">${fmt(inv.balance_due)}</td>
                     <td class="py-3 px-4 text-center">
                         <span class="px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[inv.status] || 'bg-slate-200 text-slate-800'} text-white">
                             ${escHtml(inv.status.replace('_', ' '))}
@@ -471,6 +492,11 @@ function loadReports() {
                     ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center gap-1"><i class="fas fa-check-circle text-emerald-600"></i> FBR: ${escHtml(inv.fbr_invoice_no.slice(-8))}</span>`
                     : `<span class="text-xs text-gray-400">—</span>`;
 
+                const iComp = inv.client_company || '';
+                const iName = inv.client_name || 'Valued Customer';
+                const boldClient = iComp ? iComp : iName;
+                const subClient = (iComp && iName && iName.toLowerCase() !== iComp.toLowerCase()) ? iName : '';
+
                 return `<tr class="hover:bg-emerald-50/40 transition border-b border-slate-100">
                     <td class="py-3 px-4 font-mono font-bold text-cyan-700">
                         <a href="/invoices/${inv.id}" class="hover:underline flex items-center gap-1">
@@ -478,12 +504,12 @@ function loadReports() {
                         </a>
                     </td>
                     <td class="py-3 px-4">
-                        <div class="font-bold text-gray-900">${escHtml(inv.client_name)}</div>
-                        ${inv.client_company ? `<div class="text-xs text-gray-400">${escHtml(inv.client_company)}</div>` : ''}
+                        <div class="font-bold text-gray-900">${escHtml(boldClient)}</div>
+                        ${subClient ? `<div class="text-xs text-gray-500">${escHtml(subClient)}</div>` : ''}
                     </td>
-                    <td class="py-3 px-4 text-gray-600 text-xs">${escHtml(inv.invoice_date)}</td>
-                    <td class="py-3 px-4 text-right font-medium text-gray-700">${fmt(inv.total_amount)}</td>
-                    <td class="py-3 px-4 text-right font-black text-emerald-600 bg-emerald-50/40">${fmt(inv.amount_paid || inv.total_amount)}</td>
+                    <td class="py-3 px-4 text-center text-gray-600 text-xs font-mono">${escHtml(inv.invoice_date)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">${fmt(inv.total_amount)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-black text-emerald-600 bg-emerald-50/40">${fmt(inv.amount_paid || inv.total_amount)}</td>
                     <td class="py-3 px-4 text-center">${fbrBadge}</td>
                     <td class="py-3 px-4 text-center">
                         <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-2xs">
