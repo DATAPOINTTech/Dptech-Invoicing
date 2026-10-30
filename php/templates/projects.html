@@ -3,72 +3,739 @@
 {% block content %}
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
-    <main class="flex-1 ml-64 p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Projects</h1>
-            <button onclick="showProjectModal()" class="bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-700"><i class="fas fa-plus mr-2"></i>New Project</button>
+    <main class="flex-1 ml-64 p-6 space-y-6">
+        <!-- Topbar -->
+        <div class="flex flex-wrap justify-between items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-diagram-project text-cyan-600"></i> Client Projects
+                </h1>
+                <p class="text-xs text-gray-500 mt-0.5">Manage projects, track budgets, and link all client estimates &amp; invoices</p>
+            </div>
+            <div class="flex flex-wrap gap-2.5 items-center">
+                <select id="filter-client" onchange="loadProjects()" class="px-3 py-2 border rounded-xl text-sm bg-white font-medium focus:ring-2 focus:ring-cyan-500 outline-none text-gray-700 shadow-xs max-w-[220px]">
+                    <option value="">All Clients / Parties</option>
+                </select>
+                <button onclick="showProjectModal()" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:shadow transition flex items-center gap-2">
+                    <i class="fas fa-plus"></i> New Project
+                </button>
+            </div>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table class="w-full"><thead class="bg-dptech-50"><tr><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Client</th><th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Dates</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Budget</th><th class="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th><th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th></tr></thead><tbody id="projects-body"></tbody></table>
+
+        <!-- KPI Summary Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Projects</p>
+                <p class="text-xl font-bold text-gray-900 mt-1" id="stat-total-projects">0</p>
+                <p class="text-[11px] text-gray-400 mt-1"><span id="stat-active-projects">0</span> in progress / planning</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Budget</p>
+                <p class="text-xl font-bold text-cyan-700 mt-1" id="stat-total-budget">PKR 0.00</p>
+                <p class="text-[11px] text-gray-400 mt-1">Planned allocation</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Linked Invoices</p>
+                <p class="text-xl font-bold text-blue-600 mt-1" id="stat-total-invoiced">PKR 0.00</p>
+                <p class="text-[11px] text-gray-400 mt-1"><span id="stat-invoice-count">0</span> invoices billed</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 flex flex-col justify-between">
+                <p class="text-xs text-emerald-800 uppercase font-bold tracking-wider">Received (Paid)</p>
+                <p class="text-xl font-bold text-emerald-600 mt-1" id="stat-total-received">PKR 0.00</p>
+                <p class="text-[11px] text-emerald-700 mt-1">Payments collected</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-amber-100 border-l-4 border-l-amber-500 flex flex-col justify-between">
+                <p class="text-xs text-amber-800 uppercase font-bold tracking-wider">Balance Due</p>
+                <p class="text-xl font-bold text-amber-600 mt-1" id="stat-total-due">PKR 0.00</p>
+                <p class="text-[11px] text-amber-700 mt-1">Receivables remaining</p>
+            </div>
+        </div>
+
+        <!-- Projects Table -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-5">Project Name</th>
+                            <th class="py-3 px-5">Client / Party</th>
+                            <th class="py-3 px-5">Timeline</th>
+                            <th class="py-3 px-5 text-right">Budget</th>
+                            <th class="py-3 px-5 text-center">Linked Items</th>
+                            <th class="py-3 px-5 text-right">Invoiced / Received</th>
+                            <th class="py-3 px-5 text-center">Status</th>
+                            <th class="py-3 px-5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-body" class="divide-y divide-slate-100">
+                        <tr><td colspan="8" class="text-center py-8 text-gray-400">Loading projects...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 </div>
-<div id="project-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50"><div class="bg-white rounded-xl p-6 w-[500px]">
-    <h3 class="font-bold text-lg mb-4" id="modal-title">New Project</h3>
-    <form id="project-form" class="space-y-3">
-        <input type="hidden" id="pid" value="">
-        <div><label class="block text-sm text-gray-600">Name *</label><input type="text" id="pname" required class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-        <div><label class="block text-sm text-gray-600">Client</label><select id="pclient" class="w-full px-3 py-2 border rounded-lg text-sm"><option value="">None</option></select></div>
-        <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm text-gray-600">Start Date</label><input type="date" id="pstart" class="w-full px-3 py-2 border rounded-lg text-sm"></div><div><label class="block text-sm text-gray-600">End Date</label><input type="date" id="pend" class="w-full px-3 py-2 border rounded-lg text-sm"></div></div>
-        <div><label class="block text-sm text-gray-600">Budget (PKR)</label><input type="number" step="0.01" id="pbudget" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-        <div><label class="block text-sm text-gray-600">Description</label><textarea id="pdesc" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea></div>
-        <div><label class="block text-sm text-gray-600">Status</label><select id="pstatus" class="w-full px-3 py-2 border rounded-lg text-sm"><option value="planning">Planning</option><option value="in_progress">In Progress</option><option value="on_hold">On Hold</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
-        <div class="flex gap-2 pt-2"><button type="submit" class="bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Save</button><button type="button" onclick="hideProjectModal()" class="bg-gray-100 px-4 py-2 rounded-lg text-sm">Cancel</button></div>
-    </form>
-</div></div>
+
+<!-- Project Create / Edit Modal with Invoices & Estimates Checklist -->
+<div id="project-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 bg-gradient-to-r from-cyan-700 to-blue-800 text-white flex justify-between items-center shrink-0">
+            <div>
+                <h3 class="font-bold text-lg" id="modal-title">New Project</h3>
+                <p class="text-xs text-cyan-200">Bind project to an existing client and select invoices &amp; estimates</p>
+            </div>
+            <button type="button" onclick="hideProjectModal()" class="text-white/80 hover:text-white text-lg">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body (Scrollable) -->
+        <form id="project-form" class="p-6 overflow-y-auto space-y-5 flex-1">
+            <input type="hidden" id="pid" value="">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Project Name *</label>
+                    <input type="text" id="pname" required placeholder="e.g. CCTV &amp; Networking Deployment Phase 1" class="w-full px-3.5 py-2.5 border rounded-xl text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-cyan-500 outline-none">
+                </div>
+
+                <!-- Existing Client Selection (Required) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Client / Party (Existing System Client) *</label>
+                    <select id="pclient" required onchange="onClientSelected(this.value)" class="w-full px-3.5 py-2.5 border rounded-xl text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-cyan-500 outline-none bg-white">
+                        <option value="">-- Choose Existing Client --</option>
+                    </select>
+                    <p class="text-[11px] text-gray-500 mt-1">Invoices and estimates belonging to this client will be available below.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Project Status</label>
+                    <select id="pstatus" class="w-full px-3.5 py-2.5 border rounded-xl text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-cyan-500 outline-none bg-white">
+                        <option value="planning">Planning</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Start Date</label>
+                    <input type="date" id="pstart" class="w-full px-3.5 py-2.5 border rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-cyan-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">End Date</label>
+                    <input type="date" id="pend" class="w-full px-3.5 py-2.5 border rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-cyan-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Planned Budget (PKR)</label>
+                    <input type="number" step="0.01" id="pbudget" placeholder="0.00" class="w-full px-3.5 py-2.5 border rounded-xl text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-cyan-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Description / Scope</label>
+                    <textarea id="pdesc" rows="2" placeholder="Brief project summary or scope..." class="w-full px-3.5 py-2 border rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-cyan-500 outline-none"></textarea>
+                </div>
+            </div>
+
+            <!-- Dynamic Section: Check & Select Invoices and Estimates for this Client -->
+            <div class="border-t border-gray-100 pt-4 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                        <h4 class="font-bold text-sm text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-list-check text-cyan-600"></i> Select Invoices &amp; Estimates for this Project
+                        </h4>
+                        <p class="text-xs text-gray-500">Check all invoices and quotations belonging to this project</p>
+                    </div>
+                    <!-- Live Checklist Summary -->
+                    <div id="checklist-live-badge" class="text-xs px-3 py-1 bg-cyan-50 border border-cyan-200 text-cyan-800 rounded-lg font-bold">
+                        0 Estimates • 0 Invoices
+                    </div>
+                </div>
+
+                <div id="no-client-hint" class="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-gray-500">
+                    <i class="fas fa-hand-pointer text-cyan-600 text-lg mb-1 block"></i>
+                    Please select a client from the dropdown above to load their available estimates and invoices.
+                </div>
+
+                <div id="client-items-container" class="hidden space-y-4">
+                    <!-- 1. Estimates Checklist -->
+                    <div class="border border-indigo-100 rounded-xl overflow-hidden bg-indigo-50/20">
+                        <div class="bg-indigo-50 px-4 py-2.5 border-b border-indigo-100 flex justify-between items-center">
+                            <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                                <i class="fas fa-file-lines text-indigo-600"></i> Client Estimates / Quotations
+                            </span>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="toggleSelectAll('estimate', true)" class="text-[11px] text-indigo-700 hover:text-indigo-900 font-semibold underline">Select All</button>
+                                <span class="text-gray-300">|</span>
+                                <button type="button" onclick="toggleSelectAll('estimate', false)" class="text-[11px] text-indigo-700 hover:text-indigo-900 font-semibold underline">Deselect</button>
+                            </div>
+                        </div>
+                        <div id="estimates-checklist" class="p-3 max-h-48 overflow-y-auto space-y-1.5 divide-y divide-indigo-50/80">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- 2. Invoices Checklist -->
+                    <div class="border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20">
+                        <div class="bg-emerald-50 px-4 py-2.5 border-b border-emerald-100 flex justify-between items-center">
+                            <span class="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                                <i class="fas fa-file-invoice-dollar text-emerald-600"></i> Client Sales Tax Invoices
+                            </span>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="toggleSelectAll('invoice', true)" class="text-[11px] text-emerald-700 hover:text-emerald-900 font-semibold underline">Select All</button>
+                                <span class="text-gray-300">|</span>
+                                <button type="button" onclick="toggleSelectAll('invoice', false)" class="text-[11px] text-emerald-700 hover:text-emerald-900 font-semibold underline">Deselect</button>
+                            </div>
+                        </div>
+                        <div id="invoices-checklist" class="p-3 max-h-56 overflow-y-auto space-y-1.5 divide-y divide-emerald-50/80">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 shrink-0">
+                <button type="button" onclick="hideProjectModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition">
+                    Cancel
+                </button>
+                <button type="submit" id="save-project-btn" class="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 shadow-md hover:shadow-lg transition flex items-center gap-2">
+                    <i class="fas fa-save"></i> Save Project &amp; Linked Items
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Project Details View Modal (Shows Linked Invoices & Estimates) -->
+<div id="project-view-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="px-6 py-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-lg font-bold">
+                    <i class="fas fa-diagram-project"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base" id="view-pname">Project Details</h3>
+                    <p class="text-xs text-slate-300" id="view-pclient">—</p>
+                </div>
+            </div>
+            <button type="button" onclick="hideProjectViewModal()" class="text-white/80 hover:text-white text-lg">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto space-y-5 flex-1">
+            <!-- Project Meta Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase">Budget</p>
+                    <p class="text-base font-bold text-gray-900 mt-0.5" id="view-pbudget">PKR 0.00</p>
+                </div>
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p class="text-[11px] font-bold text-blue-700 uppercase">Total Invoiced</p>
+                    <p class="text-base font-bold text-blue-900 mt-0.5" id="view-ptotal-invoiced">PKR 0.00</p>
+                </div>
+                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <p class="text-[11px] font-bold text-emerald-700 uppercase">Received (Paid)</p>
+                    <p class="text-base font-bold text-emerald-900 mt-0.5" id="view-ptotal-received">PKR 0.00</p>
+                </div>
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p class="text-[11px] font-bold text-amber-700 uppercase">Balance Due</p>
+                    <p class="text-base font-bold text-amber-900 mt-0.5" id="view-ptotal-due">PKR 0.00</p>
+                </div>
+            </div>
+
+            <!-- Linked Estimates Section -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden">
+                <div class="p-3 bg-indigo-50/70 border-b border-gray-200 flex justify-between items-center">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+                        <i class="fas fa-file-lines text-indigo-600"></i> Linked Estimates (<span id="view-pest-count">0</span>)
+                    </h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                            <tr>
+                                <th class="py-2.5 px-4">Estimate #</th>
+                                <th class="py-2.5 px-4">Date</th>
+                                <th class="py-2.5 px-4 text-right">Amount</th>
+                                <th class="py-2.5 px-4 text-center">Status</th>
+                                <th class="py-2.5 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="view-pest-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="5" class="text-center py-4 text-gray-400">No estimates linked.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Linked Invoices Section -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden">
+                <div class="p-3 bg-emerald-50/70 border-b border-gray-200 flex justify-between items-center">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                        <i class="fas fa-file-invoice-dollar text-emerald-600"></i> Linked Sales Invoices (<span id="view-pinv-count">0</span>)
+                    </h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                            <tr>
+                                <th class="py-2.5 px-4">Invoice #</th>
+                                <th class="py-2.5 px-4">Date</th>
+                                <th class="py-2.5 px-4 text-right">Total Amount</th>
+                                <th class="py-2.5 px-4 text-right text-emerald-700">Received</th>
+                                <th class="py-2.5 px-4 text-right text-rose-700">Balance Due</th>
+                                <th class="py-2.5 px-4 text-center">Status</th>
+                                <th class="py-2.5 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="view-pinv-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="7" class="text-center py-4 text-gray-400">No invoices linked.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
+            <button type="button" onclick="hideProjectViewModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-semibold">
+                Close
+            </button>
+            <button type="button" id="view-edit-linked-btn" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                <i class="fas fa-edit"></i> Edit / Manage Linked Items
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-const token=localStorage.getItem('token');if(!token)window.location.href='/login';
-function load(){$.ajax({url:'/api/projects',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(ps){
-    if(!ps.length){$('#projects-body').html('<tr><td colspan="6" class="text-center py-8 text-gray-400">No projects</td></tr>');return;}
-    const sc={'planning':'bg-gray-100 text-gray-600','in_progress':'bg-blue-100 text-blue-700','on_hold':'bg-amber-100 text-amber-700','completed':'bg-green-100 text-green-700','cancelled':'bg-red-100 text-red-700'};
-    $('#projects-body').html(ps.map(p=>`<tr class="border-b border-gray-50 hover:bg-dptech-50">
-        <td class="px-6 py-4 font-medium">${escHtml(p.name)}</td>
-        <td class="px-6 py-4 text-gray-600">${escHtml(p.client?.name||'-')}</td>
-        <td class="px-6 py-4 text-sm text-gray-500">${escHtml(p.start_date||'-')} → ${escHtml(p.end_date||'-')}</td>
-        <td class="px-6 py-4 text-right font-medium">PKR ${(p.budget||0).toLocaleString()}</td>
-        <td class="px-6 py-4 text-center"><span class="text-xs px-2 py-1 rounded-full ${sc[p.status]||'bg-gray-100'}">${escHtml(p.status?.replace('_',' '))}</span></td>
-        <td class="px-6 py-4 text-right">
-            <button onclick="editProject(${Number(p.id)})" class="text-amber-600 hover:text-amber-800 text-sm mr-2 bg-transparent border-0 cursor-pointer" title="Edit"><i class="fas fa-edit"></i></button>
-            <button class="text-red-600 hover:text-red-800 text-sm bg-transparent border-0 cursor-pointer cancel-project" data-id="${Number(p.id)}" data-name="${escHtml(p.name)}" title="Cancel"><i class="fas fa-times"></i></button>
-        </td>
-    </tr>`).join(''));
-});}
-function showProjectModal(){$('#modal-title').text('New Project');$('#pid').val('');$('#project-form')[0].reset();$('#pstatus').val('planning');$('#project-modal').removeClass('hidden').addClass('flex');}
-function hideProjectModal(){$('#project-modal').removeClass('flex').addClass('hidden');}
-function editProject(id){
-    $.ajax({url:'/api/projects/'+id,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(p){
-        $('#modal-title').text('Edit Project');$('#pid').val(p.id);
-        $('#pname').val(p.name);$('#pclient').val(p.client_id||'');$('#pstart').val(p.start_date||'');$('#pend').val(p.end_date||'');
-        $('#pbudget').val(p.budget||0);$('#pdesc').val(p.description||'');$('#pstatus').val(p.status||'planning');
-        $('#project-modal').removeClass('hidden').addClass('flex');
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/login';
+
+let allClients = [];
+let currentProjectEditingId = null;
+
+function fmt(n) {
+    return 'PKR ' + Number(n || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+const STATUS_CLASSES = {
+    'planning': 'bg-slate-100 text-slate-700 border border-slate-200',
+    'in_progress': 'bg-blue-100 text-blue-800 border border-blue-200',
+    'on_hold': 'bg-amber-100 text-amber-800 border border-amber-200',
+    'completed': 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+    'cancelled': 'bg-rose-100 text-rose-800 border border-rose-200'
+};
+
+function loadClients() {
+    $.ajax({
+        url: '/api/clients',
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(cs) {
+        allClients = cs || [];
+        $('#pclient').html('<option value="">-- Choose Existing Client --</option>');
+        $('#filter-client').html('<option value="">All Clients / Parties</option>');
+
+        allClients.forEach(c => {
+            const label = c.company ? `${c.name} (${c.company})` : c.name;
+            $('#pclient').append(`<option value="${Number(c.id)}">${escHtml(label)}</option>`);
+            $('#filter-client').append(`<option value="${Number(c.id)}">${escHtml(label)}</option>`);
+        });
     });
 }
-$(document).on('click', '.cancel-project', function(e){
-    e.preventDefault();
-    const id=$(this).data('id'), name=$(this).data('name');
-    if(confirm('Cancel project '+name+'?')){
-        $.ajax({url:'/api/projects/'+id,method:'DELETE',headers:{Authorization:'Bearer '+token}}).done(function(){load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+
+function loadProjects() {
+    const filterCid = $('#filter-client').val();
+    let url = '/api/projects';
+    if (filterCid) url += '?client_id=' + encodeURIComponent(filterCid);
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(ps) {
+        const list = ps || [];
+
+        // Compute KPIs
+        let totalBudget = 0, totalInvoiced = 0, totalReceived = 0, totalDue = 0, activeCount = 0, invoiceCount = 0;
+        list.forEach(p => {
+            totalBudget += (Number(p.budget) || 0);
+            totalInvoiced += (Number(p.total_invoiced) || 0);
+            totalReceived += (Number(p.total_received) || 0);
+            totalDue += (Number(p.total_due) || 0);
+            invoiceCount += (Number(p.invoice_count) || 0);
+            if (['planning', 'in_progress'].includes(p.status)) activeCount++;
+        });
+
+        $('#stat-total-projects').text(list.length);
+        $('#stat-active-projects').text(activeCount);
+        $('#stat-total-budget').text(fmt(totalBudget));
+        $('#stat-total-invoiced').text(fmt(totalInvoiced));
+        $('#stat-invoice-count').text(invoiceCount);
+        $('#stat-total-received').text(fmt(totalReceived));
+        $('#stat-total-due').text(fmt(totalDue));
+
+        if (!list.length) {
+            $('#projects-body').html('<tr><td colspan="8" class="text-center py-10 text-gray-400">No projects found. Create one using "New Project".</td></tr>');
+            return;
+        }
+
+        $('#projects-body').html(list.map(p => {
+            const clientLabel = p.client_name ? `${escHtml(p.client_name)} ${p.client_company ? `<span class="text-xs text-gray-400 block">${escHtml(p.client_company)}</span>` : ''}` : '<span class="text-gray-400 italic">No Client</span>';
+            const estCount = Number(p.estimate_count || 0);
+            const invCount = Number(p.invoice_count || 0);
+            const statusCls = STATUS_CLASSES[p.status] || 'bg-slate-100 text-slate-700';
+
+            return `<tr class="border-b border-gray-100 hover:bg-slate-50 transition">
+                <td class="py-3.5 px-5 font-semibold text-gray-900">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${p.status === 'completed' ? 'bg-emerald-500' : 'bg-cyan-500'}"></span>
+                        <a href="javascript:void(0)" onclick="viewProjectDetails(${Number(p.id)})" class="hover:text-cyan-700 hover:underline">
+                            ${escHtml(p.name)}
+                        </a>
+                    </div>
+                    ${p.description ? `<p class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">${escHtml(p.description)}</p>` : ''}
+                </td>
+                <td class="py-3.5 px-5">${clientLabel}</td>
+                <td class="py-3.5 px-5 text-xs text-gray-500">
+                    ${p.start_date || p.end_date ? `${escHtml(p.start_date || '—')} → ${escHtml(p.end_date || '—')}` : '—'}
+                </td>
+                <td class="py-3.5 px-5 text-right font-medium text-gray-800">
+                    ${fmt(p.budget)}
+                </td>
+                <td class="py-3.5 px-5 text-center">
+                    <div class="inline-flex gap-1.5 flex-wrap justify-center">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Linked Estimates">
+                            <i class="fas fa-file-lines mr-1"></i>${estCount} Est
+                        </span>
+                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Linked Invoices">
+                            <i class="fas fa-file-invoice-dollar mr-1"></i>${invCount} Inv
+                        </span>
+                    </div>
+                </td>
+                <td class="py-3.5 px-5 text-right">
+                    <div class="text-xs font-semibold text-gray-800">${fmt(p.total_invoiced)}</div>
+                    <div class="text-[11px] text-emerald-600 font-bold">${fmt(p.total_received)} paid</div>
+                    ${Number(p.total_due) > 0 ? `<div class="text-[11px] text-rose-600 font-bold">${fmt(p.total_due)} due</div>` : ''}
+                </td>
+                <td class="py-3.5 px-5 text-center">
+                    <span class="text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${statusCls}">
+                        ${escHtml((p.status || 'planning').replace('_', ' '))}
+                    </span>
+                </td>
+                <td class="py-3.5 px-5 text-right whitespace-nowrap">
+                    <button onclick="viewProjectDetails(${Number(p.id)})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold mr-1.5 transition" title="View Linked Items">
+                        <i class="fas fa-eye text-cyan-600"></i> View
+                    </button>
+                    <button onclick="editProject(${Number(p.id)})" class="text-amber-600 hover:text-amber-800 p-1.5 transition" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteProject(${Number(p.id)}, '${escHtml(p.name)}')" class="text-rose-500 hover:text-rose-700 p-1.5 transition" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+        }).join(''));
+    });
+}
+
+function showProjectModal(isNew = true) {
+    if (isNew) {
+        currentProjectEditingId = null;
+        $('#modal-title').text('New Project');
+        $('#pid').val('');
+        $('#project-form')[0].reset();
+        $('#pstatus').val('planning');
+        $('#client-items-container').addClass('hidden');
+        $('#no-client-hint').removeClass('hidden');
+        $('#checklist-live-badge').text('0 Estimates • 0 Invoices');
     }
-});
-$(function(){
-    load();
-    $.ajax({url:'/api/clients',method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(cs){cs.forEach(c=>{$('#pclient').append(`<option value="${Number(c.id)}">${escHtml(c.name)}</option>`);});});
-    $('#project-form').submit(function(e){e.preventDefault();
-        const data={name:$('#pname').val(),client_id:parseInt($('#pclient').val())||null,start_date:$('#pstart').val()||null,end_date:$('#pend').val()||null,budget:parseFloat($('#pbudget').val())||0,description:$('#pdesc').val()};
-        const id=$('#pid').val();
-        const url=id?'/api/projects/'+id:'/api/projects';
-        const method=id?'PUT':'POST';
-        $.ajax({url:url,method:method,contentType:'application/json',data:JSON.stringify(data),headers:{Authorization:'Bearer '+token}}).done(function(){hideProjectModal();load();}).fail(function(x){alert(x.responseJSON?.detail||'Error');});
+    $('#project-modal').removeClass('hidden').addClass('flex');
+}
+
+function hideProjectModal() {
+    $('#project-modal').removeClass('flex').addClass('hidden');
+}
+
+function onClientSelected(clientId) {
+    if (!clientId) {
+        $('#client-items-container').addClass('hidden');
+        $('#no-client-hint').removeClass('hidden');
+        $('#estimates-checklist').html('');
+        $('#invoices-checklist').html('');
+        updateChecklistBadge();
+        return;
+    }
+
+    $('#no-client-hint').addClass('hidden');
+    $('#client-items-container').removeClass('hidden');
+    loadClientItems(clientId, currentProjectEditingId);
+}
+
+function loadClientItems(clientId, projectId) {
+    $('#estimates-checklist').html('<p class="text-xs text-gray-400 py-3 text-center">Loading client estimates...</p>');
+    $('#invoices-checklist').html('<p class="text-xs text-gray-400 py-3 text-center">Loading client invoices...</p>');
+
+    let url = '/api/projects/client-items?client_id=' + encodeURIComponent(clientId);
+    if (projectId) url += '&project_id=' + encodeURIComponent(projectId);
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(res) {
+        const estimates = res.estimates || [];
+        const invoices = res.invoices || [];
+
+        // 1. Estimates Checklist
+        if (estimates.length) {
+            $('#estimates-checklist').html(estimates.map(e => {
+                const checked = e.is_linked ? 'checked' : '';
+                const otherTag = e.linked_to_other ? `<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium ml-1.5" title="Currently part of another project">Other: ${escHtml(e.current_project_name || 'Assigned')}</span>` : '';
+                return `<label class="flex items-center justify-between p-2 rounded-lg hover:bg-white cursor-pointer transition select-none">
+                    <div class="flex items-center gap-2.5">
+                        <input type="checkbox" name="selected_estimates[]" value="${e.id}" data-total="${e.total_amount}" ${checked} onchange="updateChecklistBadge()" class="rounded text-cyan-600 focus:ring-cyan-500 w-4 h-4 cursor-pointer">
+                        <div>
+                            <span class="font-mono font-bold text-xs text-indigo-900">${escHtml(e.estimate_no)}</span>
+                            <span class="text-[11px] text-gray-500 ml-1.5">${escHtml(e.estimate_date)}</span>
+                            ${otherTag}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-bold text-xs text-gray-800">${fmt(e.total_amount)}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold uppercase ml-1.5">${escHtml(e.status)}</span>
+                    </div>
+                </label>`;
+            }).join(''));
+        } else {
+            $('#estimates-checklist').html('<p class="text-xs text-gray-400 py-2.5 text-center">No estimates found for this client.</p>');
+        }
+
+        // 2. Invoices Checklist
+        if (invoices.length) {
+            $('#invoices-checklist').html(invoices.map(i => {
+                const checked = i.is_linked ? 'checked' : '';
+                const otherTag = i.linked_to_other ? `<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium ml-1.5" title="Currently part of another project">Other: ${escHtml(i.current_project_name || 'Assigned')}</span>` : '';
+                return `<label class="flex items-center justify-between p-2 rounded-lg hover:bg-white cursor-pointer transition select-none">
+                    <div class="flex items-center gap-2.5">
+                        <input type="checkbox" name="selected_invoices[]" value="${i.id}" data-total="${i.total_amount}" data-paid="${i.amount_paid}" data-due="${i.balance_due}" ${checked} onchange="updateChecklistBadge()" class="rounded text-cyan-600 focus:ring-cyan-500 w-4 h-4 cursor-pointer">
+                        <div>
+                            <span class="font-mono font-bold text-xs text-emerald-900">${escHtml(i.invoice_no)}</span>
+                            <span class="text-[11px] text-gray-500 ml-1.5">${escHtml(i.invoice_date)}</span>
+                            ${otherTag}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-bold text-xs text-gray-800">${fmt(i.total_amount)}</span>
+                        ${i.balance_due > 0 ? `<span class="text-[11px] font-bold text-rose-600 ml-1.5">(Due: ${fmt(i.balance_due)})</span>` : '<span class="text-[11px] font-bold text-emerald-600 ml-1.5">(Paid)</span>'}
+                    </div>
+                </label>`;
+            }).join(''));
+        } else {
+            $('#invoices-checklist').html('<p class="text-xs text-gray-400 py-2.5 text-center">No invoices found for this client.</p>');
+        }
+
+        updateChecklistBadge();
+    });
+}
+
+function toggleSelectAll(type, check) {
+    if (type === 'estimate') {
+        $('input[name="selected_estimates[]"]').prop('checked', check);
+    } else {
+        $('input[name="selected_invoices[]"]').prop('checked', check);
+    }
+    updateChecklistBadge();
+}
+
+function updateChecklistBadge() {
+    const checkedEsts = $('input[name="selected_estimates[]"]:checked');
+    const checkedInvs = $('input[name="selected_invoices[]"]:checked');
+
+    let estTotal = 0;
+    checkedEsts.each(function() { estTotal += Number($(this).data('total') || 0); });
+
+    let invTotal = 0;
+    checkedInvs.each(function() { invTotal += Number($(this).data('total') || 0); });
+
+    $('#checklist-live-badge').html(`<strong>${checkedEsts.length}</strong> Est (${fmt(estTotal)}) • <strong>${checkedInvs.length}</strong> Inv (${fmt(invTotal)})`);
+}
+
+function editProject(id) {
+    currentProjectEditingId = id;
+    $.ajax({
+        url: '/api/projects/' + id,
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(p) {
+        showProjectModal(false);
+        $('#modal-title').text('Edit Project & Linked Items');
+        $('#pid').val(p.id);
+        $('#pname').val(p.name);
+        $('#pclient').val(p.client_id || '');
+        $('#pstart').val(p.start_date || '');
+        $('#pend').val(p.end_date || '');
+        $('#pbudget').val(p.budget || 0);
+        $('#pdesc').val(p.description || '');
+        $('#pstatus').val(p.status || 'planning');
+
+        if (p.client_id) {
+            onClientSelected(p.client_id);
+        }
+    }).fail(function(x) {
+        alert(x.responseJSON?.detail || 'Error loading project');
+    });
+}
+
+function deleteProject(id, name) {
+    if (confirm(`Delete project "${name}"? Any linked invoices and estimates will remain intact but be unlinked.`)) {
+        $.ajax({
+            url: '/api/projects/' + id,
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function() {
+            loadProjects();
+        }).fail(function(x) {
+            alert(x.responseJSON?.detail || 'Error deleting project');
+        });
+    }
+}
+
+function viewProjectDetails(id) {
+    $.ajax({
+        url: '/api/projects/' + id,
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(p) {
+        $('#view-pname').text(p.name);
+        $('#view-pclient').text(p.client_name ? `${p.client_name} (${p.client_company || 'Client'})` : 'No Client Assigned');
+        $('#view-pbudget').text(fmt(p.budget));
+        $('#view-ptotal-invoiced').text(fmt(p.total_invoiced));
+        $('#view-ptotal-received').text(fmt(p.total_received));
+        $('#view-ptotal-due').text(fmt(p.total_due));
+
+        // Estimates
+        const ests = p.estimates || [];
+        $('#view-pest-count').text(ests.length);
+        if (ests.length) {
+            $('#view-pest-body').html(ests.map(e => `
+                <tr class="hover:bg-indigo-50/30">
+                    <td class="py-2.5 px-4 font-mono font-bold text-indigo-900">${escHtml(e.estimate_no)}</td>
+                    <td class="py-2.5 px-4 text-gray-600">${escHtml(e.estimate_date)}</td>
+                    <td class="py-2.5 px-4 text-right font-bold text-gray-800">${fmt(e.total_amount)}</td>
+                    <td class="py-2.5 px-4 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">${escHtml(e.status)}</span></td>
+                    <td class="py-2.5 px-4 text-right">
+                        <a href="/estimates/${e.id}" target="_blank" class="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-semibold">View</a>
+                    </td>
+                </tr>
+            `).join(''));
+        } else {
+            $('#view-pest-body').html('<tr><td colspan="5" class="text-center py-4 text-gray-400">No estimates linked to this project.</td></tr>');
+        }
+
+        // Invoices
+        const invs = p.invoices || [];
+        $('#view-pinv-count').text(invs.length);
+        if (invs.length) {
+            $('#view-pinv-body').html(invs.map(i => `
+                <tr class="hover:bg-emerald-50/30">
+                    <td class="py-2.5 px-4 font-mono font-bold text-emerald-900">${escHtml(i.invoice_no)}</td>
+                    <td class="py-2.5 px-4 text-gray-600">${escHtml(i.invoice_date)}</td>
+                    <td class="py-2.5 px-4 text-right font-medium text-gray-800">${fmt(i.total_amount)}</td>
+                    <td class="py-2.5 px-4 text-right font-bold text-emerald-600">${fmt(i.amount_paid)}</td>
+                    <td class="py-2.5 px-4 text-right font-bold ${i.balance_due > 0 ? 'text-rose-600' : 'text-gray-400'}">${fmt(i.balance_due)}</td>
+                    <td class="py-2.5 px-4 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">${escHtml(i.status)}</span></td>
+                    <td class="py-2.5 px-4 text-right">
+                        <a href="/invoices/${i.id}" target="_blank" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-semibold">View</a>
+                    </td>
+                </tr>
+            `).join(''));
+        } else {
+            $('#view-pinv-body').html('<tr><td colspan="7" class="text-center py-4 text-gray-400">No invoices linked to this project.</td></tr>');
+        }
+
+        $('#view-edit-linked-btn').off('click').on('click', function() {
+            hideProjectViewModal();
+            editProject(p.id);
+        });
+
+        $('#project-view-modal').removeClass('hidden').addClass('flex');
+    });
+}
+
+function hideProjectViewModal() {
+    $('#project-view-modal').removeClass('flex').addClass('hidden');
+}
+
+$(function() {
+    loadClients();
+    loadProjects();
+
+    $('#project-form').on('submit', function(e) {
+        e.preventDefault();
+
+        const clientId = parseInt($('#pclient').val()) || null;
+        if (!clientId) {
+            alert('Please select an existing client for this project.');
+            return;
+        }
+
+        const estIds = [];
+        $('input[name="selected_estimates[]"]:checked').each(function() {
+            estIds.push(parseInt($(this).val()));
+        });
+
+        const invIds = [];
+        $('input[name="selected_invoices[]"]:checked').each(function() {
+            invIds.push(parseInt($(this).val()));
+        });
+
+        const data = {
+            name: $('#pname').val().trim(),
+            client_id: clientId,
+            start_date: $('#pstart').val() || null,
+            end_date: $('#pend').val() || null,
+            budget: parseFloat($('#pbudget').val()) || 0,
+            description: $('#pdesc').val().trim() || null,
+            status: $('#pstatus').val() || 'planning',
+            estimate_ids: estIds,
+            invoice_ids: invIds
+        };
+
+        const id = $('#pid').val();
+        const url = id ? ('/api/projects/' + id) : '/api/projects';
+        const method = id ? 'PUT' : 'POST';
+
+        const $btn = $('#save-project-btn');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+        $.ajax({
+            url: url,
+            method: method,
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function(res) {
+            hideProjectModal();
+            loadProjects();
+            alert(res.message || 'Project saved successfully!');
+        }).fail(function(x) {
+            alert(x.responseJSON?.detail || 'Error saving project');
+        }).always(function() {
+            $btn.prop('disabled', false).html('<i class="fas fa-save mr-1"></i> Save Project & Linked Items');
+        });
     });
 });
 </script>

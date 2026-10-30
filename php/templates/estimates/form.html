@@ -44,7 +44,7 @@
             {% endif %}
 
             <form id="estimate-form" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-800">
                             Primary Company *
@@ -56,11 +56,17 @@
                         <p class="text-[11px] text-gray-500 mt-0.5" id="primary-company-caption">Primary issuer (0% base markup)</p>
                     </div>
                     <div><label class="block text-sm font-medium text-gray-700">Client *</label>
-                        <select id="client_id" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select>
+                        <select id="client_id" required class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select>
                     </div>
-                    <div><label class="block text-sm font-medium text-gray-700">Estimate Date</label><input type="date" id="estimate_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
-                    <div><label class="block text-sm font-medium text-gray-700">Valid Until</label><input type="date" id="valid_until" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
-                    <div class="col-span-1 md:col-span-4"><label class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., IT Equipment Supply & Setup"></div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Project</label>
+                        <select id="project_id" class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none">
+                            <option value="">None (Standalone)</option>
+                        </select>
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700">Estimate Date</label><input type="date" id="estimate_date" class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Valid Until</label><input type="date" id="valid_until" class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
+                    <div class="col-span-1 md:col-span-3 lg:col-span-5"><label class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., IT Equipment Supply & Setup"></div>
                 </div>
 
                 <div class="border-t pt-4">
@@ -805,6 +811,27 @@ $(function() {
         $('#valid_until').val(future.toISOString().split('T')[0]);
     }
 
+    function loadClientProjects(clientId, selectedProjectId) {
+        const $proj = $('#project_id');
+        $proj.html('<option value="">None (Standalone)</option>');
+        if (!clientId || clientId === 'new') return;
+        $.ajax({
+            url: '/api/projects?client_id=' + encodeURIComponent(clientId),
+            method: 'GET',
+            headers: authHeaders
+        }).done(function(projects) {
+            if (projects && projects.length) {
+                projects.forEach(p => {
+                    const isSel = selectedProjectId && String(p.id) === String(selectedProjectId) ? 'selected' : '';
+                    $proj.append(`<option value="${esc(p.id)}" ${isSel}>${esc(p.name)} (${esc(p.status || 'Active')})</option>`);
+                });
+            }
+            if (selectedProjectId) {
+                $proj.val(String(selectedProjectId));
+            }
+        });
+    }
+
     function loadClients(cb) {
         $.ajax({ url: '/api/clients', method: 'GET', headers: authHeaders }).done(function(clients) {
             $('#client_id').html('<option value="">Select Client</option>');
@@ -829,12 +856,14 @@ $(function() {
 function applyImportedDraft(draft) {
     if (draft.client_id) {
         $('#client_id').val(String(draft.client_id));
+        loadClientProjects(draft.client_id);
     } else if (draft.client_name) {
         const cname = draft.client_name.toLowerCase().trim();
         $('#client_id option').each(function() {
             const opt = $(this).text().toLowerCase();
             if (opt && cname && (opt.includes(cname) || cname.includes(opt.split(' ')[0]))) {
                 $('#client_id').val($(this).val());
+                loadClientProjects($(this).val());
                 return false;
             }
         });
@@ -862,7 +891,11 @@ function applyImportedDraft(draft) {
         if (estimateId) {
             loadClients(function() {
                 $.ajax({ url: '/api/estimates/' + estimateId, method: 'GET', headers: authHeaders }).done(function(est) {
-                    $('#client_id').val(est.client_id || est.client?.id);
+                    const cId = est.client_id || est.client?.id;
+                    $('#client_id').val(cId);
+                    if (cId) {
+                        loadClientProjects(cId, est.project_id);
+                    }
                     $('#estimate_date').val(est.estimate_date);
                     $('#valid_until').val(est.valid_until || '');
                     $('#title').val(est.title || '');
@@ -914,7 +947,12 @@ function applyImportedDraft(draft) {
 
     $(document).on('input', '.qty-input,.price-input,#discount,#tax_rate', calcTotal);
     $('#client_id').on('change', function() {
-        if ($(this).val() === 'new') showNewClient();
+        const val = $(this).val();
+        if (val === 'new') {
+            showNewClient();
+        } else {
+            loadClientProjects(val);
+        }
     });
 
     $(document).on('change', '.product-select', function() {
@@ -1004,9 +1042,11 @@ function applyImportedDraft(draft) {
         const folderMode = $('input[name="folder_mode"]:checked').val() || 'multi';
         const isMulti = !estimateId && folderMode === 'multi';
         const companyId = parseInt($('#company_id').val()) || (parseInt($('#single_company_id').val()) || null);
+        const projectId = parseInt($('#project_id').val()) || null;
 
         const data = {
             client_id: parseInt($('#client_id').val()),
+            project_id: projectId,
             company_id: companyId,
             title: $('#title').val().trim(),
             estimate_date: $('#estimate_date').val(),

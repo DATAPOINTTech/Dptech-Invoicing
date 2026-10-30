@@ -648,6 +648,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 $updCurr = $db->prepare('
                     UPDATE estimates SET
                         client_id = :cid,
+                        project_id = :pid,
                         title = :title,
                         estimate_date = :edate,
                         valid_until = :vdate,
@@ -672,6 +673,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 ');
                 $updCurr->execute([
                     'cid' => $clientId,
+                    'pid' => array_key_exists('project_id', $body) ? (!empty($body['project_id']) ? (int)$body['project_id'] : null) : ($curr['project_id'] ?? null),
                     'title' => $title,
                     'edate' => $date,
                     'vdate' => $validUntil,
@@ -761,7 +763,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 }
             } else {
                 // Scalar update only
-                $allowed = ['title', 'estimate_date', 'valid_until', 'discount_percent', 'tax_rate', 'terms_conditions', 'notes', 'client_id'];
+                $allowed = ['title', 'estimate_date', 'valid_until', 'discount_percent', 'tax_rate', 'terms_conditions', 'notes', 'client_id', 'project_id'];
                 $updates = [];
                 $values = ['id' => $estimateId];
                 foreach ($allowed as $f) {

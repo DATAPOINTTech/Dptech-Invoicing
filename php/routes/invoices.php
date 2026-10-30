@@ -393,6 +393,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 $upd = $db->prepare('
                     UPDATE invoices SET
                         client_id = :cid,
+                        project_id = :pid,
                         title = :title,
                         invoice_date = :idate,
                         due_date = :ddate,
@@ -416,6 +417,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 ');
                 $upd->execute([
                     'cid' => $clientId,
+                    'pid' => array_key_exists('project_id', $body) ? (!empty($body['project_id']) ? (int)$body['project_id'] : null) : ($curr['project_id'] ?? null),
                     'title' => $title,
                     'idate' => $date,
                     'ddate' => $dueDate,

@@ -14,12 +14,14 @@
             </div>
             {% endif %}
             <form id="invoice-form" class="space-y-4">
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div><label class="block text-sm font-medium text-gray-700">Client *</label>
                         <select id="client_id" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Project</label>
+                        <select id="project_id" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">None (Standalone)</option></select></div>
                     <div><label class="block text-sm font-medium text-gray-700">Invoice Date</label><input type="date" id="invoice_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
                     <div><label class="block text-sm font-medium text-gray-700">Due Date</label><input type="date" id="due_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
-                    <div class="col-span-3"><label class="block text-sm font-medium text-gray-700">Title / Section Banner</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., ACTIVE COMPONENTS-ZONE-1"></div>
+                    <div class="col-span-1 md:col-span-4"><label class="block text-sm font-medium text-gray-700">Title / Section Banner</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., ACTIVE COMPONENTS-ZONE-1"></div>
                 </div>
                 <div class="flex gap-4 items-center">
                     <div class="flex items-center gap-2">
@@ -238,10 +240,31 @@ $(function(){
             if(cb)cb();
         });
     }
+    function loadClientProjects(cid, selectedPid) {
+        if (!cid || cid === 'new') {
+            $('#project_id').html('<option value="">None (Standalone)</option>');
+            return;
+        }
+        $.ajax({
+            url: '/api/projects?client_id=' + encodeURIComponent(cid),
+            method: 'GET',
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function(projects) {
+            let opts = '<option value="">None (Standalone)</option>';
+            (projects || []).forEach(p => {
+                const sel = (selectedPid && Number(selectedPid) === Number(p.id)) ? 'selected' : '';
+                opts += `<option value="${p.id}" ${sel}>${esc(p.name)} (${esc(p.status)})</option>`;
+            });
+            $('#project_id').html(opts);
+        });
+    }
+
     if (invoiceId) {
         loadClients(function(){
             $.ajax({url:'/api/invoices/'+invoiceId,method:'GET',headers:{Authorization:'Bearer '+token}}).done(function(inv){
-                $('#client_id').val(inv.client?.id||inv.client_id);
+                const cid = inv.client?.id || inv.client_id;
+                $('#client_id').val(cid);
+                loadClientProjects(cid, inv.project_id);
                 $('#invoice_date').val(inv.invoice_date);
                 $('#due_date').val(inv.due_date);
                 $('#title').val(inv.title || '');
@@ -273,7 +296,12 @@ $(function(){
     $(document).on('input','.qty-input,.price-input,#discount,#tax_rate',calcTotal);
     $('#apply_wht,#apply_fed').on('change',calcTotal);
     $('#client_id').on('change',function(){
-        if($(this).val()==='new'){ showNewClient(); }
+        const val = $(this).val();
+        if(val === 'new'){
+            showNewClient();
+        } else {
+            loadClientProjects(val);
+        }
     });
     $('#save-print-invoice').on('click',function(){printInvoiceAfterSave=true;printInvoiceWindow=window.open('', '_blank');});
     $('#invoice-form').submit(function(e){e.preventDefault();
@@ -297,6 +325,7 @@ $(function(){
         }
         const data={
             client_id:parseInt($('#client_id').val()),
+            project_id:parseInt($('#project_id').val())||null,
             invoice_date:$('#invoice_date').val(),
             due_date:$('#due_date').val()||null,
             title:$('#title').val().trim()||null,
