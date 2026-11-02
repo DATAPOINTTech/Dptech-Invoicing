@@ -44,6 +44,7 @@
             {% endif %}
 
             <form id="estimate-form" class="space-y-4">
+                <input type="hidden" id="page-estimate-id" value="{% if estimate_id %}{{ estimate_id }}{% endif %}">
                 <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-800">
@@ -326,7 +327,7 @@
 </div>
 
 <script>
-const estimateId = {% if estimate_id %}{{ estimate_id }}{% else %}null{% endif %};
+const estimateId = document.getElementById('page-estimate-id')?.value ? Number(document.getElementById('page-estimate-id').value) : null;
 const token = localStorage.getItem('token');
 if (!token) window.location.href = '/login';
 const authHeaders = { Authorization: 'Bearer ' + token };
