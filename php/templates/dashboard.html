@@ -276,32 +276,46 @@ $(function() {
 
         // Recent invoices
         if (d.recent_invoices?.length) {
-            $('#recent-invoices').html(d.recent_invoices.map(i=>`
+            $('#recent-invoices').html(d.recent_invoices.map(i => {
+                const purpose = i.project_description || (i.project_name ? (i.title ? i.project_name + ' — ' + i.title : i.project_name) : (i.title || ''));
+                return `
                 <a href="/invoices/${Number(i.id)}" class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 transition-all group">
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-bold font-mono text-cyan-700 group-hover:underline truncate">${escHtml(i.no)}</p>
-                        <p class="text-xs text-slate-500 truncate mt-0.5">${escHtml(i.client || 'Valued Customer')}</p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-bold font-mono text-cyan-700 group-hover:underline truncate">${escHtml(i.no)}</span>
+                            ${i.project_name ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200 truncate max-w-[130px]"><i class="fas fa-project-diagram mr-1 text-[9px]"></i>${escHtml(i.project_name)}</span>` : ''}
+                        </div>
+                        <p class="text-xs font-semibold text-slate-800 truncate mt-0.5">${escHtml(i.client || 'Valued Customer')}</p>
+                        ${purpose ? `<p class="text-[11px] text-slate-500 truncate mt-0.5" title="${escHtml(purpose)}"><i class="fas fa-info-circle text-slate-400 mr-1 text-[10px]"></i>${escHtml(purpose)}</p>` : ''}
                     </div>
                     <div class="text-right shrink-0">
                         <p class="text-sm font-extrabold font-mono text-slate-900">${fmt(i.total)}</p>
                         <div class="mt-1">${statusBadge(i.status)}</div>
                     </div>
-                </a>`).join(''));
+                </a>`;
+            }).join(''));
         } else { $('#recent-invoices').html('<p class="text-slate-400 text-xs text-center py-8">No invoices yet</p>'); }
 
         // Recent estimates
         if (d.recent_estimates?.length) {
-            $('#recent-estimates').html(d.recent_estimates.map(e=>`
+            $('#recent-estimates').html(d.recent_estimates.map(e => {
+                const purpose = e.project_description || (e.project_name ? (e.title ? e.project_name + ' — ' + e.title : e.project_name) : (e.title || ''));
+                return `
                 <a href="/estimates/${Number(e.id)}" class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 transition-all group">
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-bold font-mono text-purple-700 group-hover:underline truncate">${escHtml(e.no)}</p>
-                        <p class="text-xs text-slate-500 truncate mt-0.5">${escHtml(e.client || 'Valued Customer')}</p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-bold font-mono text-purple-700 group-hover:underline truncate">${escHtml(e.no)}</span>
+                            ${e.project_name ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 truncate max-w-[130px]"><i class="fas fa-project-diagram mr-1 text-[9px]"></i>${escHtml(e.project_name)}</span>` : ''}
+                        </div>
+                        <p class="text-xs font-semibold text-slate-800 truncate mt-0.5">${escHtml(e.client || 'Valued Customer')}</p>
+                        ${purpose ? `<p class="text-[11px] text-slate-500 truncate mt-0.5" title="${escHtml(purpose)}"><i class="fas fa-info-circle text-slate-400 mr-1 text-[10px]"></i>${escHtml(purpose)}</p>` : ''}
                     </div>
                     <div class="text-right shrink-0">
                         <p class="text-sm font-extrabold font-mono text-slate-900">${fmt(e.total)}</p>
                         <div class="mt-1">${statusBadge(e.status)}</div>
                     </div>
-                </a>`).join(''));
+                </a>`;
+            }).join(''));
         } else { $('#recent-estimates').html('<p class="text-slate-400 text-xs text-center py-8">No estimates yet</p>'); }
 
         // Expenses

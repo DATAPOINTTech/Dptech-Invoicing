@@ -10,7 +10,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
         $status = $_GET['status'] ?? null;
         $batch = $_GET['batch_id'] ?? null;
         $companyId = $_GET['company_id'] ?? null;
-        $sql = 'SELECT e.*, c.name AS client_name FROM estimates e LEFT JOIN clients c ON c.id = e.client_id WHERE 1=1';
+        $sql = 'SELECT e.*, c.name AS client_name, co.name AS company_name, p.name AS project_name, p.description AS project_description FROM estimates e LEFT JOIN clients c ON c.id = e.client_id LEFT JOIN companies co ON co.id = e.company_id LEFT JOIN projects p ON p.id = e.project_id WHERE 1=1';
         $params = [];
         if ($status !== null && $status !== '') {
             $sql .= ' AND e.status = :st';

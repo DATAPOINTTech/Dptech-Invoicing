@@ -24,17 +24,21 @@ function handle_dashboard_routes(string $method, string $path, PDO $db): bool
         $receivables = (float) $db->query("SELECT COALESCE(SUM(balance_due), 0) FROM invoices WHERE status NOT IN ('cancelled', 'paid') AND balance_due > 0")->fetchColumn();
 
         $recentInvoices = $db->query("
-            SELECT i.id, i.invoice_no AS no, COALESCE(c.name, 'Unknown') AS client, i.status, i.total_amount AS total
+            SELECT i.id, i.invoice_no AS no, i.title, COALESCE(c.name, 'Unknown') AS client, i.status, i.total_amount AS total,
+                   p.name AS project_name, p.description AS project_description
             FROM invoices i
             LEFT JOIN clients c ON c.id = i.client_id
+            LEFT JOIN projects p ON p.id = i.project_id
             ORDER BY i.created_at DESC, i.id DESC
             LIMIT 5
         ")->fetchAll(PDO::FETCH_ASSOC);
 
         $recentEstimates = $db->query("
-            SELECT e.id, e.estimate_no AS no, COALESCE(c.name, 'Unknown') AS client, e.status, e.total_amount AS total
+            SELECT e.id, e.estimate_no AS no, e.title, COALESCE(c.name, 'Unknown') AS client, e.status, e.total_amount AS total,
+                   p.name AS project_name, p.description AS project_description
             FROM estimates e
             LEFT JOIN clients c ON c.id = e.client_id
+            LEFT JOIN projects p ON p.id = e.project_id
             ORDER BY e.created_at DESC, e.id DESC
             LIMIT 5
         ")->fetchAll(PDO::FETCH_ASSOC);

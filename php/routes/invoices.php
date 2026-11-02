@@ -26,7 +26,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         $user = require_authenticated_user($db);
         require_permission_for($db, $user, 'invoices', 'view');
         $status = $_GET['status'] ?? null;
-        $sql = 'SELECT i.*, c.name AS client_name FROM invoices i LEFT JOIN clients c ON c.id = i.client_id';
+        $sql = 'SELECT i.*, c.name AS client_name, p.name AS project_name, p.description AS project_description FROM invoices i LEFT JOIN clients c ON c.id = i.client_id LEFT JOIN projects p ON p.id = i.project_id';
         $params = [];
         if ($status !== null && $status !== '') {
             if ($status === 'fbr_posted') {
