@@ -1116,27 +1116,33 @@ function render_template(string $templateName, array $context = []): never
         }, $content);
     }
 
-    // Evaluate simple conditionals:
-    // 1. {% if not var %}...{% endif %}
-    $content = preg_replace_callback('/{%\s*if\s+not\s+([a-zA-Z0-9_\.]+)\s*%}(.*?){%\s*endif\s*%}/s', function ($m) use ($context) {
-        $var = $m[1];
-        $val = resolve_context_var($var, $context);
-        return empty($val) ? $m[2] : '';
-    }, $content);
+    // Evaluate simple conditionals (inner-most matches first to avoid swallowing nested blocks):
+    for ($i = 0; $i < 5; $i++) {
+        if (!preg_match('/{%\s*if\s+not\s+([a-zA-Z0-9_\.]+)\s*%}((?:(?!{%\s*if\b).)*?){%\s*endif\s*%}/s', $content)) break;
+        $content = preg_replace_callback('/{%\s*if\s+not\s+([a-zA-Z0-9_\.]+)\s*%}((?:(?!{%\s*if\b).)*?){%\s*endif\s*%}/s', function ($m) use ($context) {
+            $var = $m[1];
+            $val = resolve_context_var($var, $context);
+            return empty($val) ? $m[2] : '';
+        }, $content);
+    }
 
-    // 2. {% if var %}...{% else %}...{% endif %}
-    $content = preg_replace_callback('/{%\s*if\s+([a-zA-Z0-9_\.]+)\s*%}(.*?){%\s*else\s*%}(.*?){%\s*endif\s*%}/s', function ($m) use ($context) {
-        $var = $m[1];
-        $val = resolve_context_var($var, $context);
-        return !empty($val) ? $m[2] : $m[3];
-    }, $content);
+    for ($i = 0; $i < 5; $i++) {
+        if (!preg_match('/{%\s*if\s+([a-zA-Z0-9_\.]+)\s*%}((?:(?!{%\s*if\b).)*?){%\s*else\s*%}((?:(?!{%\s*if\b).)*?){%\s*endif\s*%}/s', $content)) break;
+        $content = preg_replace_callback('/{%\s*if\s+([a-zA-Z0-9_\.]+)\s*%}((?:(?!{%\s*if\b).)*?){%\s*else\s*%}((?:(?!{%\s*if\b).)*?){%\s*endif\s*%}/s', function ($m) use ($context) {
+            $var = $m[1];
+            $val = resolve_context_var($var, $context);
+            return !empty($val) ? $m[2] : $m[3];
+        }, $content);
+    }
 
-    // 3. {% if var %}...{% endif %}
-    $content = preg_replace_callback('/{%\s*if\s+([a-zA-Z0-9_\.]+)\s*%}(.*?){%\s*endif\s*%}/s', function ($m) use ($context) {
-        $var = $m[1];
-        $val = resolve_context_var($var, $context);
-        return !empty($val) ? $m[2] : '';
-    }, $content);
+    for ($i = 0; $i < 5; $i++) {
+        if (!preg_match('/{%\s*if\s+([a-zA-Z0-9_\.]+)\s*%}((?:(?!{%\s*if\b).)*?){%\s*endif\s*%}/s', $content)) break;
+        $content = preg_replace_callback('/{%\s*if\s+([a-zA-Z0-9_\.]+)\s*%}((?:(?!{%\s*if\b).)*?){%\s*endif\s*%}/s', function ($m) use ($context) {
+            $var = $m[1];
+            $val = resolve_context_var($var, $context);
+            return !empty($val) ? $m[2] : '';
+        }, $content);
+    }
 
     // Interpolate {{ variable|tojson }}
     $content = preg_replace_callback('/{{\s*([a-zA-Z0-9_\.]+)\s*\|\s*tojson\s*}}/', function ($m) use ($context) {

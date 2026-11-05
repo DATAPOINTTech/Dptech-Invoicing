@@ -44,7 +44,7 @@
             {% endif %}
 
             <form id="estimate-form" class="space-y-4">
-                <input type="hidden" id="page-estimate-id" value="{% if estimate_id %}{{ estimate_id }}{% endif %}">
+                <input type="hidden" id="page-estimate-id" value="{{ estimate_id }}">
                 <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-800">
@@ -85,9 +85,16 @@
                         <div class="col-span-1 text-center">Del</div>
                     </div>
                     <div id="items-container"></div>
-                    <div class="flex items-center gap-4 mt-2">
-                        <button type="button" onclick="addItem()" class="text-cyan-600 text-sm font-medium"><i class="fas fa-plus mr-1"></i>Add Item</button>
-                        <button type="button" onclick="showPricePicker()" class="text-blue-600 text-sm font-medium"><i class="fas fa-tags mr-1"></i>From Price List</button>
+                    <div class="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-dashed border-gray-200">
+                        <button type="button" onclick="addItem()" class="px-3.5 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all">
+                            <i class="fas fa-plus text-cyan-600"></i> Add Item
+                        </button>
+                        <button type="button" onclick="showPricePicker('products')" class="px-3.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all">
+                            <i class="fas fa-boxes-stacked"></i> Browse Product List (+10%)
+                        </button>
+                        <button type="button" onclick="showPricePicker('prices')" class="px-3.5 py-2 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all">
+                            <i class="fas fa-tags text-blue-600"></i> Daily Price List
+                        </button>
                     </div>
                 </div>
 
@@ -275,8 +282,11 @@
     <div class="bg-white rounded-2xl p-6 w-full max-w-2xl mx-auto shadow-2xl">
         <div class="flex justify-between items-center mb-3">
             <div>
-                <h3 class="text-base font-bold text-gray-800">Add Items from Sheet / Price List</h3>
-                <p class="text-xs text-gray-500">Select items with live rates &bull; Products automatically apply +10% profit margin</p>
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-boxes-stacked text-indigo-600"></i>
+                    <span>Product List &amp; Live Rates Catalog</span>
+                </h3>
+                <p class="text-xs text-gray-500">Search and pick products with live rates &bull; Products automatically apply +10% profit margin</p>
             </div>
             <button type="button" onclick="hidePricePicker()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
         </div>
@@ -288,7 +298,7 @@
             </div>
             <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold shrink-0">
                 <button type="button" id="tab-btn-products" onclick="switchPickerSource('products')" class="px-3 py-2 bg-indigo-600 text-white flex items-center gap-1.5 transition-colors">
-                    <i class="fas fa-table-cells text-[10px]"></i> Product Sheet (+10%)
+                    <i class="fas fa-boxes-stacked text-[10px]"></i> Product List / Catalog (+10%)
                 </button>
                 <button type="button" id="tab-btn-prices" onclick="switchPickerSource('prices')" class="px-3 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 flex items-center gap-1.5 transition-colors">
                     <i class="fas fa-tags text-[10px]"></i> Daily Prices
@@ -328,21 +338,71 @@
 
 <script>
 const estimateId = document.getElementById('page-estimate-id')?.value ? Number(document.getElementById('page-estimate-id').value) : null;
-const token = localStorage.getItem('token');
+const token = localStorage.getItem('token') || (document.cookie.match(/(?:^|;\s*)token=([^;]+)/)?.[1] ? decodeURIComponent(document.cookie.match(/(?:^|;\s*)token=([^;]+)/)[1]) : '');
 if (!token) window.location.href = '/login';
-const authHeaders = { Authorization: 'Bearer ' + token };
+const authHeaders = {
+    Authorization: 'Bearer ' + token,
+    'X-Authorization': 'Bearer ' + token
+};
+if (token) {
+    document.cookie = 'token=' + encodeURIComponent(token) + '; path=/; SameSite=Lax';
+}
 
 let productList = [];
 let priceCache = [];
 let priceSearchTimer = null;
 let printEstimateAfterSave = false;
 let configuredCompanies = [];
+let currentPickerSource = 'products';
+
+function loadProducts(cb) {
+    $.ajax({
+        url: '/api/products',
+        method: 'GET',
+        headers: authHeaders
+    }).done(function(prods) {
+        productList = Array.isArray(prods) ? prods : [];
+        updateAllProductDropdowns();
+        if (cb) cb(productList);
+    }).fail(function(x) {
+        console.warn('Failed to load products with header, retrying with token param...', x);
+        $.ajax({
+            url: '/api/products?token=' + encodeURIComponent(token),
+            method: 'GET'
+        }).done(function(prods) {
+            productList = Array.isArray(prods) ? prods : [];
+            updateAllProductDropdowns();
+            if (cb) cb(productList);
+        }).fail(function(err) {
+            console.error('Products fallback also failed:', err);
+            if (cb) cb([]);
+        });
+    });
+}
+
+function updateAllProductDropdowns() {
+    $('.item-row').each(function() {
+        const sel = $(this).find('.product-select');
+        const currentVal = sel.val();
+        const opts = productList.map(p => {
+            const cost = parseFloat(p.cost_price) || 0;
+            const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+            const costStr = cost > 0 ? ` (Purchase: PKR ${Number(cost).toLocaleString()} + 10%)` : '';
+            return `<option value="${esc(p.id)}" ${String(currentVal) === String(p.id) ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
+        }).join('');
+        const isCustom = currentVal === 'custom' || (!currentVal && !opts);
+        sel.html(`
+            <option value="">Select Product...</option>
+            ${opts}
+            <option value="custom" ${isCustom ? 'selected' : ''}>Custom Item</option>
+        `);
+        if (currentVal) sel.val(currentVal);
+    });
+}
 
 function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
 }
-
-let currentPickerSource = 'products';
 
 function addItem(item = {}) {
     const opts = productList.map(p => {
@@ -380,11 +440,16 @@ function addItem(item = {}) {
     <div class="item-row mb-2.5 bg-gray-50/50 p-2.5 rounded-xl border border-gray-100 transition-all hover:border-indigo-200">
         <div class="grid grid-cols-12 gap-2 items-center">
             <div class="col-span-12 md:col-span-3">
-                <select name="product" class="product-select w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white focus:ring-1 focus:ring-indigo-500">
-                    <option value="">Select Product...</option>
-                    ${opts}
-                    <option value="custom" ${isCustom ? 'selected' : ''}>Custom Item</option>
-                </select>
+                <div class="flex items-center gap-1">
+                    <select name="product" class="product-select flex-1 min-w-0 px-2.5 py-1.5 border rounded-lg text-xs bg-white focus:ring-1 focus:ring-indigo-500">
+                        <option value="">Select Product...</option>
+                        ${opts}
+                        <option value="custom" ${isCustom ? 'selected' : ''}>Custom Item</option>
+                    </select>
+                    <button type="button" onclick="showPricePicker('products')" class="px-2 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs shrink-0" title="Search and pick from Product List">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
             </div>
             <div class="col-span-12 md:col-span-3">
                 <input type="text" name="desc" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white" placeholder="Description *" value="${esc(item.description || '')}" required>
@@ -660,10 +725,16 @@ $('#modal-companies-form').submit(function(e) {
     });
 });
 
-function showPricePicker() {
+function showPricePicker(source = 'products') {
     $('#price-picker').removeClass('hidden').addClass('flex');
-    switchPickerSource('products');
+    switchPickerSource(source);
     $('#price-search').val('').focus();
+    if (source === 'products' && !productList.length) {
+        $('#price-results').html('<p class="text-xs text-indigo-600 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i> Loading products from catalog...</p>');
+        loadProducts(function() {
+            loadPricePickerResults($('#price-search').val());
+        });
+    }
 }
 
 function hidePricePicker() {
@@ -686,13 +757,21 @@ function loadPricePickerResults(q) {
     q = (q || '').toLowerCase().trim();
 
     if (currentPickerSource === 'products') {
+        if (!productList.length) {
+            $('#price-results').html('<p class="text-xs text-indigo-600 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i> Loading products from catalog...</p>');
+            loadProducts(function() {
+                loadPricePickerResults(q);
+            });
+            return;
+        }
+
         const matches = productList.filter(p => {
             if (!q) return true;
             return (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q);
         });
 
         if (!matches.length) {
-            $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6">No matching products found in Product Sheet.</p>');
+            $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6"><i class="fas fa-inbox text-xl text-gray-300 block mb-2"></i>No matching products found in Product List.</p>');
             return;
         }
 
@@ -706,6 +785,7 @@ function loadPricePickerResults(q) {
                         <div class="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 font-mono">
                             <span>SKU: ${esc(p.sku || 'N/A')}</span>
                             <span>&bull; ${esc(p.category || 'General')}</span>
+                            ${p.stock_quantity !== undefined ? `<span>&bull; Stock: ${Number(p.stock_quantity)}</span>` : ''}
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -854,13 +934,6 @@ $(function() {
                 });
             }
             $('#client_id').append('<option value="new">+ Create New Client</option>');
-            if (cb) cb();
-        });
-    }
-
-    function loadProducts(cb) {
-        $.ajax({ url: '/api/products', method: 'GET', headers: authHeaders }).done(function(prods) {
-            productList = prods || [];
             if (cb) cb();
         });
     }

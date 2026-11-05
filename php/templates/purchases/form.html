@@ -7,7 +7,7 @@
         <h1 class="text-2xl font-bold text-gray-800 mb-6">{% if purchase_id %}Edit Purchase Invoice{% else %}New Purchase Invoice{% endif %}</h1>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <form id="purchase-form" class="space-y-4">
-                <input type="hidden" id="page-purchase-id" value="{% if purchase_id %}{{ purchase_id }}{% endif %}">
+                <input type="hidden" id="page-purchase-id" value="{{ purchase_id }}">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="relative">
                         <label class="block text-sm font-medium text-gray-700">Supplier Name *</label>

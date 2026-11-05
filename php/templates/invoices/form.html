@@ -14,7 +14,7 @@
             </div>
             {% endif %}
             <form id="invoice-form" class="space-y-4">
-                <input type="hidden" id="page-invoice-id" value="{% if invoice_id %}{{ invoice_id }}{% endif %}">
+                <input type="hidden" id="page-invoice-id" value="{{ invoice_id }}">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div><label class="block text-sm font-medium text-gray-700">Client *</label>
                         <select id="client_id" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select></div>
@@ -97,7 +97,10 @@
     </div>
 </div>
 <script>
-const token=localStorage.getItem('token');if(!token)window.location.href='/login';
+const token = localStorage.getItem('token') || (document.cookie.match(/(?:^|;\s*)token=([^;]+)/)?.[1] ? decodeURIComponent(document.cookie.match(/(?:^|;\s*)token=([^;]+)/)[1]) : '');
+if (!token) window.location.href = '/login';
+const authHeaders = { Authorization: 'Bearer ' + token, 'X-Authorization': 'Bearer ' + token };
+if (token) { document.cookie = 'token=' + encodeURIComponent(token) + '; path=/; SameSite=Lax'; }
 let itemCount=0;
 const invoiceId = document.getElementById('page-invoice-id')?.value ? Number(document.getElementById('page-invoice-id').value) : null;
 let printInvoiceAfterSave=false, printInvoiceWindow=null;
