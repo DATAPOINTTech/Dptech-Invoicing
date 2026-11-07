@@ -123,8 +123,33 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
         // Everyone who can quote/invoice needs the product list, but the purchase (cost) price
         // is only for staff who may view the Products module.
         $user = require_authenticated_user($db);
-        $stmt = $db->query('SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE p.is_active = 1 ORDER BY p.category ASC, p.name ASC');
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Auto-seed default products if catalog is empty (e.g. fresh cPanel deployment)
+        if (db_table_exists($db, 'products')) {
+            $count = (int) $db->query('SELECT COUNT(*) FROM products')->fetchColumn();
+            if ($count === 0 && function_exists('ensure_default_products')) {
+                ensure_default_products($db);
+            }
+        }
+
+        try {
+            $hasInventory = db_table_exists($db, 'inventory');
+            if ($hasInventory) {
+                $stmt = $db->query('SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE (p.is_active = 1 OR p.is_active IS NULL OR p.is_active = "1") ORDER BY p.category ASC, p.name ASC');
+            } else {
+                $stmt = $db->query('SELECT p.*, 0 AS stock_quantity FROM products p WHERE (p.is_active = 1 OR p.is_active IS NULL OR p.is_active = "1") ORDER BY p.category ASC, p.name ASC');
+            }
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            error_log('Error querying products: ' . $e->getMessage());
+            try {
+                $stmt = $db->query('SELECT * FROM products ORDER BY name ASC');
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (\Throwable $fallbackErr) {
+                $rows = [];
+            }
+        }
+
         if (!user_has_permission($user, 'products', 'view')) {
             $rows = array_map(static function (array $row): array {
                 unset($row['cost_price']);

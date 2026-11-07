@@ -338,7 +338,10 @@
 
 <script>
 const estimateId = document.getElementById('page-estimate-id')?.value ? Number(document.getElementById('page-estimate-id').value) : null;
-const token = localStorage.getItem('token') || (document.cookie.match(/(?:^|;\s*)token=([^;]+)/)?.[1] ? decodeURIComponent(document.cookie.match(/(?:^|;\s*)token=([^;]+)/)[1]) : '');
+let token = localStorage.getItem('token') || (document.cookie.match(/(?:^|;\s*)token=([^;]+)/)?.[1] ? decodeURIComponent(document.cookie.match(/(?:^|;\s*)token=([^;]+)/)[1]) : '');
+if (token && token.toLowerCase().startsWith('bearer ')) {
+    token = token.substring(7).trim();
+}
 if (!token) window.location.href = '/login';
 const authHeaders = {
     Authorization: 'Bearer ' + token,
@@ -383,20 +386,31 @@ function loadProducts(cb) {
 function updateAllProductDropdowns() {
     $('.item-row').each(function() {
         const sel = $(this).find('.product-select');
+        const descInput = $(this).find('[name=desc]');
         const currentVal = sel.val();
+        const hasCustomDesc = descInput.val() && descInput.val().trim() !== '';
+
         const opts = productList.map(p => {
             const cost = parseFloat(p.cost_price) || 0;
             const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
             const costStr = cost > 0 ? ` (Purchase: PKR ${Number(cost).toLocaleString()} + 10%)` : '';
             return `<option value="${esc(p.id)}" ${String(currentVal) === String(p.id) ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
         }).join('');
-        const isCustom = currentVal === 'custom' || (!currentVal && !opts);
+
+        const isCustom = currentVal === 'custom' || (!currentVal && hasCustomDesc);
         sel.html(`
             <option value="">Select Product...</option>
             ${opts}
             <option value="custom" ${isCustom ? 'selected' : ''}>Custom Item</option>
         `);
-        if (currentVal) sel.val(currentVal);
+
+        if (currentVal && currentVal !== 'custom') {
+            sel.val(currentVal);
+        } else if (isCustom) {
+            sel.val('custom');
+        } else {
+            sel.val('');
+        }
     });
 }
 
@@ -412,7 +426,7 @@ function addItem(item = {}) {
         return `<option value="${esc(p.id)}" ${item.product_id == p.id ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
     }).join('');
 
-    const isCustom = !item.product_id && (item.description || !productList.length);
+    const isCustom = !item.product_id && Boolean(item.description);
     let initPrice = item.unit_price;
     if (initPrice === undefined || initPrice === null || initPrice === '') {
         if (item.product_id) {
