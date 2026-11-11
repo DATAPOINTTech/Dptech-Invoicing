@@ -811,6 +811,10 @@ function ensure_default_products(PDO $db): void
         return;
     }
 
+    if (get_app_setting($db, 'no_default_products') === '1') {
+        return;
+    }
+
     $count = (int) $db->query('SELECT COUNT(*) FROM products')->fetchColumn();
     if ($count > 0) {
         return;
