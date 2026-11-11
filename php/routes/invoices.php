@@ -646,6 +646,140 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             json_response($res);
         }
 
+        // Convert Invoice to Estimate
+        if ($sub === '/convert' && $method === 'POST') {
+            require_permission_for($db, $user, 'estimates', 'create');
+
+            $stmt = $db->prepare('SELECT * FROM invoices WHERE id = :id');
+            $stmt->execute(['id' => $invoiceId]);
+            $inv = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$inv) {
+                json_response(['detail' => 'Invoice not found'], 404);
+            }
+
+            $itStmt = $db->prepare('SELECT * FROM invoice_items WHERE invoice_id = :id');
+            $itStmt->execute(['id' => $invoiceId]);
+            $invItems = $itStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $taxRate = (float) ($inv['tax_rate'] ?? 18.0);
+            $discPct = (float) ($inv['discount_percent'] ?? 0.0);
+            $subtotal = (float) ($inv['subtotal'] ?? 0.0);
+            $discAmt = (float) ($inv['discount_amount'] ?? 0.0);
+            $taxAmt = (float) ($inv['tax_amount'] ?? 0.0);
+            $totalAmount = (float) ($inv['total_amount'] ?? 0.0);
+
+            // If totals are 0 or not calculated but items exist, recalculate
+            if (($totalAmount <= 0.0 || $subtotal <= 0.0) && !empty($invItems)) {
+                $calcLines = [];
+                foreach ($invItems as $ii) {
+                    $qty = (float) ($ii['quantity'] ?? 0);
+                    $price = (float) ($ii['unit_price'] ?? 0);
+                    $calcLines[] = calculate_item_tax($price, $qty, $taxRate, false);
+                }
+                $totals = calculate_invoice_tax($calcLines, $discPct, $taxRate, false, false);
+                $subtotal = $totals['subtotal'];
+                $discAmt = $totals['discount_amount'];
+                $taxAmt = $totals['tax_amount'];
+                $totalAmount = $totals['total_amount'];
+            }
+
+            $nextEstId = (int) $db->query('SELECT COALESCE(MAX(id), 0) + 1 FROM estimates')->fetchColumn();
+            $estNo = sprintf('EST-%s-%05d', date('Ym'), $nextEstId);
+            $today = date('Y-m-d');
+            $validUntil = !empty($inv['due_date']) ? (string) $inv['due_date'] : date('Y-m-d', strtotime('+15 days'));
+
+            $insEst = $db->prepare('
+                INSERT INTO estimates (
+                    estimate_no, client_id, project_id, title, estimate_date, valid_until,
+                    status, subtotal, discount_percent, discount_amount, tax_rate, tax_amount,
+                    total_amount, terms_conditions, notes, created_by,
+                    company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp,
+                    company_address, company_ntn, company_strn,
+                    batch_id, markup_percent, created_at, updated_at
+                ) VALUES (
+                    :no, :cid, :pid, :title, :edate, :vdate,
+                    :status, :subtotal, :disc_pct, :disc_amt, :tr, :ta,
+                    :total, :terms, :notes, :uid,
+                    :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp,
+                    :coaddr, :conntn, :costrn,
+                    NULL, 0.0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+            ');
+            $insEst->execute([
+                'no' => $estNo,
+                'cid' => $inv['client_id'],
+                'pid' => $inv['project_id'] ?? null,
+                'title' => $inv['title'] ?? null,
+                'edate' => $today,
+                'vdate' => $validUntil,
+                'status' => 'draft',
+                'subtotal' => $subtotal,
+                'disc_pct' => $discPct,
+                'disc_amt' => $discAmt,
+                'tr' => $taxRate,
+                'ta' => $taxAmt,
+                'total' => $totalAmount,
+                'terms' => $inv['terms_conditions'] ?? null,
+                'notes' => $inv['notes'] ?? null,
+                'uid' => $user->id,
+                'coid' => $inv['company_id'] ?? null,
+                'coname' => $inv['company_name'] ?? null,
+                'cologo' => $inv['company_logo'] ?? null,
+                'cophone' => $inv['company_phone'] ?? null,
+                'coemail' => $inv['company_email'] ?? null,
+                'cowebsite' => $inv['company_website'] ?? null,
+                'cowhatsapp' => $inv['company_whatsapp'] ?? null,
+                'coaddr' => $inv['company_address'] ?? null,
+                'conntn' => $inv['company_ntn'] ?? null,
+                'costrn' => $inv['company_strn'] ?? null,
+            ]);
+            $estimateId = (int) $db->lastInsertId();
+
+            $insItem = $db->prepare('
+                INSERT INTO estimate_items (
+                    estimate_id, product_id, description, model_make, quantity, unit, unit_price, tax_rate, tax_amount, total_price
+                ) VALUES (
+                    :eid, :prid, :desc, :mm, :qty, :unit, :price, :tr, :ta, :tp
+                )
+            ');
+            foreach ($invItems as $ii) {
+                $qty = (float) ($ii['quantity'] ?? 0);
+                $price = (float) ($ii['unit_price'] ?? 0);
+                $itemTotal = round($qty * $price, 2);
+
+                $insItem->execute([
+                    'eid' => $estimateId,
+                    'prid' => $ii['product_id'] ?? null,
+                    'desc' => $ii['description'] ?? 'Item',
+                    'mm' => $ii['model_make'] ?? null,
+                    'qty' => $qty,
+                    'unit' => $ii['unit'] ?? 'pcs',
+                    'price' => $price,
+                    'tr' => $taxRate,
+                    'ta' => 0.0,
+                    'tp' => $itemTotal,
+                ]);
+            }
+
+            // Link estimate to invoice if invoice has no estimate_id yet
+            if (empty($inv['estimate_id'])) {
+                try {
+                    $db->prepare('UPDATE invoices SET estimate_id = :eid, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute([
+                        'eid' => $estimateId,
+                        'id' => $invoiceId,
+                    ]);
+                } catch (\Throwable $e) {}
+            }
+
+            json_response([
+                'message' => 'Estimate created successfully from invoice',
+                'estimate_id' => $estimateId,
+                'estimate_no' => $estNo,
+                'total_amount' => $totalAmount,
+                'subtotal' => $subtotal,
+            ], 201);
+        }
+
         // FBR Workflow: 2. Pre-Validation with FBR Sandbox / Portal
         if ($sub === '/fbr-validate' && $method === 'POST') {
             require_permission_for($db, $user, 'invoices', 'view');

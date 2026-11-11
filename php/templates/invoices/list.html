@@ -99,6 +99,7 @@ function renderInvoices() {
                 <div class="flex gap-2 justify-end">
                 <a href="/invoices/${Number(i.id)}" class="btn btn-ghost btn-sm" title="View"><i class="fas fa-eye"></i></a>
                 <a href="/api/invoices/${Number(i.id)}/pdf?token=${encodeURIComponent(token)}" target="_blank" class="btn btn-ghost btn-sm text-red-500" title="PDF"><i class="fas fa-file-pdf"></i></a>
+                <button class="btn btn-ghost btn-sm text-indigo-600 convert-to-estimate" data-id="${Number(i.id)}" data-no="${escHtml(i.invoice_no)}" title="Convert to Estimate"><i class="fas fa-file-invoice"></i></button>
                 <a href="/invoices/${Number(i.id)}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
                 ${i.status==='cancelled'
                     ? `<button class="btn btn-ghost btn-sm text-red-500 delete-invoice" data-id="${Number(i.id)}" data-no="${escHtml(i.invoice_no)}" title="Delete"><i class="fas fa-trash"></i></button>`
@@ -119,6 +120,24 @@ function load(){
         $('#invoices-body').html('<tr><td colspan="9" class="text-center py-8 text-red-400">Error: '+escHtml(x.responseJSON?.detail||'Failed to load invoices')+'</td></tr>');
     });
 }
+$(document).on('click', '.convert-to-estimate', function(e){
+    e.preventDefault();
+    const id=$(this).data('id'), no=$(this).data('no');
+    if(!confirm('Convert invoice '+no+' to a new estimate / quotation?')) return;
+    const btn = $(this);
+    btn.prop('disabled', true);
+    $.ajax({
+        url:'/api/invoices/'+id+'/convert',
+        method:'POST',
+        headers:{Authorization:'Bearer '+token}
+    }).done(function(res){
+        alert(res.message || ('Invoice converted to Estimate #' + res.estimate_no));
+        window.location.href = '/estimates/' + res.estimate_id;
+    }).fail(function(x){
+        alert('Failed to convert: ' + (x.responseJSON?.detail || 'Error'));
+        btn.prop('disabled', false);
+    });
+});
 $(document).on('click', '.cancel-invoice', function(e){
     e.preventDefault();
     const id=$(this).data('id'), no=$(this).data('no');

@@ -16,6 +16,7 @@
                 <button id="header-approve-btn" onclick="approveInvoice()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hidden flex items-center gap-2 shadow-sm"><i class="fas fa-check-double"></i> Approve Invoice</button>
                 <button id="header-fbr-btn" onclick="postToFbr()" class="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white px-4 py-2 rounded-lg text-sm font-bold hidden flex items-center gap-2 shadow-sm"><i class="fas fa-paper-plane"></i> Post to FBR</button>
                 <a id="pdf-btn" href="/api/invoices/{{ invoice_id }}/pdf" target="_blank" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 flex items-center gap-2"><i class="fas fa-file-pdf"></i> PDF</a>
+                <button id="header-convert-estimate-btn" onclick="convertInvoiceToEstimate()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-xs transition" title="Convert this invoice to a new Estimate / Quotation"><i class="fas fa-file-invoice"></i> Convert to Estimate</button>
                 <button id="whatsapp-quick-btn" onclick="sendInvoiceWhatsappDirect()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm"><i class="fab fa-whatsapp text-lg"></i> Send WhatsApp</button>
                 <a href="/invoices/{{ invoice_id }}/edit" id="edit-btn" class="bg-amber-50 text-amber-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-100 hidden flex items-center gap-2"><i class="fas fa-edit"></i> Edit</a>
                 <button id="delete-btn" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 hidden flex items-center gap-2"><i class="fas fa-trash"></i> Delete</button>
@@ -721,6 +722,23 @@ function approveInvoice() {
         alert(xhr.responseJSON?.detail || 'Failed to approve invoice');
     }).always(function() {
         btn.prop('disabled', false).html('<i class="fas fa-check-double mr-1"></i> Approve Invoice');
+    });
+}
+
+function convertInvoiceToEstimate() {
+    if (!confirm('Convert this invoice to a new Estimate / Quotation?')) return;
+    const btn = $('#header-convert-estimate-btn');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Converting...');
+    $.ajax({
+        url: '/api/invoices/' + iid + '/convert',
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+    }).done(function(res) {
+        alert(res.message || ('Invoice converted to Estimate #' + res.estimate_no));
+        window.location.href = '/estimates/' + res.estimate_id;
+    }).fail(function(xhr) {
+        alert('Failed to convert: ' + (xhr.responseJSON?.detail || 'Error converting invoice'));
+        btn.prop('disabled', false).html('<i class="fas fa-file-invoice"></i> Convert to Estimate');
     });
 }
 
