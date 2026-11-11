@@ -80,8 +80,12 @@
                     </div>
 
                     <div class="border-t pt-4 flex justify-between items-start">
-                        <div class="max-w-xs text-xs text-gray-500 space-y-1" id="terms-notes-box">
+                        <div class="max-w-md text-xs text-gray-500 space-y-1.5" id="terms-notes-box">
                             <p id="inv-payment-terms" class="font-medium text-gray-700"></p>
+                            <div id="inv-terms-container" class="hidden">
+                                <span class="font-semibold text-gray-700 block mb-0.5">Terms &amp; Conditions:</span>
+                                <p id="inv-terms" class="text-gray-600 whitespace-pre-line text-[11px] bg-gray-50 p-2 rounded border border-gray-100"></p>
+                            </div>
                             <p id="inv-notes" class="italic"></p>
                         </div>
                         <div class="w-72 space-y-1.5 text-right">
@@ -507,9 +511,15 @@ function loadInvoice() {
 
         // Terms and Notes
         if (inv.payment_terms) {
-            $('#inv-payment-terms').text('Terms: ' + inv.payment_terms).show();
+            $('#inv-payment-terms').text('Payment Terms: ' + inv.payment_terms).show();
         } else {
             $('#inv-payment-terms').hide();
+        }
+        if (inv.terms_conditions) {
+            $('#inv-terms').text(inv.terms_conditions);
+            $('#inv-terms-container').removeClass('hidden');
+        } else {
+            $('#inv-terms-container').addClass('hidden');
         }
         if (inv.notes) {
             $('#inv-notes').text('Note: ' + inv.notes).show();

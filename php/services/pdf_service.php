@@ -1378,20 +1378,47 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     }
 
     $pdf->setFillColorArray($theme['primary']);
-    $termsHeader = $theme['terms_title'] ?? ($type === 'INVOICE' ? 'PAYMENT TERMS & NOTES' : 'TERMS & CONDITIONS');
+    $termsHeader = $theme['terms_title'] ?? 'TERMS & CONDITIONS';
     $pdf->drawText($left + 8.0, $termsY + $termsH - 14.0, $termsHeader, 'F2', 8.5);
 
-    $termsRaw = !empty($doc['terms_conditions']) ? (string)$doc['terms_conditions'] : (!empty($doc['notes']) ? (string)$doc['notes'] : "1. Rates are inclusive/exclusive of taxes as indicated.\n2. Work order / PO confirmed in writing.\n3. Goods once sold are subject to manufacturer warranty.");
-    if (!empty($doc['notes']) && $doc['terms_conditions'] !== $doc['notes']) {
-        $termsRaw .= "\n" . $doc['notes'];
+    // 1. Core Terms & Conditions (never omitted or overwritten by notes)
+    $termsRaw = !empty($doc['terms_conditions']) ? trim((string)$doc['terms_conditions']) : '';
+    if ($termsRaw === '') {
+        $termsRaw = "1. Payment: Net 30 days\n2. Prices include standard GST as per Pakistan tax law\n3. Validity: 15 days from date\n4. Goods once sold are subject to manufacturer warranty.";
     }
-    $termsLines = explode("\n", $termsRaw);
-    $tY = $termsY + $termsH - 26.0;
+
+    // 2. Append Payment Terms if specified and not already mentioned in terms
+    if (!empty($doc['payment_terms'])) {
+        $pTerms = trim((string)$doc['payment_terms']);
+        if ($pTerms !== '' && !str_contains(strtolower($termsRaw), strtolower($pTerms))) {
+            $termsRaw .= "\nPayment Terms: " . $pTerms;
+        }
+    }
+
+    // 3. Append Notes if specified and distinct from terms
+    if (!empty($doc['notes'])) {
+        $notes = trim((string)$doc['notes']);
+        if ($notes !== '' && !str_contains($termsRaw, $notes)) {
+            $termsRaw .= "\nNote: " . $notes;
+        }
+    }
+
+    $termsLines = [];
+    foreach (explode("\n", $termsRaw) as $rawLine) {
+        $rawLine = trim($rawLine);
+        if ($rawLine === '') continue;
+        $wrapped = $pdf->wrapText($rawLine, $termsW - 16.0, 7.5);
+        foreach ($wrapped as $wl) {
+            $termsLines[] = $wl;
+        }
+    }
+
+    $tY = $termsY + $termsH - 25.0;
     $pdf->setFillColor(0.35, 0.40, 0.48);
     foreach ($termsLines as $tl) {
-        if ($tY < $termsY + 8.0) break;
-        $pdf->drawText($left + 8.0, $tY, trim($tl), 'F1', 7.5);
-        $tY -= 10.5;
+        if ($tY < $termsY + 7.0) break;
+        $pdf->drawText($left + 8.0, $tY, $tl, 'F1', 7.2);
+        $tY -= 9.5;
     }
 
     return $pdf->render();

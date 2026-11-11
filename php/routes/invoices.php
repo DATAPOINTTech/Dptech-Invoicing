@@ -94,6 +94,11 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             }
         }
 
+        $terms = !empty($body['terms_conditions']) ? trim((string)$body['terms_conditions']) : null;
+        if ($terms === null || $terms === '') {
+            $terms = !empty($company['terms']) ? trim((string)$company['terms']) : "1. Payment: Net 30 days\n2. Prices include standard GST as per Pakistan tax law\n3. Validity: 15 days from date\n4. Goods once sold are subject to manufacturer warranty.";
+        }
+
         $stmt = $db->prepare('
             INSERT INTO invoices (
                 invoice_no, client_id, estimate_id, project_id, title, invoice_date, due_date,
@@ -134,7 +139,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             'total' => $totals['total_amount'],
             'pterms' => $body['payment_terms'] ?? null,
             'notes' => $body['notes'] ?? null,
-            'terms' => $body['terms_conditions'] ?? null,
+            'terms' => $terms,
             'coid' => $company['id'] ?? null,
             'coname' => $company['name'] ?? env_value('COMPANY_NAME', 'DATAPOINT Technologies'),
             'cologo' => $company['logo_url'] ?? '/static/img/logo.png',
@@ -330,7 +335,24 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $clientId = array_key_exists('client_id', $body) && !empty($body['client_id']) ? (int) $body['client_id'] : (int) $curr['client_id'];
             $date = array_key_exists('invoice_date', $body) && !empty($body['invoice_date']) ? (string) $body['invoice_date'] : $curr['invoice_date'];
             $dueDate = array_key_exists('due_date', $body) ? (string) $body['due_date'] : $curr['due_date'];
-            $terms = array_key_exists('terms_conditions', $body) ? $body['terms_conditions'] : $curr['terms_conditions'];
+            $terms = array_key_exists('terms_conditions', $body) && trim((string)$body['terms_conditions']) !== ''
+                ? trim((string)$body['terms_conditions'])
+                : (!empty($curr['terms_conditions']) ? $curr['terms_conditions'] : null);
+            if ($terms === null || $terms === '') {
+                $coId = (int)($curr['company_id'] ?? 0);
+                if ($coId > 0) {
+                    $coStmt = $db->prepare('SELECT terms FROM companies WHERE id = :cid');
+                    $coStmt->execute(['cid' => $coId]);
+                    $terms = $coStmt->fetchColumn() ?: null;
+                }
+                if (empty($terms)) {
+                    $coStmt = $db->query('SELECT terms FROM companies WHERE is_default = 1 LIMIT 1');
+                    $terms = $coStmt ? $coStmt->fetchColumn() : null;
+                }
+                if (empty($terms)) {
+                    $terms = "1. Payment: Net 30 days\n2. Prices include standard GST as per Pakistan tax law\n3. Validity: 15 days from date\n4. Goods once sold are subject to manufacturer warranty.";
+                }
+            }
             $notes = array_key_exists('notes', $body) ? $body['notes'] : $curr['notes'];
             $paymentTerms = array_key_exists('payment_terms', $body) ? $body['payment_terms'] : $curr['payment_terms'];
             $discountPercent = array_key_exists('discount_percent', $body) ? (float) $body['discount_percent'] : (float) $curr['discount_percent'];
@@ -493,6 +515,21 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 $inv['fbr_qr_code'] = fbr_get_invoice_qr_target($db, $inv);
             }
 
+            if (empty($inv['terms_conditions'])) {
+                if (!empty($inv['company_id'])) {
+                    $coStmt = $db->prepare('SELECT terms FROM companies WHERE id = :cid');
+                    $coStmt->execute(['cid' => (int) $inv['company_id']]);
+                    $inv['terms_conditions'] = $coStmt->fetchColumn() ?: null;
+                }
+                if (empty($inv['terms_conditions'])) {
+                    $coStmt = $db->query('SELECT terms FROM companies WHERE is_default = 1 LIMIT 1');
+                    $inv['terms_conditions'] = $coStmt ? $coStmt->fetchColumn() : null;
+                }
+                if (empty($inv['terms_conditions'])) {
+                    $inv['terms_conditions'] = "1. Payment: Net 30 days\n2. Prices include standard GST as per Pakistan tax law\n3. Validity: 15 days from date\n4. Goods once sold are subject to manufacturer warranty.";
+                }
+            }
+
             $pdf = generate_invoice_pdf($inv);
             header('Content-Type: application/pdf');
             header('Content-Disposition: inline; filename="' . $inv['invoice_no'] . '.pdf"');
@@ -526,6 +563,20 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
 
             if (!empty($inv['fbr_invoice_no'])) {
                 $inv['fbr_qr_code'] = fbr_get_invoice_qr_target($db, $inv);
+            }
+            if (empty($inv['terms_conditions'])) {
+                if (!empty($inv['company_id'])) {
+                    $coStmt = $db->prepare('SELECT terms FROM companies WHERE id = :cid');
+                    $coStmt->execute(['cid' => (int) $inv['company_id']]);
+                    $inv['terms_conditions'] = $coStmt->fetchColumn() ?: null;
+                }
+                if (empty($inv['terms_conditions'])) {
+                    $coStmt = $db->query('SELECT terms FROM companies WHERE is_default = 1 LIMIT 1');
+                    $inv['terms_conditions'] = $coStmt ? $coStmt->fetchColumn() : null;
+                }
+                if (empty($inv['terms_conditions'])) {
+                    $inv['terms_conditions'] = "1. Payment: Net 30 days\n2. Prices include standard GST as per Pakistan tax law\n3. Validity: 15 days from date\n4. Goods once sold are subject to manufacturer warranty.";
+                }
             }
             $pdfData = generate_invoice_pdf($inv);
             $results = [];
