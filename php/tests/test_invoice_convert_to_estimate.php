@@ -192,11 +192,13 @@ echo "6. Verified Invoice linkage (invoice.estimate_id = {$estimateId})\n";
 // 8. Verify UI templates for "Convert to Estimate" elements
 $detailHtml = file_get_contents(__DIR__ . '/../templates/invoices/detail.html');
 assert(strpos($detailHtml, 'convertInvoiceToEstimate') !== false, "invoices/detail.html must contain convertInvoiceToEstimate()");
-assert(strpos($detailHtml, 'Convert to Estimate') !== false, "invoices/detail.html must contain 'Convert to Estimate' button");
+assert(strpos($detailHtml, 'invoice-convert-estimate-btn') !== false, "invoices/detail.html must contain 'invoice-convert-estimate-btn' on the invoice card");
+assert(strpos($detailHtml, 'header-convert-estimate-btn') === false, "invoices/detail.html must NOT contain 'header-convert-estimate-btn' on top of page");
 
 $listHtml = file_get_contents(__DIR__ . '/../templates/invoices/list.html');
 assert(strpos($listHtml, 'convert-to-estimate') !== false, "invoices/list.html must contain convert-to-estimate button class");
+assert(strpos($listHtml, 'Convert to Estimate') !== false, "invoices/list.html must contain 'Convert to Estimate' text in row button");
 
-echo "7. Verified Web UI Templates (detail.html button and list.html table action verified)\n";
+echo "7. Verified Web UI Templates (detail.html button placed directly in front of invoice and not on top of page, and list.html table row button verified)\n";
 
 echo "\n>>> ALL INVOICE TO ESTIMATE CONVERSION TESTS PASSED 100%! <<<\n";
