@@ -276,7 +276,17 @@ $.ajax({
     if (e.company_logo && /^(\/static\/|https?:\/\/)/i.test(e.company_logo)) {
         $('#est-co-logo').attr('src', e.company_logo);
     }
-    const details = [e.company_address, e.company_phone, e.company_email].filter(Boolean).join(' • ');
+    const coPhone = e.company_phone || '+92 22 3669326';
+    const coWa = e.company_whatsapp || '+923712566540';
+    const coEmail = e.company_email || 'sales@datapoinittechnology.com';
+    const coWeb = e.company_website || 'https://datapointtechnology.com';
+    const details = [
+        e.company_address,
+        'Tel: ' + coPhone,
+        'WhatsApp: ' + coWa,
+        'Email: ' + coEmail,
+        'Web: ' + coWeb
+    ].filter(Boolean).join(' • ');
     $('#est-co-details').text(details);
 
     const taxInfo = [e.company_ntn ? 'NTN: ' + e.company_ntn : '', e.company_strn ? 'STRN: ' + e.company_strn : ''].filter(Boolean).join(' | ');

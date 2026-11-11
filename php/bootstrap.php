@@ -623,7 +623,7 @@ SQL);
             }
         }
 
-        // Add title to invoices table
+        // Add website & whatsapp to invoices table
         if (db_table_exists($db, 'invoices')) {
             $cols = $db->query("PRAGMA table_info(invoices)")->fetchAll(PDO::FETCH_ASSOC);
             $colNames = array_column($cols, 'name');
@@ -632,6 +632,104 @@ SQL);
                     $db->exec("ALTER TABLE invoices ADD COLUMN title VARCHAR(200)");
                 } catch (Throwable $e) {}
             }
+            foreach (['company_website' => 'VARCHAR(150)', 'company_whatsapp' => 'VARCHAR(50)'] as $c => $t) {
+                if (!in_array($c, $colNames, true)) {
+                    try {
+                        $db->exec("ALTER TABLE invoices ADD COLUMN {$c} {$t}");
+                    } catch (Throwable $e) {}
+                }
+            }
+        }
+
+        // Add website & whatsapp to estimates table
+        if (db_table_exists($db, 'estimates')) {
+            $cols = $db->query("PRAGMA table_info(estimates)")->fetchAll(PDO::FETCH_ASSOC);
+            $colNames = array_column($cols, 'name');
+            foreach (['company_website' => 'VARCHAR(150)', 'company_whatsapp' => 'VARCHAR(50)'] as $c => $t) {
+                if (!in_array($c, $colNames, true)) {
+                    try {
+                        $db->exec("ALTER TABLE estimates ADD COLUMN {$c} {$t}");
+                    } catch (Throwable $e) {}
+                }
+            }
+        }
+
+        // Update default company & legacy records with official DATAPOINT contact info
+        $officialEmail = env_value('COMPANY_EMAIL', 'sales@datapoinittechnology.com');
+        $officialWebsite = env_value('COMPANY_WEBSITE', 'https://datapointtechnology.com');
+        $officialLandline = env_value('COMPANY_PHONE', '+92 22 3669326');
+        $officialWhatsapp = env_value('COMPANY_WHATSAPP', '+923712566540');
+
+        if (db_table_exists($db, 'companies')) {
+            try {
+                $updCo = $db->prepare("
+                    UPDATE companies SET
+                        email = :em,
+                        website = :ws,
+                        phone = :ph,
+                        mobile = :wa,
+                        whatsapp = :wa
+                    WHERE id = 1 OR is_default = 1 OR name LIKE '%DATAPOINT%'
+                ");
+                $updCo->execute([
+                    'em' => $officialEmail,
+                    'ws' => $officialWebsite,
+                    'ph' => $officialLandline,
+                    'wa' => $officialWhatsapp,
+                ]);
+            } catch (Throwable $e) {}
+        }
+
+        if (db_table_exists($db, 'invoices')) {
+            try {
+                $updInv = $db->prepare("
+                    UPDATE invoices SET
+                        company_email = :em,
+                        company_phone = :ph,
+                        company_website = :ws,
+                        company_whatsapp = :wa
+                    WHERE company_id = 1 
+                       OR company_name IS NULL 
+                       OR company_name = '' 
+                       OR company_name LIKE '%DATAPOINT%' 
+                       OR company_email IS NULL 
+                       OR company_email = '' 
+                       OR company_email LIKE '%datapoint%' 
+                       OR company_email LIKE '%example.com%'
+                ");
+                $updInv->execute([
+                    'em' => $officialEmail,
+                    'ph' => $officialLandline,
+                    'ws' => $officialWebsite,
+                    'wa' => $officialWhatsapp,
+                ]);
+            } catch (Throwable $e) {}
+        }
+
+        if (db_table_exists($db, 'estimates')) {
+            try {
+                $updEst = $db->prepare("
+                    UPDATE estimates SET
+                        company_email = :em,
+                        company_phone = :ph,
+                        company_website = :ws,
+                        company_whatsapp = :wa
+                    WHERE company_id = 1 
+                       OR company_name IS NULL 
+                       OR company_name = '' 
+                       OR company_name LIKE '%DATAPOINT%' 
+                       OR company_email IS NULL 
+                       OR company_email = '' 
+                       OR company_email LIKE '%datapoint%' 
+                       OR company_email LIKE '%example.com%'
+                ");
+                $updEst->execute([
+                    'em' => $officialEmail,
+                    'ph' => $officialLandline,
+                    'ws' => $officialWebsite,
+                    'wa' => $officialWhatsapp,
+                ]);
+            } catch (Throwable $e) {}
         }
     }
 
@@ -640,8 +738,10 @@ SQL);
     if ($count === 0) {
         $primaryCompany = env_value('COMPANY_NAME', 'DATAPOINT Technologies');
         $primaryAddress = env_value('COMPANY_ADDRESS', 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh');
-        $primaryPhone = env_value('COMPANY_PHONE', '+92-316-7788990');
-        $primaryEmail = env_value('COMPANY_EMAIL', 'info@datapointtechnology.com');
+        $primaryPhone = env_value('COMPANY_PHONE', '+92 22 3669326');
+        $primaryEmail = env_value('COMPANY_EMAIL', 'sales@datapoinittechnology.com');
+        $primaryWebsite = env_value('COMPANY_WEBSITE', 'https://datapointtechnology.com');
+        $primaryWhatsapp = env_value('COMPANY_WHATSAPP', '+923712566540');
 
         $initialCompanies = [
             [
@@ -650,7 +750,9 @@ SQL);
                 'logo_url' => '/static/img/logo.png',
                 'email' => $primaryEmail,
                 'phone' => $primaryPhone,
-                'mobile' => '+92-300-1122334',
+                'mobile' => $primaryWhatsapp,
+                'whatsapp' => $primaryWhatsapp,
+                'website' => $primaryWebsite,
                 'address' => $primaryAddress,
                 'city' => 'Hyderabad',
                 'ntn' => '1234567-8',
@@ -694,8 +796,10 @@ SQL);
             ],
         ];
 
-        $ins = $db->prepare('INSERT INTO companies (name, code, logo_url, email, phone, mobile, address, city, ntn, strn, terms, is_default, markup_percent, sort_order, created_at, updated_at) VALUES (:name, :code, :logo_url, :email, :phone, :mobile, :address, :city, :ntn, :strn, :terms, :is_default, :markup_percent, :sort_order, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
+        $ins = $db->prepare('INSERT INTO companies (name, code, logo_url, email, phone, mobile, whatsapp, website, address, city, ntn, strn, terms, is_default, markup_percent, sort_order, created_at, updated_at) VALUES (:name, :code, :logo_url, :email, :phone, :mobile, :whatsapp, :website, :address, :city, :ntn, :strn, :terms, :is_default, :markup_percent, :sort_order, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
         foreach ($initialCompanies as $co) {
+            $co['whatsapp'] = $co['whatsapp'] ?? ($co['mobile'] ?? null);
+            $co['website'] = $co['website'] ?? null;
             $ins->execute($co);
         }
     }

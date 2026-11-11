@@ -120,13 +120,13 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         estimate_no, client_id, project_id, title, estimate_date, valid_until,
                         status, subtotal, discount_percent, discount_amount, tax_rate, tax_amount,
                         total_amount, terms_conditions, notes, created_by,
-                        company_id, company_name, company_logo, company_phone, company_email, company_address, company_ntn, company_strn,
+                        company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp, company_address, company_ntn, company_strn,
                         batch_id, markup_percent, created_at, updated_at
                     ) VALUES (
                         :no, :cid, :pid, :title, :edate, :vdate,
                         :status, :subtotal, :disc_pct, :disc_amt, :tax_rate, :tax_amt,
                         :total, :terms, :notes, :uid,
-                        :coid, :coname, :cologo, :cophone, :coemail, :coaddr, :conntn, :costrn,
+                        :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp, :coaddr, :conntn, :costrn,
                         :bid, :markup, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                 ');
@@ -150,8 +150,10 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     'coid' => $co['id'],
                     'coname' => $co['name'],
                     'cologo' => $co['logo_url'] ?? '/static/img/logo.png',
-                    'cophone' => $co['phone'] ?? null,
-                    'coemail' => $co['email'] ?? null,
+                    'cophone' => $co['phone'] ?? '+92 22 3669326',
+                    'coemail' => $co['email'] ?? 'sales@datapoinittechnology.com',
+                    'cowebsite' => $co['website'] ?? 'https://datapointtechnology.com',
+                    'cowhatsapp' => $co['whatsapp'] ?? ($co['mobile'] ?? '+923712566540'),
                     'coaddr' => $co['address'] ?? null,
                     'conntn' => $co['ntn'] ?? null,
                     'costrn' => $co['strn'] ?? null,
@@ -265,13 +267,13 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 estimate_no, client_id, project_id, title, estimate_date, valid_until,
                 status, subtotal, discount_percent, discount_amount, tax_rate, tax_amount,
                 total_amount, terms_conditions, notes, created_by,
-                company_id, company_name, company_logo, company_phone, company_email, company_address, company_ntn, company_strn,
+                company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp, company_address, company_ntn, company_strn,
                 batch_id, markup_percent, created_at, updated_at
             ) VALUES (
                 :no, :cid, :pid, :title, :edate, :vdate,
                 :status, :subtotal, :disc_pct, :disc_amt, :tax_rate, :tax_amt,
                 :total, :terms, :notes, :uid,
-                :coid, :coname, :cologo, :cophone, :coemail, :coaddr, :conntn, :costrn,
+                :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp, :coaddr, :conntn, :costrn,
                 NULL, :markup, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
         ');
@@ -295,8 +297,10 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             'coid' => $co['id'],
             'coname' => $co['name'],
             'cologo' => $co['logo_url'] ?? '/static/img/logo.png',
-            'cophone' => $co['phone'] ?? null,
-            'coemail' => $co['email'] ?? null,
+            'cophone' => $co['phone'] ?? '+92 22 3669326',
+            'coemail' => $co['email'] ?? 'sales@datapoinittechnology.com',
+            'cowebsite' => $co['website'] ?? 'https://datapointtechnology.com',
+            'cowhatsapp' => $co['whatsapp'] ?? ($co['mobile'] ?? '+923712566540'),
             'coaddr' => $co['address'] ?? null,
             'conntn' => $co['ntn'] ?? null,
             'costrn' => $co['strn'] ?? null,
@@ -372,6 +376,19 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 $est['sibling_estimates'] = $sibStmt->fetchAll(PDO::FETCH_ASSOC);
             } else {
                 $est['sibling_estimates'] = [];
+            }
+
+            if (empty($est['company_email']) || stripos($est['company_email'], 'example.com') !== false || $est['company_email'] === 'info@datapointtechnology.com') {
+                $est['company_email'] = 'sales@datapoinittechnology.com';
+            }
+            if (empty($est['company_website'])) {
+                $est['company_website'] = 'https://datapointtechnology.com';
+            }
+            if (empty($est['company_phone']) || $est['company_phone'] === '+92-316-7788990' || $est['company_phone'] === '+92 21 34567890') {
+                $est['company_phone'] = '+92 22 3669326';
+            }
+            if (empty($est['company_whatsapp'])) {
+                $est['company_whatsapp'] = '+923712566540';
             }
 
             json_response($est);

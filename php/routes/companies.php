@@ -109,6 +109,8 @@ function handle_companies_routes(string $method, string $path, PDO $db): bool
                         email = :email,
                         phone = :phone,
                         mobile = :mobile,
+                        whatsapp = :whatsapp,
+                        website = :website,
                         address = :address,
                         city = :city,
                         ntn = :ntn,
@@ -128,6 +130,8 @@ function handle_companies_routes(string $method, string $path, PDO $db): bool
                     'email' => $co['email'] ?? null,
                     'phone' => $co['phone'] ?? null,
                     'mobile' => $co['mobile'] ?? null,
+                    'whatsapp' => $co['whatsapp'] ?? ($co['mobile'] ?? null),
+                    'website' => $co['website'] ?? null,
                     'address' => $co['address'] ?? null,
                     'city' => $co['city'] ?? 'Hyderabad',
                     'ntn' => $co['ntn'] ?? null,
@@ -141,9 +145,9 @@ function handle_companies_routes(string $method, string $path, PDO $db): bool
             } else {
                 $stmt = $db->prepare('
                     INSERT INTO companies (
-                        name, code, logo_url, email, phone, mobile, address, city, ntn, strn, terms, is_default, markup_percent, sort_order, created_at, updated_at
+                        name, code, logo_url, email, phone, mobile, whatsapp, website, address, city, ntn, strn, terms, is_default, markup_percent, sort_order, created_at, updated_at
                     ) VALUES (
-                        :name, :code, :logo, :email, :phone, :mobile, :address, :city, :ntn, :strn, :terms, :is_def, :markup, :sort, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                        :name, :code, :logo, :email, :phone, :mobile, :whatsapp, :website, :address, :city, :ntn, :strn, :terms, :is_def, :markup, :sort, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                 ');
                 $stmt->execute([
@@ -153,6 +157,8 @@ function handle_companies_routes(string $method, string $path, PDO $db): bool
                     'email' => $co['email'] ?? null,
                     'phone' => $co['phone'] ?? null,
                     'mobile' => $co['mobile'] ?? null,
+                    'whatsapp' => $co['whatsapp'] ?? ($co['mobile'] ?? null),
+                    'website' => $co['website'] ?? null,
                     'address' => $co['address'] ?? null,
                     'city' => $co['city'] ?? 'Hyderabad',
                     'ntn' => $co['ntn'] ?? null,

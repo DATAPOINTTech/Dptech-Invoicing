@@ -308,17 +308,40 @@ class DpPdfEngine
     private array $pageImages = [];
     private array $theme = [];
     private string $companyName = 'DATAPOINT Technologies';
-    private string $companyPhone = '';
+    private string $companyPhone = '+92 22 3669326';
+    private string $companyWhatsapp = '+923712566540';
+    private string $companyEmail = 'sales@datapoinittechnology.com';
+    private string $companyWebsite = 'https://datapointtechnology.com';
     private string $companyNtn = '';
 
-    public function __construct(array $theme = [], string $companyName = '', string $companyPhone = '', string $companyNtn = '')
-    {
+    public function __construct(
+        array $theme = [],
+        string $companyName = '',
+        string $companyPhone = '',
+        string $companyNtn = '',
+        string $companyEmail = '',
+        string $companyWebsite = '',
+        string $companyWhatsapp = ''
+    ) {
         $this->theme = $theme;
         if ($companyName !== '') {
             $this->companyName = $companyName;
         }
-        $this->companyPhone = $companyPhone;
-        $this->companyNtn = $companyNtn;
+        if ($companyPhone !== '') {
+            $this->companyPhone = $companyPhone;
+        }
+        if ($companyNtn !== '') {
+            $this->companyNtn = $companyNtn;
+        }
+        if ($companyEmail !== '') {
+            $this->companyEmail = $companyEmail;
+        }
+        if ($companyWebsite !== '') {
+            $this->companyWebsite = $companyWebsite;
+        }
+        if ($companyWhatsapp !== '') {
+            $this->companyWhatsapp = $companyWhatsapp;
+        }
         $this->addPage();
     }
 
@@ -718,9 +741,13 @@ class DpPdfEngine
                     $this->marginLeft,
                     $this->pageWidth - $this->marginRight
                 );
+                $cleanWeb = preg_replace('#^https?://#i', '', $this->companyWebsite);
                 $infoParts = array_filter([
                     $this->companyName,
                     $this->companyPhone ? 'Tel: ' . $this->companyPhone : null,
+                    $this->companyWhatsapp ? 'WA: ' . $this->companyWhatsapp : null,
+                    $this->companyEmail ? 'Email: ' . $this->companyEmail : null,
+                    $cleanWeb ? 'Web: ' . $cleanWeb : null,
                     $this->companyNtn ? 'NTN: ' . $this->companyNtn : null
                 ]);
                 $footerText = sprintf(
@@ -808,8 +835,10 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
 {
     $companyName = !empty($doc['company_name']) ? (string)$doc['company_name'] : (getenv('COMPANY_NAME') ?: 'DATAPOINT Technologies');
     $companyAddress = !empty($doc['company_address']) ? (string)$doc['company_address'] : (getenv('COMPANY_ADDRESS') ?: 'G32 Shayas Residence, Jamshoro Road, Citizen Colony, Hyderabad, Sindh');
-    $companyPhone = !empty($doc['company_phone']) ? (string)$doc['company_phone'] : (getenv('COMPANY_MOBILE') ?: getenv('COMPANY_PHONE') ?: '0316 7788990');
-    $companyEmail = !empty($doc['company_email']) ? (string)$doc['company_email'] : (getenv('COMPANY_EMAIL') ?: 'info@datapointtechnology.com');
+    $companyPhone = !empty($doc['company_phone']) ? (string)$doc['company_phone'] : (getenv('COMPANY_PHONE') ?: '+92 22 3669326');
+    $companyWhatsapp = !empty($doc['company_whatsapp']) ? (string)$doc['company_whatsapp'] : (!empty($doc['company_mobile']) ? (string)$doc['company_mobile'] : (getenv('COMPANY_WHATSAPP') ?: '+923712566540'));
+    $companyEmail = !empty($doc['company_email']) ? (string)$doc['company_email'] : (getenv('COMPANY_EMAIL') ?: 'sales@datapoinittechnology.com');
+    $companyWebsite = !empty($doc['company_website']) ? (string)$doc['company_website'] : (getenv('COMPANY_WEBSITE') ?: 'https://datapointtechnology.com');
     $companyNtn = !empty($doc['company_ntn']) ? (string)$doc['company_ntn'] : (getenv('COMPANY_NTN') ?: '7178396-5');
     $companyStrn = !empty($doc['company_strn']) ? (string)$doc['company_strn'] : (getenv('COMPANY_STRN') ?: '3277876124452');
     $logoUrl = $doc['company_logo'] ?? $doc['logo_url'] ?? null;
@@ -824,8 +853,10 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
             if ($co) {
                 if (!empty($co['name'])) $companyName = (string)$co['name'];
                 if (!empty($co['address'])) $companyAddress = (string)$co['address'];
-                if (!empty($co['phone']) || !empty($co['mobile'])) $companyPhone = (string)($co['phone'] ?: $co['mobile']);
+                if (!empty($co['phone'])) $companyPhone = (string)$co['phone'];
+                if (!empty($co['whatsapp']) || !empty($co['mobile'])) $companyWhatsapp = (string)($co['whatsapp'] ?: $co['mobile']);
                 if (!empty($co['email'])) $companyEmail = (string)$co['email'];
+                if (!empty($co['website'])) $companyWebsite = (string)$co['website'];
                 if (!empty($co['ntn'])) $companyNtn = (string)$co['ntn'];
                 if (!empty($co['strn'])) $companyStrn = (string)$co['strn'];
                 if (!empty($co['logo_url'])) $logoUrl = (string)$co['logo_url'];
@@ -842,8 +873,10 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
             if ($co) {
                 if (!empty($co['name'])) $companyName = (string)$co['name'];
                 if (!empty($co['address'])) $companyAddress = (string)$co['address'];
-                if (!empty($co['phone']) || !empty($co['mobile'])) $companyPhone = (string)($co['phone'] ?: $co['mobile']);
+                if (!empty($co['phone'])) $companyPhone = (string)$co['phone'];
+                if (!empty($co['whatsapp']) || !empty($co['mobile'])) $companyWhatsapp = (string)($co['whatsapp'] ?: $co['mobile']);
                 if (!empty($co['email'])) $companyEmail = (string)$co['email'];
+                if (!empty($co['website'])) $companyWebsite = (string)$co['website'];
                 if (!empty($co['ntn'])) $companyNtn = (string)$co['ntn'];
                 if (!empty($co['strn'])) $companyStrn = (string)$co['strn'];
                 if (!empty($co['logo_url'])) $logoUrl = (string)$co['logo_url'];
@@ -851,6 +884,42 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
                 $doc['company_code'] = $co['code'] ?? null;
             }
         } catch (\Throwable $e) {}
+    } else {
+        // Fallback to default company
+        try {
+            $db = database_connection();
+            $coStmt = $db->query('SELECT * FROM companies WHERE is_default = 1 LIMIT 1');
+            $co = $coStmt ? $coStmt->fetch(PDO::FETCH_ASSOC) : null;
+            if ($co) {
+                if (!empty($co['name'])) $companyName = (string)$co['name'];
+                if (!empty($co['address'])) $companyAddress = (string)$co['address'];
+                if (!empty($co['phone'])) $companyPhone = (string)$co['phone'];
+                if (!empty($co['whatsapp']) || !empty($co['mobile'])) $companyWhatsapp = (string)($co['whatsapp'] ?: $co['mobile']);
+                if (!empty($co['email'])) $companyEmail = (string)$co['email'];
+                if (!empty($co['website'])) $companyWebsite = (string)$co['website'];
+                if (!empty($co['ntn'])) $companyNtn = (string)$co['ntn'];
+                if (!empty($co['strn'])) $companyStrn = (string)$co['strn'];
+                if (!empty($co['logo_url'])) $logoUrl = (string)$co['logo_url'];
+                $doc['company_name'] = $companyName;
+                $doc['company_code'] = $co['code'] ?? null;
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    // Enforce official DATAPOINT credentials if primary
+    if (empty($doc['company_id']) || (int)$doc['company_id'] === 1 || stripos($companyName, 'DATAPOINT') !== false) {
+        if (empty($companyEmail) || stripos($companyEmail, 'example.com') !== false || $companyEmail === 'info@datapointtechnology.com') {
+            $companyEmail = 'sales@datapoinittechnology.com';
+        }
+        if (empty($companyWebsite)) {
+            $companyWebsite = 'https://datapointtechnology.com';
+        }
+        if (empty($companyPhone) || $companyPhone === '+92-316-7788990' || $companyPhone === '0316 7788990' || $companyPhone === '+92 21 34567890') {
+            $companyPhone = '+92 22 3669326';
+        }
+        if (empty($companyWhatsapp)) {
+            $companyWhatsapp = '+923712566540';
+        }
     }
 
     // Refresh client party details (company name, contact name, phone, address)
@@ -871,7 +940,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     }
 
     $theme = get_company_color_theme($doc);
-    $pdf = new DpPdfEngine($theme, $companyName, $companyPhone, $companyNtn);
+    $pdf = new DpPdfEngine($theme, $companyName, $companyPhone, $companyNtn, $companyEmail, $companyWebsite, $companyWhatsapp);
 
     // Margins: left=36, right=36, bottom=85, top=25
     $left = 36.0;
@@ -982,7 +1051,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $addrSize -= 0.5;
     }
     $pdf->setFillColor(0.35, 0.40, 0.48);
-    $pdf->drawText($companyTextX, 771.0, $addrText, 'F1', $addrSize);
+    $pdf->drawText($companyTextX, 772.0, $addrText, 'F1', $addrSize);
 
     if ($type === 'INVOICE') {
         $pdf->setFillColorArray($theme['primary']);
@@ -992,44 +1061,67 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $pdf->drawText($rightAreaX, 771.0, "NTN: {$companyNtn}", 'F2', 8.5, 'right', $rightAreaW);
     }
 
-    // 4. Contact & STRN
-    $contactText = "Tel: {$companyPhone} | Email: {$companyEmail}";
-    $contactSize = 7.0;
-    while ($pdf->getTextWidth($contactText, 'F1', $contactSize) > ($companyMaxW - 4.0) && $contactSize > 5.5) {
-        $contactSize -= 0.5;
+    // 4. Contact Line 1: Landline Phone & WhatsApp
+    $phoneParts = [];
+    if (!empty($companyPhone)) {
+        $phoneParts[] = "Tel: {$companyPhone}";
+    }
+    if (!empty($companyWhatsapp)) {
+        $phoneParts[] = "WhatsApp: {$companyWhatsapp}";
+    }
+    $phoneLine = implode(' | ', $phoneParts);
+    $phoneSize = 6.8;
+    while ($pdf->getTextWidth($phoneLine, 'F1', $phoneSize) > ($companyMaxW - 4.0) && $phoneSize > 5.0) {
+        $phoneSize -= 0.3;
     }
     $pdf->setFillColor(0.35, 0.40, 0.48);
-    $pdf->drawText($companyTextX, 760.0, $contactText, 'F1', $contactSize);
+    $pdf->drawText($companyTextX, 762.5, $phoneLine, 'F1', $phoneSize);
+
+    // 5. Contact Line 2: Email & Official Website
+    $webParts = [];
+    if (!empty($companyEmail)) {
+        $webParts[] = "Email: {$companyEmail}";
+    }
+    if (!empty($companyWebsite)) {
+        $webParts[] = "Web: {$companyWebsite}";
+    }
+    $webLine = implode(' | ', $webParts);
+    $webSize = 6.7;
+    while ($pdf->getTextWidth($webLine, 'F1', $webSize) > ($companyMaxW - 4.0) && $webSize > 5.0) {
+        $webSize -= 0.3;
+    }
+    $pdf->drawText($companyTextX, 753.5, $webLine, 'F1', $webSize);
 
     if ($type !== 'INVOICE') {
         $pdf->setFillColorArray($theme['primary']);
-        $pdf->drawText($rightAreaX, 760.0, "STRN: {$companyStrn}", 'F1', 8.0, 'right', $rightAreaW);
+        $pdf->drawText($rightAreaX, 759.0, "STRN: {$companyStrn}", 'F1', 8.0, 'right', $rightAreaW);
     }
 
     // Distinct divider rule under the header
+    $ruleY = 747.0;
     if (($theme['header_style'] ?? '') === 'corporate_letterhead') {
         // PTC: Dual rule (Thick Slate Charcoal bar + Thin Warm Bronze Gold rule)
         $pdf->setStrokeColorArray($theme['primary']);
         $pdf->setLineWidth(2.0);
-        $pdf->drawLine($left, 752.0, $left + $width, 752.0);
+        $pdf->drawLine($left, $ruleY + 1.0, $left + $width, $ruleY + 1.0);
 
         $pdf->setStrokeColorArray($theme['accent']);
         $pdf->setLineWidth(0.8);
-        $pdf->drawLine($left, 749.0, $left + $width, 749.0);
+        $pdf->drawLine($left, $ruleY - 2.0, $left + $width, $ruleY - 2.0);
     } elseif (($theme['header_style'] ?? '') === 'tech_emerald') {
         // MTC: Crisp Emerald Teal accent line
         $pdf->setStrokeColorArray($theme['accent']);
         $pdf->setLineWidth(1.6);
-        $pdf->drawLine($left, 751.0, $left + $width, 751.0);
+        $pdf->drawLine($left, $ruleY, $left + $width, $ruleY);
     } else {
         // DPT: High-tech sapphire / blue rule
         $pdf->setStrokeColorArray($theme['primary']);
         $pdf->setLineWidth(1.2);
-        $pdf->drawLine($left, 751.0, $left + $width, 751.0);
+        $pdf->drawLine($left, $ruleY, $left + $width, $ruleY);
     }
 
-    // 5. Metadata Section (Client & Document info)
-    $metaY = 736.0;
+    // 6. Metadata Section (Client & Document info)
+    $metaY = 735.0;
 
     // Right Column: Date & Document Number coordinates
     $rightMetaW = 180.0;

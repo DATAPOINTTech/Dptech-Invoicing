@@ -35,6 +35,15 @@
                                     <span id="inv-company-badge" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700"></span>
                                 </div>
                                 <p class="text-gray-500 text-xs mt-0.5" id="inv-dates"></p>
+                                <p class="text-[11px] text-slate-500 mt-1 flex flex-wrap items-center gap-x-2" id="inv-co-contact-bar">
+                                    <span id="inv-co-phone-wrap"><i class="fas fa-phone-alt text-slate-400 mr-1"></i><span id="inv-co-phone">+92 22 3669326</span></span>
+                                    <span class="text-slate-300">•</span>
+                                    <span id="inv-co-wa-wrap"><i class="fab fa-whatsapp text-emerald-600 mr-1"></i><span id="inv-co-wa">+923712566540</span></span>
+                                    <span class="text-slate-300">•</span>
+                                    <span id="inv-co-email-wrap"><i class="fas fa-envelope text-slate-400 mr-1"></i><span id="inv-co-email">sales@datapoinittechnology.com</span></span>
+                                    <span class="text-slate-300">•</span>
+                                    <span id="inv-co-web-wrap"><i class="fas fa-globe text-slate-400 mr-1"></i><a id="inv-co-web" href="https://datapointtechnology.com" target="_blank" class="text-blue-600 hover:underline">datapointtechnology.com</a></span>
+                                </p>
                                 <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide mt-1" id="inv-title" style="display:none"></p>
                                 <div class="mt-1.5 flex items-center gap-2" id="inv-fbr-container" style="display:none">
                                     <span class="bg-emerald-100 text-emerald-800 text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
@@ -349,6 +358,15 @@ function loadInvoice() {
         } else {
             $('#inv-company-badge').hide();
         }
+
+        const coPhone = inv.company_phone || '+92 22 3669326';
+        const coWa = inv.company_whatsapp || '+923712566540';
+        const coEmail = inv.company_email || 'sales@datapoinittechnology.com';
+        const coWeb = inv.company_website || 'https://datapointtechnology.com';
+        $('#inv-co-phone').text(coPhone);
+        $('#inv-co-wa').text(coWa);
+        $('#inv-co-email').text(coEmail);
+        $('#inv-co-web').text(coWeb.replace(/^https?:\/\//i, '')).attr('href', coWeb);
 
         if (inv.title) {
             $('#inv-title').text(inv.title).show();

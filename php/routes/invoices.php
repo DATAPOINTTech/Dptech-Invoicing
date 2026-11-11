@@ -105,7 +105,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 status, subtotal, discount_percent, discount_amount, tax_rate, tax_amount,
                 withholding_tax_rate, withholding_tax_amount, fed_rate, fed_amount,
                 total_amount, amount_paid, balance_due, payment_terms, notes, terms_conditions,
-                company_id, company_name, company_logo, company_phone, company_email,
+                company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp,
                 company_address, company_ntn, company_strn,
                 created_by, created_at, updated_at
             ) VALUES (
@@ -113,7 +113,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 :status, :subtotal, :disc_pct, :disc_amt, :tr, :ta,
                 :wht_r, :wht_a, :fed_r, :fed_a,
                 :total, 0, :total, :pterms, :notes, :terms,
-                :coid, :coname, :cologo, :cophone, :coemail,
+                :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp,
                 :coaddr, :conntn, :costrn,
                 :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
@@ -143,8 +143,10 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             'coid' => $company['id'] ?? null,
             'coname' => $company['name'] ?? env_value('COMPANY_NAME', 'DATAPOINT Technologies'),
             'cologo' => $company['logo_url'] ?? '/static/img/logo.png',
-            'cophone' => $company['phone'] ?? env_value('COMPANY_PHONE', '+923167788990'),
-            'coemail' => $company['email'] ?? env_value('COMPANY_EMAIL', 'info@datapointtechnology.com'),
+            'cophone' => $company['phone'] ?? env_value('COMPANY_PHONE', '+92 22 3669326'),
+            'coemail' => $company['email'] ?? env_value('COMPANY_EMAIL', 'sales@datapoinittechnology.com'),
+            'cowebsite' => $company['website'] ?? env_value('COMPANY_WEBSITE', 'https://datapointtechnology.com'),
+            'cowhatsapp' => $company['whatsapp'] ?? ($company['mobile'] ?? env_value('COMPANY_WHATSAPP', '+923712566540')),
             'coaddr' => $company['address'] ?? env_value('COMPANY_ADDRESS', 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh'),
             'conntn' => $company['ntn'] ?? null,
             'costrn' => $company['strn'] ?? null,
@@ -248,6 +250,19 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 $inv['fbr_verify_url'] = $qrTarget;
                 $inv['fbr_qr_target'] = $qrTarget;
                 $inv['fbr_qr_data_uri'] = PurePhpQr::toDataUri($qrTarget, 180);
+            }
+
+            if (empty($inv['company_email']) || stripos($inv['company_email'], 'example.com') !== false || $inv['company_email'] === 'info@datapointtechnology.com') {
+                $inv['company_email'] = 'sales@datapoinittechnology.com';
+            }
+            if (empty($inv['company_website'])) {
+                $inv['company_website'] = 'https://datapointtechnology.com';
+            }
+            if (empty($inv['company_phone']) || $inv['company_phone'] === '+92-316-7788990' || $inv['company_phone'] === '+92 21 34567890') {
+                $inv['company_phone'] = '+92 22 3669326';
+            }
+            if (empty($inv['company_whatsapp'])) {
+                $inv['company_whatsapp'] = '+923712566540';
             }
 
             json_response($inv);
