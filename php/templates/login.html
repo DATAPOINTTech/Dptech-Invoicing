@@ -4,43 +4,76 @@
 <div class="min-h-screen flex">
     <!-- Left branding panel -->
     <div class="hidden lg:flex lg:w-1/2 flex-col justify-between p-12" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
-                <img src="/static/img/logo.png" alt="Logo" class="w-8 h-8 object-contain">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
+                    <img src="/static/img/logo.png" alt="Logo" class="w-8 h-8 object-contain">
+                </div>
+                <span class="text-white font-bold text-lg">{{ company }}</span>
             </div>
-            <span class="text-white font-bold text-lg">{{ company }}</span>
+            <div class="flex items-center gap-2 bg-emerald-950/70 border border-emerald-400/40 rounded-full px-3 py-1 text-emerald-300 text-xs font-semibold backdrop-blur-sm shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>FBR POS Integrated</span>
+            </div>
         </div>
-        <div>
-            <h2 class="text-4xl font-extrabold text-white leading-tight mb-4">
-                Smart Invoicing<br>for Modern Business
+        <div class="my-auto py-6">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold mb-3">
+                <i class="fas fa-shield-halved text-emerald-400"></i> Govt. of Pakistan Law Compliant &bull; Sales Tax Act 1990
+            </div>
+            <h2 class="text-4xl font-extrabold text-white leading-tight mb-3">
+                Smart Invoicing &amp;<br>FBR POS Integration
             </h2>
-            <p class="text-blue-200 text-base leading-relaxed mb-8">
-                Manage invoices, estimates, inventory, expenses and clients — all in one place.
+            <p class="text-blue-200 text-sm leading-relaxed mb-6">
+                Certified electronic Point of Sale (POS) system integrated in real-time with the Federal Board of Revenue (FBR) Digital Invoicing Gateway.
             </p>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                    <i class="fas fa-file-invoice-dollar text-blue-300 text-xl mb-2"></i>
-                    <p class="text-white font-semibold text-sm">Tax Invoices</p>
-                    <p class="text-blue-200 text-xs mt-0.5">GST, WHT & FED ready</p>
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-white/10 rounded-xl p-3.5 backdrop-blur-sm border border-white/10">
+                    <i class="fas fa-file-invoice-dollar text-blue-300 text-lg mb-1.5"></i>
+                    <p class="text-white font-semibold text-xs">Statutory Tax Invoices</p>
+                    <p class="text-blue-200 text-[11px] mt-0.5">GST (18%), WHT &amp; FED compliant</p>
                 </div>
-                <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                    <i class="fas fa-warehouse text-blue-300 text-xl mb-2"></i>
-                    <p class="text-white font-semibold text-sm">Inventory</p>
-                    <p class="text-blue-200 text-xs mt-0.5">Real-time stock tracking</p>
+                <div class="bg-white/10 rounded-xl p-3.5 backdrop-blur-sm border border-white/10">
+                    <i class="fas fa-qrcode text-emerald-300 text-lg mb-1.5"></i>
+                    <p class="text-white font-semibold text-xs">FBR Digital Invoicing</p>
+                    <p class="text-emerald-200 text-[11px] mt-0.5">Tax Asaan QR code verification</p>
                 </div>
-                <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                    <i class="fas fa-chart-bar text-blue-300 text-xl mb-2"></i>
-                    <p class="text-white font-semibold text-sm">Reports</p>
-                    <p class="text-blue-200 text-xs mt-0.5">Financial insights</p>
+                <div class="bg-white/10 rounded-xl p-3.5 backdrop-blur-sm border border-white/10">
+                    <i class="fas fa-warehouse text-blue-300 text-lg mb-1.5"></i>
+                    <p class="text-white font-semibold text-xs">Inventory &amp; Stock</p>
+                    <p class="text-blue-200 text-[11px] mt-0.5">Real-time inventory ledger</p>
                 </div>
-                <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                    <i class="fas fa-robot text-blue-300 text-xl mb-2"></i>
-                    <p class="text-white font-semibold text-sm">AI Agent</p>
-                    <p class="text-blue-200 text-xs mt-0.5">24/7 support assistant</p>
+                <div class="bg-white/10 rounded-xl p-3.5 backdrop-blur-sm border border-white/10">
+                    <i class="fas fa-scale-balanced text-teal-300 text-lg mb-1.5"></i>
+                    <p class="text-white font-semibold text-xs">Rule 150ZEB Ready</p>
+                    <p class="text-teal-200 text-[11px] mt-0.5">Tier-1 retailer &amp; corporate POS</p>
+                </div>
+            </div>
+
+            <!-- Official FBR Government of Pakistan Integration Seal -->
+            <div class="bg-gradient-to-r from-emerald-950/90 to-slate-900/90 rounded-2xl p-4 border border-emerald-500/40 backdrop-blur-md shadow-xl">
+                <div class="flex items-center gap-3.5">
+                    <div class="bg-white p-2 rounded-xl border border-emerald-300 shadow-md shrink-0 flex items-center justify-center">
+                        <img src="/static/img/fbr_logo.png" alt="Federal Board of Revenue - Government of Pakistan" class="h-10 w-auto object-contain">
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-xs font-extrabold text-emerald-300 uppercase tracking-wider">Federal Board of Revenue (FBR)</h3>
+                            <span class="bg-emerald-500/30 text-emerald-200 text-[10px] font-bold px-1.5 py-0.5 rounded border border-emerald-400/40">Govt. of Pakistan</span>
+                        </div>
+                        <p class="text-[11px] text-white font-medium mt-0.5">
+                            Official Point of Sale (POS) Integrated System
+                        </p>
+                        <p class="text-[10px] text-blue-200 leading-snug mt-0.5">
+                            Under Section 3(9A), 23 &amp; 40C of Sales Tax Act 1990 and Rule 150ZEB of Sales Tax Rules 2006 (SRO 1006(I)/2021). All invoices feature verifiable QR codes linked directly with FBR's Tax Asaan portal.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
-        <p class="text-blue-300 text-xs">&copy; 2024 {{ company }}. All rights reserved.</p>
+        <div class="flex items-center justify-between text-[11px] text-blue-300 border-t border-white/10 pt-4">
+            <span>&copy; {{ company }}. All rights reserved.</span>
+            <span class="flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-400 text-xs"></i> Official FBR Certified POS Integration</span>
+        </div>
     </div>
 
     <!-- Right login panel -->
@@ -110,6 +143,35 @@
                         Create Account
                     </button>
                 </form>
+            </div>
+
+            <!-- Official FBR POS Integration Card as per Government of Pakistan Law -->
+            <div class="mt-8 pt-5 border-t border-slate-200">
+                <div class="bg-gradient-to-br from-emerald-50 via-teal-50/60 to-slate-50 border border-emerald-200/90 rounded-xl p-3.5 shadow-xs">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-white p-2 rounded-lg border border-emerald-200 shadow-xs shrink-0 flex items-center justify-center mt-0.5">
+                            <img src="/static/img/fbr_logo.png" alt="Federal Board of Revenue - Government of Pakistan" class="h-8 w-auto object-contain">
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <h4 class="text-xs font-bold text-emerald-950 uppercase tracking-tight">FBR POS Integrated System</h4>
+                                <span class="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300">Govt. of Pakistan</span>
+                            </div>
+                            <p class="text-[11px] text-emerald-800 font-semibold leading-tight mt-1">
+                                Revenue Division &bull; Federal Board of Revenue
+                            </p>
+                            <p class="text-[10px] text-slate-600 leading-normal mt-1">
+                                Fully compliant with the <strong>Sales Tax Act, 1990</strong> (Rule 150ZEB / SRO 1006). All sales invoices transmit real-time fiscal data to the PRAL/FBR gateway and carry verifiable <strong>Tax Asaan QR Codes</strong>.
+                            </p>
+                            <div class="flex items-center gap-3 mt-2 pt-1.5 border-t border-emerald-200/60 text-[10px] text-emerald-700">
+                                <span><i class="fas fa-check-circle text-emerald-600 mr-1"></i>Sec 3(9A) &amp; 40C</span>
+                                <span><i class="fas fa-qrcode text-emerald-600 mr-1"></i>Tax Asaan App</span>
+                                <span><i class="fas fa-building-columns text-emerald-600 mr-1"></i>PRAL Gateway</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

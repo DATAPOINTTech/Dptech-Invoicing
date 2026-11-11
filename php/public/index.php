@@ -210,6 +210,7 @@ function handle_request(): never
             $uiRoutes = [
                 '/' => 'login.html',
                 '/login' => 'login.html',
+                '/landing' => 'landing.html',
                 '/dashboard' => 'dashboard.html',
                 '/clients' => 'clients/list.html',
                 '/clients/new' => 'clients/form.html',
