@@ -305,7 +305,7 @@
             <button type="button" onclick="hidePricePicker()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-2 mb-3">
+        <div class="flex flex-col sm:flex-row gap-2 mb-2">
             <div class="relative flex-1">
                 <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
                 <input type="text" id="price-search" placeholder="Search products or prices (e.g. camera, nvr, cable)..." class="w-full pl-8 pr-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -317,6 +317,17 @@
                 <button type="button" id="tab-btn-prices" onclick="switchPickerSource('prices')" class="px-3 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 flex items-center gap-1.5 transition-colors">
                     <i class="fas fa-tags text-[10px]"></i> Daily Prices
                 </button>
+            </div>
+        </div>
+
+        <!-- Category Tabs Bar -->
+        <div class="mb-3">
+            <div class="flex items-center justify-between mb-1 text-[11px] font-semibold text-gray-500">
+                <span class="flex items-center gap-1"><i class="fas fa-layer-group text-indigo-500"></i> Browse by Category</span>
+                <span id="picker-cat-count" class="text-indigo-600 font-bold"></span>
+            </div>
+            <div id="picker-category-tabs" class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <!-- Dynamically populated category pill tabs -->
             </div>
         </div>
 
@@ -397,6 +408,32 @@ function loadProducts(cb) {
     });
 }
 
+function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
+}
+
+function renderProductDropdownOptions(selectedId) {
+    const byCategory = {};
+    productList.forEach(p => {
+        const cat = (p.category || 'General').trim();
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(p);
+    });
+
+    let opts = '';
+    Object.keys(byCategory).sort().forEach(cat => {
+        opts += `<optgroup label="${esc(cat)}">`;
+        byCategory[cat].forEach(p => {
+            const cost = parseFloat(p.cost_price) || 0;
+            const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+            const costStr = cost > 0 ? ` (Purchase: PKR ${Number(cost).toLocaleString()} + 10%)` : '';
+            opts += `<option value="${esc(p.id)}" ${String(selectedId) === String(p.id) ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
+        });
+        opts += `</optgroup>`;
+    });
+    return opts;
+}
+
 function updateAllProductDropdowns() {
     $('.item-row').each(function() {
         const sel = $(this).find('.product-select');
@@ -404,12 +441,7 @@ function updateAllProductDropdowns() {
         const currentVal = sel.val();
         const hasCustomDesc = descInput.val() && descInput.val().trim() !== '';
 
-        const opts = productList.map(p => {
-            const cost = parseFloat(p.cost_price) || 0;
-            const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
-            const costStr = cost > 0 ? ` (Purchase: PKR ${Number(cost).toLocaleString()} + 10%)` : '';
-            return `<option value="${esc(p.id)}" ${String(currentVal) === String(p.id) ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
-        }).join('');
+        const opts = renderProductDropdownOptions(currentVal);
 
         const isCustom = currentVal === 'custom' || (!currentVal && hasCustomDesc);
         sel.html(`
@@ -428,17 +460,8 @@ function updateAllProductDropdowns() {
     });
 }
 
-function esc(value) {
-    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
-}
-
 function addItem(item = {}) {
-    const opts = productList.map(p => {
-        const cost = parseFloat(p.cost_price) || 0;
-        const rateWithProfit = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
-        const costStr = cost > 0 ? ` (Purchase: PKR ${Number(cost).toLocaleString()} + 10%)` : '';
-        return `<option value="${esc(p.id)}" ${item.product_id == p.id ? 'selected' : ''}>${esc(p.name)} - PKR ${Number(rateWithProfit).toLocaleString()}${costStr}</option>`;
-    }).join('');
+    const opts = renderProductDropdownOptions(item.product_id);
 
     const isCustom = !item.product_id && Boolean(item.description);
     let initPrice = item.unit_price;
@@ -756,15 +779,50 @@ $('#modal-companies-form').submit(function(e) {
     });
 });
 
+let selectedPickerCategory = 'all';
+
+function renderPickerCategoryTabs() {
+    const list = (currentPickerSource === 'products') ? productList : priceCache;
+    const catCounts = {};
+    let total = 0;
+
+    list.forEach(p => {
+        const c = (p.category || 'General').trim();
+        catCounts[c] = (catCounts[c] || 0) + 1;
+        total++;
+    });
+
+    const categories = Object.keys(catCounts).sort();
+    let html = `<button type="button" onclick="selectPickerCategory('all')" class="category-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${selectedPickerCategory === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">All (${total})</button>`;
+
+    categories.forEach(cat => {
+        const isSel = (selectedPickerCategory.toLowerCase() === cat.toLowerCase());
+        html += `<button type="button" onclick="selectPickerCategory('${esc(cat)}')" class="category-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${isSel ? 'bg-indigo-600 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${esc(cat)} (${catCounts[cat]})</button>`;
+    });
+
+    $('#picker-category-tabs').html(html);
+    $('#picker-cat-count').text(categories.length + ' Categories');
+}
+
+function selectPickerCategory(cat) {
+    selectedPickerCategory = cat;
+    renderPickerCategoryTabs();
+    loadPricePickerResults($('#price-search').val());
+}
+
 function showPricePicker(source = 'products') {
     $('#price-picker').removeClass('hidden').addClass('flex');
+    selectedPickerCategory = 'all';
     switchPickerSource(source);
     $('#price-search').val('').focus();
     if (source === 'products' && !productList.length) {
         $('#price-results').html('<p class="text-xs text-indigo-600 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i> Loading products from catalog...</p>');
         loadProducts(function() {
+            renderPickerCategoryTabs();
             loadPricePickerResults($('#price-search').val());
         });
+    } else {
+        renderPickerCategoryTabs();
     }
 }
 
@@ -774,6 +832,7 @@ function hidePricePicker() {
 
 function switchPickerSource(src) {
     currentPickerSource = src;
+    selectedPickerCategory = 'all';
     if (src === 'products') {
         $('#tab-btn-products').removeClass('bg-gray-50 text-gray-600').addClass('bg-indigo-600 text-white');
         $('#tab-btn-prices').removeClass('bg-indigo-600 text-white').addClass('bg-gray-50 text-gray-600');
@@ -791,18 +850,25 @@ function loadPricePickerResults(q) {
         if (!productList.length) {
             $('#price-results').html('<p class="text-xs text-indigo-600 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i> Loading products from catalog...</p>');
             loadProducts(function() {
+                renderPickerCategoryTabs();
                 loadPricePickerResults(q);
             });
             return;
         }
 
+        renderPickerCategoryTabs();
+
         const matches = productList.filter(p => {
+            const pCat = (p.category || 'General').toLowerCase().trim();
+            if (selectedPickerCategory !== 'all' && pCat !== selectedPickerCategory.toLowerCase().trim()) {
+                return false;
+            }
             if (!q) return true;
-            return (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q);
+            return (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || pCat.includes(q);
         });
 
         if (!matches.length) {
-            $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6"><i class="fas fa-inbox text-xl text-gray-300 block mb-2"></i>No matching products found in Product List.</p>');
+            $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6"><i class="fas fa-inbox text-xl text-gray-300 block mb-2"></i>No matching products found in category "' + esc(selectedPickerCategory) + '".</p>');
             return;
         }
 

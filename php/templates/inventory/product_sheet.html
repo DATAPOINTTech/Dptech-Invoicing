@@ -168,6 +168,17 @@
                 </div>
             </div>
 
+            <!-- Category Tabs Bar -->
+            <div class="px-4 py-2.5 bg-slate-50 border-b border-gray-200/80">
+                <div class="flex items-center justify-between mb-1 text-[11px] font-semibold text-gray-500">
+                    <span class="flex items-center gap-1.5"><i class="fas fa-layer-group text-emerald-600"></i> Browse by Category</span>
+                    <span id="sheet-cat-summary" class="text-emerald-700 font-bold"></span>
+                </div>
+                <div id="sheet-category-tabs" class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                    <!-- Dynamically populated category pill tabs -->
+                </div>
+            </div>
+
             <!-- Table -->
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
@@ -434,16 +445,37 @@ function updateStats() {
 }
 
 function populateCategoryFilter() {
-    const cats = Array.from(new Set(allProducts.map(p => p.category || 'General').filter(Boolean))).sort();
-    const curVal = $('#category-filter').val();
+    const catCounts = {};
+    allProducts.forEach(p => {
+        const c = (p.category || 'General').trim();
+        catCounts[c] = (catCounts[c] || 0) + 1;
+    });
+    const cats = Object.keys(catCounts).sort();
+    const curVal = $('#category-filter').val() || '';
+
     let opts = '<option value="">All Categories</option>';
     let datalistOpts = '';
     cats.forEach(c => {
-        opts += `<option value="${esc(c)}" ${curVal === c ? 'selected' : ''}>${esc(c)}</option>`;
+        opts += `<option value="${esc(c)}" ${curVal.toLowerCase() === c.toLowerCase() ? 'selected' : ''}>${esc(c)} (${catCounts[c]})</option>`;
         datalistOpts += `<option value="${esc(c)}">`;
     });
     $('#category-filter').html(opts);
     $('#cat-datalist').html(datalistOpts);
+
+    // Render Category Tabs
+    let tabHtml = `<button type="button" onclick="selectSheetCategory('')" class="sheet-cat-tab px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${!curVal ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}">All (${allProducts.length})</button>`;
+    cats.forEach(c => {
+        const isSel = (curVal.toLowerCase() === c.toLowerCase());
+        tabHtml += `<button type="button" onclick="selectSheetCategory('${esc(c)}')" class="sheet-cat-tab px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${isSel ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}">${esc(c)} (${catCounts[c]})</button>`;
+    });
+    $('#sheet-category-tabs').html(tabHtml);
+    $('#sheet-cat-summary').text(cats.length + ' Categories');
+}
+
+function selectSheetCategory(cat) {
+    $('#category-filter').val(cat);
+    populateCategoryFilter();
+    renderProductsTable();
 }
 
 function renderProductsTable() {
@@ -783,6 +815,7 @@ $('#product-form').submit(function(e) {
 function resetFilters() {
     $('#search-input').val('');
     $('#category-filter').val('');
+    populateCategoryFilter();
     renderProductsTable();
 }
 

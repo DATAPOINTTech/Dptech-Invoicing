@@ -89,15 +89,47 @@
         </div>
     </main>
 </div>
-<!-- Price List Picker Modal -->
-<div id="price-picker" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl mx-4 shadow-2xl">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">Add from Price List</h3>
-            <button type="button" onclick="hidePricePicker()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+<!-- Price List & Product Picker Modal -->
+<div id="price-picker" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl mx-auto shadow-2xl">
+        <div class="flex justify-between items-center mb-3">
+            <div>
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-boxes-stacked text-cyan-600"></i>
+                    <span>Product Catalog &amp; Live Rates</span>
+                </h3>
+                <p class="text-xs text-gray-500">Browse products category-wise or search live rates &bull; Click to add item</p>
+            </div>
+            <button type="button" onclick="hidePricePicker()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
         </div>
-        <input type="text" id="price-search" placeholder="Search items & accessories (e.g. laptop, cable, charger)..." class="w-full px-3 py-2 border rounded-lg text-sm mb-3 focus:ring-2 focus:ring-cyan-500 outline-none">
-        <div id="price-results" class="max-h-96 overflow-y-auto divide-y divide-gray-100"></div>
+
+        <div class="flex flex-col sm:flex-row gap-2 mb-2">
+            <div class="relative flex-1">
+                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                <input type="text" id="price-search" placeholder="Search products or prices (e.g. camera, nvr, cable)..." class="w-full pl-8 pr-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 outline-none">
+            </div>
+            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold shrink-0">
+                <button type="button" id="tab-btn-products" onclick="switchPickerSource('products')" class="px-3 py-2 bg-cyan-600 text-white flex items-center gap-1.5 transition-colors">
+                    <i class="fas fa-boxes-stacked text-[10px]"></i> Product Catalog
+                </button>
+                <button type="button" id="tab-btn-prices" onclick="switchPickerSource('prices')" class="px-3 py-2 bg-gray-50 text-gray-600 hover:bg-gray-100 flex items-center gap-1.5 transition-colors">
+                    <i class="fas fa-tags text-[10px]"></i> Daily Prices
+                </button>
+            </div>
+        </div>
+
+        <!-- Category Tabs Bar -->
+        <div class="mb-3">
+            <div class="flex items-center justify-between mb-1 text-[11px] font-semibold text-gray-500">
+                <span class="flex items-center gap-1"><i class="fas fa-layer-group text-cyan-500"></i> Browse by Category</span>
+                <span id="picker-cat-count" class="text-cyan-600 font-bold"></span>
+            </div>
+            <div id="picker-category-tabs" class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <!-- Dynamically populated category pill tabs -->
+            </div>
+        </div>
+
+        <div id="price-results" class="max-h-96 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-xl"></div>
     </div>
 </div>
 <!-- New Client Modal -->
@@ -166,38 +198,165 @@ function calcTotal(){
     if(tr>0){$('#display-tax-row').removeClass('hidden');$('#tax-rate-display').text(tr);}else{$('#display-tax-row').addClass('hidden');}
 }
 function esc(s){return escHtml(s);}
-let priceCache=[],priceSearchTimer;
-function showPricePicker(){
-    $('#price-search').val('');
-    $('#price-results').html('<p class="text-sm text-gray-400 text-center py-6">Loading price list...</p>');
-    $('#price-picker').removeClass('hidden').addClass('flex');
-    loadPricePickerResults('');
+let priceCache=[], productCache=[], priceSearchTimer, currentPickerSource = 'products', selectedPickerCategory = 'all';
+
+function renderPickerCategoryTabs() {
+    const list = (currentPickerSource === 'products') ? productCache : priceCache;
+    const catCounts = {};
+    let total = 0;
+
+    list.forEach(p => {
+        const c = (p.category || 'General').trim();
+        catCounts[c] = (catCounts[c] || 0) + 1;
+        total++;
+    });
+
+    const categories = Object.keys(catCounts).sort();
+    let html = `<button type="button" onclick="selectPickerCategory('all')" class="category-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${selectedPickerCategory === 'all' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">All (${total})</button>`;
+
+    categories.forEach(cat => {
+        const isSel = (selectedPickerCategory.toLowerCase() === cat.toLowerCase());
+        html += `<button type="button" onclick="selectPickerCategory('${esc(cat)}')" class="category-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${isSel ? 'bg-cyan-600 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${esc(cat)} (${catCounts[cat]})</button>`;
+    });
+
+    $('#picker-category-tabs').html(html);
+    $('#picker-cat-count').text(categories.length + ' Categories');
 }
-function hidePricePicker(){ $('#price-picker').addClass('hidden').removeClass('flex'); }
-function loadPricePickerResults(q){
-    $.ajax({url:'/api/prices?search='+encodeURIComponent(q),headers:{Authorization:'Bearer '+token}})
-    .done(function(items){
-        priceCache=items||[];
-        if(!priceCache.length){ $('#price-results').html('<p class="text-sm text-gray-400 text-center py-6">No price list items found.</p>'); return; }
-        $('#price-results').html(priceCache.map(function(p){
-            return `<button type="button" class="w-full text-left px-3 py-2.5 hover:bg-cyan-50 flex justify-between items-center gap-3" onclick="addPriceListItem(${Number(p.id)})">
-                <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-800 truncate">${esc(p.name)}</p>
-                    ${p.description?`<p class="text-xs text-gray-400 truncate">${esc(p.description)}</p>`:''}
+
+function selectPickerCategory(cat) {
+    selectedPickerCategory = cat;
+    renderPickerCategoryTabs();
+    loadPricePickerResults($('#price-search').val());
+}
+
+function showPricePicker(source = 'products') {
+    $('#price-search').val('');
+    selectedPickerCategory = 'all';
+    $('#price-picker').removeClass('hidden').addClass('flex');
+    switchPickerSource(source);
+}
+
+function hidePricePicker() {
+    $('#price-picker').addClass('hidden').removeClass('flex');
+}
+
+function switchPickerSource(src) {
+    currentPickerSource = src;
+    selectedPickerCategory = 'all';
+    if (src === 'products') {
+        $('#tab-btn-products').removeClass('bg-gray-50 text-gray-600').addClass('bg-cyan-600 text-white');
+        $('#tab-btn-prices').removeClass('bg-cyan-600 text-white').addClass('bg-gray-50 text-gray-600');
+    } else {
+        $('#tab-btn-prices').removeClass('bg-gray-50 text-gray-600').addClass('bg-cyan-600 text-white');
+        $('#tab-btn-products').removeClass('bg-cyan-600 text-white').addClass('bg-gray-50 text-gray-600');
+    }
+    loadPricePickerResults($('#price-search').val());
+}
+
+function loadPricePickerResults(q) {
+    q = (q || '').toLowerCase().trim();
+
+    if (currentPickerSource === 'products') {
+        if (!productCache.length) {
+            $('#price-results').html('<p class="text-xs text-cyan-600 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i> Loading products from catalog...</p>');
+            $.ajax({ url: '/api/products', headers: { Authorization: 'Bearer ' + token } }).done(function(prods) {
+                productCache = Array.isArray(prods) ? prods : [];
+                renderPickerCategoryTabs();
+                loadPricePickerResults(q);
+            }).fail(function() {
+                $('#price-results').html('<p class="text-xs text-red-500 text-center py-6">Failed to load product catalog.</p>');
+            });
+            return;
+        }
+
+        renderPickerCategoryTabs();
+
+        const matches = productCache.filter(p => {
+            const pCat = (p.category || 'General').toLowerCase().trim();
+            if (selectedPickerCategory !== 'all' && pCat !== selectedPickerCategory.toLowerCase().trim()) {
+                return false;
+            }
+            if (!q) return true;
+            return (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || pCat.includes(q);
+        });
+
+        if (!matches.length) {
+            $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6"><i class="fas fa-inbox text-xl text-gray-300 block mb-2"></i>No matching products in category "' + esc(selectedPickerCategory) + '".</p>');
+            return;
+        }
+
+        $('#price-results').html(matches.map(p => {
+            const cost = parseFloat(p.cost_price) || 0;
+            const rate = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+            return `<button type="button" class="w-full text-left px-4 py-3 hover:bg-cyan-50 flex justify-between items-center transition-all group" onclick="addCatalogProductItem(${Number(p.id)})">
+                <div class="min-w-0 pr-3">
+                    <p class="text-xs font-bold text-gray-900 group-hover:text-cyan-900">${esc(p.name)}</p>
+                    <div class="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 font-mono">
+                        <span>SKU: ${esc(p.sku || 'N/A')}</span>
+                        <span>&bull; ${esc(p.category || 'General')}</span>
+                        ${p.stock_quantity !== undefined ? `<span>&bull; Stock: ${Number(p.stock_quantity)}</span>` : ''}
+                    </div>
                 </div>
                 <div class="text-right shrink-0">
-                    <p class="text-sm font-semibold text-gray-800">PKR ${Number(p.unit_price).toLocaleString()}</p>
-                    <p class="text-xs text-gray-400">${esc(p.unit||'pcs')}</p>
+                    <p class="text-xs font-bold text-emerald-800">PKR ${Number(rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p class="text-[10px] text-gray-400">${esc(p.unit || 'pcs')}</p>
                 </div>
             </button>`;
         }).join(''));
-    })
-    .fail(function(){ $('#price-results').html('<p class="text-sm text-red-500 text-center py-6">Failed to load price list.</p>'); });
+        return;
+    }
+
+    // Daily Prices source
+    $.ajax({ url: '/api/prices?search=' + encodeURIComponent(q), headers: { Authorization: 'Bearer ' + token } })
+        .done(function(items) {
+            priceCache = items || [];
+            renderPickerCategoryTabs();
+
+            const matches = priceCache.filter(p => {
+                const pCat = (p.category || 'General').toLowerCase().trim();
+                if (selectedPickerCategory !== 'all' && pCat !== selectedPickerCategory.toLowerCase().trim()) {
+                    return false;
+                }
+                return true;
+            });
+
+            if (!matches.length) {
+                $('#price-results').html('<p class="text-xs text-gray-400 text-center py-6">No matching items in Daily Prices.</p>');
+                return;
+            }
+
+            $('#price-results').html(matches.map(function(p) {
+                return `<button type="button" class="w-full text-left px-4 py-3 hover:bg-cyan-50 flex justify-between items-center transition-all group" onclick="addPriceListItem(${Number(p.id)})">
+                    <div class="min-w-0 pr-3">
+                        <p class="text-xs font-bold text-gray-900 group-hover:text-cyan-900">${esc(p.name)}</p>
+                        <p class="text-[11px] text-gray-400">${esc(p.category || 'General')}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-xs font-bold text-gray-900">PKR ${Number(p.unit_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        <p class="text-[10px] text-gray-400">${esc(p.unit || 'pcs')}</p>
+                    </div>
+                </button>`;
+            }).join(''));
+        })
+        .fail(function() {
+            $('#price-results').html('<p class="text-xs text-red-500 text-center py-6">Failed to load price list.</p>');
+        });
 }
-function addPriceListItem(id){
-    const p=priceCache.find(function(x){return x.id===id;});
-    if(!p) return;
-    addItem({description:p.name,quantity:1,unit:p.unit||'pcs',unit_price:p.unit_price});
+
+function addCatalogProductItem(id) {
+    const p = productCache.find(x => x.id === id);
+    if (!p) return;
+    const cost = parseFloat(p.cost_price) || 0;
+    const rate = cost > 0 ? Math.round(cost * 1.10 * 100) / 100 : (parseFloat(p.unit_price) || 0);
+    addItem({ description: p.name, model_make: p.sku || '', quantity: 1, unit: p.unit || 'pcs', unit_price: rate });
+    calcTotal();
+    hidePricePicker();
+}
+
+function addPriceListItem(id) {
+    const p = priceCache.find(x => x.id === id);
+    if (!p) return;
+    addItem({ description: p.name, quantity: 1, unit: p.unit || 'pcs', unit_price: p.unit_price });
     calcTotal();
     hidePricePicker();
 }
