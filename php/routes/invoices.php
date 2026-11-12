@@ -26,7 +26,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         $user = require_authenticated_user($db);
         require_permission_for($db, $user, 'invoices', 'view');
         $status = $_GET['status'] ?? null;
-        $sql = 'SELECT i.*, c.name AS client_name, p.name AS project_name, p.description AS project_description FROM invoices i LEFT JOIN clients c ON c.id = i.client_id LEFT JOIN projects p ON p.id = i.project_id';
+        $sql = 'SELECT i.*, c.name AS client_name, p.name AS project_name, p.description AS project_description, e.estimate_no AS linked_estimate_no FROM invoices i LEFT JOIN clients c ON c.id = i.client_id LEFT JOIN projects p ON p.id = i.project_id LEFT JOIN estimates e ON e.id = i.estimate_id';
         $params = [];
         if ($status !== null && $status !== '') {
             if ($status === 'fbr_posted') {
@@ -214,9 +214,10 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         if ($sub === '' && $method === 'GET') {
             require_permission_for($db, $user, 'invoices', 'view');
             $stmt = $db->prepare('
-                SELECT i.*, c.name AS client_name, c.company AS client_company, c.email AS client_email, c.phone AS client_phone, c.mobile AS client_mobile, c.address AS client_address, c.city AS client_city, c.ntn AS client_ntn, c.strn AS client_strn
+                SELECT i.*, c.name AS client_name, c.company AS client_company, c.email AS client_email, c.phone AS client_phone, c.mobile AS client_mobile, c.address AS client_address, c.city AS client_city, c.ntn AS client_ntn, c.strn AS client_strn, e.estimate_no AS linked_estimate_no
                 FROM invoices i
                 LEFT JOIN clients c ON c.id = i.client_id
+                LEFT JOIN estimates e ON e.id = i.estimate_id
                 WHERE i.id = :id
             ');
             $stmt->execute(['id' => $invoiceId]);
@@ -674,9 +675,10 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         if ($sub === '/pdf' && $method === 'GET') {
             require_permission_for($db, $user, 'invoices', 'view');
             $stmt = $db->prepare('
-                SELECT i.*, c.name AS client_name, c.company AS client_company, c.email AS client_email, c.phone AS client_phone, c.mobile AS client_mobile, c.address AS client_address, c.city AS client_city, c.ntn AS client_ntn, c.strn AS client_strn
+                SELECT i.*, c.name AS client_name, c.company AS client_company, c.email AS client_email, c.phone AS client_phone, c.mobile AS client_mobile, c.address AS client_address, c.city AS client_city, c.ntn AS client_ntn, c.strn AS client_strn, e.estimate_no AS linked_estimate_no
                 FROM invoices i
                 LEFT JOIN clients c ON c.id = i.client_id
+                LEFT JOIN estimates e ON e.id = i.estimate_id
                 WHERE i.id = :id
             ');
             $stmt->execute(['id' => $invoiceId]);
@@ -719,9 +721,10 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             require_permission_for($db, $user, 'invoices', 'edit');
             $body = request_json();
             $stmt = $db->prepare('
-                SELECT i.*, c.name AS client_name, c.company AS client_company, c.email AS client_email, c.phone AS client_phone, c.mobile AS client_mobile, c.address AS client_address, c.city AS client_city, c.ntn AS client_ntn, c.strn AS client_strn
+                SELECT i.*, c.name AS client_name, c.company AS client_company, c.email AS client_email, c.phone AS client_phone, c.mobile AS client_mobile, c.address AS client_address, c.city AS client_city, c.ntn AS client_ntn, c.strn AS client_strn, e.estimate_no AS linked_estimate_no
                 FROM invoices i
                 LEFT JOIN clients c ON c.id = i.client_id
+                LEFT JOIN estimates e ON e.id = i.estimate_id
                 WHERE i.id = :id
             ');
             $stmt->execute(['id' => $invoiceId]);
@@ -818,6 +821,28 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $inv = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$inv) {
                 json_response(['detail' => 'Invoice not found'], 404);
+            }
+
+            // Check if estimate is already created and converted to this invoice, or already converted from this invoice
+            $existingEst = null;
+            if (!empty($inv['estimate_id'])) {
+                $eStmt = $db->prepare('SELECT id, estimate_no FROM estimates WHERE id = :eid');
+                $eStmt->execute(['eid' => (int) $inv['estimate_id']]);
+                $existingEst = $eStmt->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$existingEst && !empty($inv['invoice_no'])) {
+                $eStmt2 = $db->prepare("SELECT id, estimate_no FROM estimates WHERE notes LIKE :notePat LIMIT 1");
+                $eStmt2->execute(['notePat' => '%' . $inv['invoice_no'] . '%']);
+                $existingEst = $eStmt2->fetch(PDO::FETCH_ASSOC);
+            }
+
+            if ($existingEst) {
+                json_response([
+                    'detail' => 'Estimate already created (' . $existingEst['estimate_no'] . '). No duplicate estimate should be converted.',
+                    'estimate_already_created' => true,
+                    'estimate_id' => (int) $existingEst['id'],
+                    'estimate_no' => $existingEst['estimate_no'],
+                ], 400);
             }
 
             $itStmt = $db->prepare('SELECT * FROM invoice_items WHERE invoice_id = :id');

@@ -850,6 +850,8 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
             $coStmt = $db->prepare('SELECT * FROM companies WHERE id = :cid LIMIT 1');
             $coStmt->execute(['cid' => (int)$doc['company_id']]);
             $co = $coStmt->fetch(PDO::FETCH_ASSOC);
+            $coStmt->closeCursor();
+            unset($coStmt);
             if ($co) {
                 if (!empty($co['name'])) $companyName = (string)$co['name'];
                 if (!empty($co['address'])) $companyAddress = (string)$co['address'];
@@ -870,6 +872,8 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
             $coStmt = $db->prepare('SELECT * FROM companies WHERE name = :cname OR code = :cname LIMIT 1');
             $coStmt->execute(['cname' => (string)$doc['company_name']]);
             $co = $coStmt->fetch(PDO::FETCH_ASSOC);
+            $coStmt->closeCursor();
+            unset($coStmt);
             if ($co) {
                 if (!empty($co['name'])) $companyName = (string)$co['name'];
                 if (!empty($co['address'])) $companyAddress = (string)$co['address'];

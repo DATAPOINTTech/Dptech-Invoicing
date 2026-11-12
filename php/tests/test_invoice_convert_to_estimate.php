@@ -103,20 +103,22 @@ if (!$adminUser) {
 }
 $token = createAccessToken(['sub' => $adminUser['username']], app_secret_key());
 
-$workerCode = '
+function run_worker(string $code): string {
+    $file = __DIR__ . '/_worker_' . uniqid() . '.php';
+    file_put_contents($file, '<?php ' . $code);
+    $out = (string)shell_exec('php ' . escapeshellarg($file) . ' 2>&1');
+    @unlink($file);
+    return $out;
+}
+
+$output = run_worker('
 require_once "php/bootstrap.php";
 require_once "php/routes/invoices.php";
 $db = database_connection();
 $_SERVER["HTTP_AUTHORIZATION"] = "Bearer ' . $token . '";
 $_SERVER["REQUEST_METHOD"] = "POST";
 handle_invoices_routes("POST", "/api/invoices/' . $invoiceId . '/convert", $db);
-';
-
-$workerFile = __DIR__ . '/_worker_convert.php';
-file_put_contents($workerFile, '<?php ' . $workerCode);
-
-$output = shell_exec('php ' . escapeshellarg($workerFile));
-@unlink($workerFile);
+');
 
 $res = json_decode(trim((string)$output), true);
 if (empty($res) || empty($res['estimate_id'])) {
@@ -138,6 +140,8 @@ echo "2. Successfully executed POST /api/invoices/{$invoiceId}/convert -> Estima
 $stmtEst = $db->prepare('SELECT * FROM estimates WHERE id = :id');
 $stmtEst->execute(['id' => $estimateId]);
 $est = $stmtEst->fetch(PDO::FETCH_ASSOC);
+$stmtEst->closeCursor();
+unset($stmtEst);
 
 assert(!empty($est), "Created estimate must exist in database");
 assert((int)$est['client_id'] === $clientId, "client_id must match invoice");
@@ -157,6 +161,8 @@ echo "3. Verified Estimate record in DB (client, title, amounts, contacts matche
 $stmtItems = $db->prepare('SELECT * FROM estimate_items WHERE estimate_id = :id ORDER BY id ASC');
 $stmtItems->execute(['id' => $estimateId]);
 $items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+$stmtItems->closeCursor();
+unset($stmtItems);
 
 assert(count($items) === 2, "Estimate must have 2 items");
 assert($items[0]['description'] === 'Hikvision 4MP IP Dome Camera', "First item description matched");
@@ -185,20 +191,108 @@ echo "5. Verified PDF generation for converted estimate (size: " . strlen($pdf) 
 $stmtInv = $db->prepare('SELECT estimate_id FROM invoices WHERE id = :id');
 $stmtInv->execute(['id' => $invoiceId]);
 $linkedEstId = (int) $stmtInv->fetchColumn();
+$stmtInv->closeCursor();
+unset($stmtInv);
 assert($linkedEstId === $estimateId, "Invoice estimate_id must link to newly created estimate");
 
 echo "6. Verified Invoice linkage (invoice.estimate_id = {$estimateId})\n";
 
-// 8. Verify UI templates for "Convert to Estimate" elements
+// 7a. Test DUPLICATE prevention on same invoice
+$outputDup = run_worker('
+require_once "php/bootstrap.php";
+require_once "php/routes/invoices.php";
+$db = database_connection();
+$_SERVER["HTTP_AUTHORIZATION"] = "Bearer ' . $token . '";
+$_SERVER["REQUEST_METHOD"] = "POST";
+handle_invoices_routes("POST", "/api/invoices/' . $invoiceId . '/convert", $db);
+');
+
+$resDup = json_decode(trim((string)$outputDup), true);
+if (empty($resDup) && preg_match('/\{"detail".*\}/', (string)$outputDup, $matchesDup)) {
+    $resDup = json_decode($matchesDup[0], true);
+}
+assert(!empty($resDup), "Duplicate response must be valid JSON: " . $outputDup);
+assert(!empty($resDup['estimate_already_created']), "Response must flag estimate_already_created = true");
+assert(strpos($resDup['detail'], 'Estimate already created') !== false, "Error message must state 'Estimate already created'");
+assert(strpos($resDup['detail'], 'No duplicate estimate') !== false, "Error message must state 'No duplicate estimate'");
+echo "7. Verified duplicate prevention: Second convert attempt on Invoice #{$invNo} blocked with pop up error message\n";
+
+// 7b. Test Estimate -> Invoice -> Estimate conversion prevention
+// Create an estimate first
+$origEstNo = 'EST-ORIG-' . $unique;
+$insOrig = $db->prepare("
+    INSERT INTO estimates (
+        estimate_no, client_id, company_id, currency, title, estimate_date, valid_until,
+        subtotal, discount_percent, discount_amount, tax_rate, tax_amount, total_amount,
+        status, terms_conditions, notes, created_by
+    ) VALUES (
+        :no, :cid, 1, 'PKR', 'Orig Quote', :dt, :dt,
+        50000, 0, 0, 18, 9000, 59000,
+        'draft', 'terms', 'notes', 1
+    )
+");
+$insOrig->execute(['no' => $origEstNo, 'cid' => $clientId, 'dt' => date('Y-m-d')]);
+$origEstId = (int)$db->lastInsertId();
+$insOrig->closeCursor();
+unset($insOrig);
+
+$insOrigItem = $db->prepare("
+    INSERT INTO estimate_items (estimate_id, description, model_make, quantity, unit, unit_price, tax_rate, total_price)
+    VALUES (:eid, 'Test Item', 'Model', 1, 'pcs', 50000, 18, 50000)
+");
+$insOrigItem->execute(['eid' => $origEstId]);
+$insOrigItem->closeCursor();
+unset($insOrigItem);
+
+// Convert Estimate to Invoice
+$outputE2I = run_worker('
+require_once "php/bootstrap.php";
+require_once "php/routes/estimates.php";
+$db = database_connection();
+$_SERVER["HTTP_AUTHORIZATION"] = "Bearer ' . $token . '";
+$_SERVER["REQUEST_METHOD"] = "POST";
+handle_estimates_routes("POST", "/api/estimates/' . $origEstId . '/convert", $db);
+');
+
+$resE2I = json_decode(trim((string)$outputE2I), true);
+if (empty($resE2I) && preg_match('/\{"message".*\}/', (string)$outputE2I, $mE2I)) {
+    $resE2I = json_decode($mE2I[0], true);
+}
+assert(!empty($resE2I['invoice_id']), "Estimate must convert to invoice successfully: " . $outputE2I);
+$e2iInvoiceId = (int)$resE2I['invoice_id'];
+
+// Now attempt to convert this converted invoice back to an estimate
+$outputBack = run_worker('
+require_once "php/bootstrap.php";
+require_once "php/routes/invoices.php";
+$db = database_connection();
+$_SERVER["HTTP_AUTHORIZATION"] = "Bearer ' . $token . '";
+$_SERVER["REQUEST_METHOD"] = "POST";
+handle_invoices_routes("POST", "/api/invoices/' . $e2iInvoiceId . '/convert", $db);
+');
+
+$resBack = json_decode(trim((string)$outputBack), true);
+if (empty($resBack) && preg_match('/\{"detail".*\}/', (string)$outputBack, $mBack)) {
+    $resBack = json_decode($mBack[0], true);
+}
+assert(!empty($resBack), "Response must be valid JSON: " . $outputBack);
+assert(!empty($resBack['estimate_already_created']), "Converting converted invoice must flag estimate_already_created");
+assert($resBack['estimate_id'] === $origEstId, "Blocked estimate_id must match original estimate");
+echo "8. Verified Estimate -> Invoice -> Estimate conversion prevention: Invoice originating from Estimate #{$origEstNo} blocked from duplicate estimate conversion\n";
+
+// 9. Verify UI templates for "Convert to Estimate" elements
 $detailHtml = file_get_contents(__DIR__ . '/../templates/invoices/detail.html');
 assert(strpos($detailHtml, 'convertInvoiceToEstimate') !== false, "invoices/detail.html must contain convertInvoiceToEstimate()");
 assert(strpos($detailHtml, 'invoice-convert-estimate-btn') !== false, "invoices/detail.html must contain 'invoice-convert-estimate-btn' on the invoice card");
 assert(strpos($detailHtml, 'header-convert-estimate-btn') === false, "invoices/detail.html must NOT contain 'header-convert-estimate-btn' on top of page");
+assert(strpos($detailHtml, 'Estimate already created') !== false, "invoices/detail.html must check for 'Estimate already created'");
+assert(strpos($detailHtml, 'No duplicate estimate should be converted') !== false, "invoices/detail.html must state 'No duplicate estimate should be converted'");
 
 $listHtml = file_get_contents(__DIR__ . '/../templates/invoices/list.html');
 assert(strpos($listHtml, 'convert-to-estimate') !== false, "invoices/list.html must contain convert-to-estimate button class");
-assert(strpos($listHtml, 'Convert to Estimate') !== false, "invoices/list.html must contain 'Convert to Estimate' text in row button");
+assert(strpos($listHtml, 'Estimate already created') !== false, "invoices/list.html must check for 'Estimate already created'");
+assert(strpos($listHtml, 'No duplicate estimate should be converted') !== false, "invoices/list.html must state 'No duplicate estimate should be converted'");
 
-echo "7. Verified Web UI Templates (detail.html button placed directly in front of invoice and not on top of page, and list.html table row button verified)\n";
+echo "9. Verified Web UI Templates (detail.html and list.html have duplicate pop up alert, button badges, and prevent duplicate conversion)\n";
 
 echo "\n>>> ALL INVOICE TO ESTIMATE CONVERSION TESTS PASSED 100%! <<<\n";

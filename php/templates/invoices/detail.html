@@ -410,6 +410,7 @@ const token = localStorage.getItem('token');
 if (!token) window.location.href = '/login';
 const iid = {{ invoice_id }};
 let currentInvoiceBalance = 0;
+let currentInvoiceData = null;
 
 function fmt(n) {
     return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -421,8 +422,24 @@ function loadInvoice() {
         method: 'GET',
         headers: { Authorization: 'Bearer ' + token }
     }).done(function(inv) {
+        currentInvoiceData = inv;
         const curr = inv.currency || 'PKR';
         $('.curr-code').text(curr);
+
+        if (inv.estimate_id) {
+            const estNo = inv.linked_estimate_no ? (' #' + inv.linked_estimate_no) : '';
+            $('#invoice-convert-estimate-btn')
+                .removeClass('text-indigo-700 bg-indigo-50 border-indigo-300 hover:bg-indigo-100')
+                .addClass('text-emerald-800 bg-emerald-50 border-emerald-300 hover:bg-emerald-100')
+                .html(`<i class="fas fa-check-circle text-emerald-600"></i> Estimate${escHtml(estNo)} Created`)
+                .attr('title', `Estimate${estNo} already created for this invoice. Click to view.`);
+        } else {
+            $('#invoice-convert-estimate-btn')
+                .removeClass('text-emerald-800 bg-emerald-50 border-emerald-300 hover:bg-emerald-100')
+                .addClass('text-indigo-700 bg-indigo-50 border-indigo-300 hover:bg-indigo-100')
+                .html('<i class="fas fa-file-invoice text-indigo-600"></i> Convert to Estimate')
+                .attr('title', 'Convert this invoice to a new Estimate / Quotation');
+        }
 
         $('#inv-header-no').text(inv.invoice_no);
         $('#inv-no').text(inv.invoice_no);
@@ -823,6 +840,14 @@ function approveInvoice() {
 }
 
 function convertInvoiceToEstimate() {
+    if (currentInvoiceData && currentInvoiceData.estimate_id) {
+        const estNo = currentInvoiceData.linked_estimate_no ? (' (' + currentInvoiceData.linked_estimate_no + ')') : '';
+        alert('Estimate already created' + estNo + '. No duplicate estimate should be converted.');
+        if (confirm('Estimate already created' + estNo + '. Would you like to view this estimate now?')) {
+            window.location.href = '/estimates/' + currentInvoiceData.estimate_id;
+        }
+        return;
+    }
     if (!confirm('Convert this invoice to a new Estimate / Quotation?')) return;
     const btn = $('#invoice-convert-estimate-btn');
     btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Converting...');
@@ -834,8 +859,16 @@ function convertInvoiceToEstimate() {
         alert(res.message || ('Invoice converted to Estimate #' + res.estimate_no));
         window.location.href = '/estimates/' + res.estimate_id;
     }).fail(function(xhr) {
-        alert('Failed to convert: ' + (xhr.responseJSON?.detail || 'Error converting invoice'));
         btn.prop('disabled', false).html('<i class="fas fa-file-invoice"></i> Convert to Estimate');
+        if (xhr.status === 400 && xhr.responseJSON?.estimate_already_created) {
+            const eNo = xhr.responseJSON.estimate_no ? (' (' + xhr.responseJSON.estimate_no + ')') : '';
+            alert('Estimate already created' + eNo + '. No duplicate estimate should be converted.');
+            if (xhr.responseJSON.estimate_id && confirm('Estimate already created' + eNo + '. Would you like to open it now?')) {
+                window.location.href = '/estimates/' + xhr.responseJSON.estimate_id;
+            }
+            return;
+        }
+        alert('Failed to convert: ' + (xhr.responseJSON?.detail || 'Error converting invoice'));
     });
 }
 

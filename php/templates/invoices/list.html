@@ -97,7 +97,9 @@ function renderInvoices() {
             <td class="text-center">${fbrBadge(i.fbr_status, i.fbr_invoice_no)}</td>
             <td class="text-right">
                 <div class="flex gap-2 justify-end items-center">
-                <button class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded-lg shadow-xs transition convert-to-estimate" data-id="${Number(i.id)}" data-no="${escHtml(i.invoice_no)}" title="Convert invoice ${escHtml(i.invoice_no)} to Estimate"><i class="fas fa-file-invoice"></i> Convert to Estimate</button>
+                ${i.estimate_id 
+                    ? `<a href="/estimates/${Number(i.estimate_id)}" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg shadow-xs transition convert-to-estimate" data-id="${Number(i.id)}" data-no="${escHtml(i.invoice_no)}" data-estimate-id="${Number(i.estimate_id)}" data-estimate-no="${escHtml(i.linked_estimate_no || '')}" title="Estimate already created (${escHtml(i.linked_estimate_no || '#' + i.estimate_id)}). Click to view."><i class="fas fa-check-circle text-emerald-600"></i> Estimate ${escHtml(i.linked_estimate_no || 'Created')}</a>`
+                    : `<button class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded-lg shadow-xs transition convert-to-estimate" data-id="${Number(i.id)}" data-no="${escHtml(i.invoice_no)}" data-estimate-id="" data-estimate-no="" title="Convert invoice ${escHtml(i.invoice_no)} to Estimate"><i class="fas fa-file-invoice"></i> Convert to Estimate</button>`}
                 <a href="/invoices/${Number(i.id)}" class="btn btn-ghost btn-sm" title="View"><i class="fas fa-eye"></i></a>
                 <a href="/api/invoices/${Number(i.id)}/pdf?token=${encodeURIComponent(token)}" target="_blank" class="btn btn-ghost btn-sm text-red-500" title="PDF"><i class="fas fa-file-pdf"></i></a>
                 <a href="/invoices/${Number(i.id)}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
@@ -123,6 +125,17 @@ function load(){
 $(document).on('click', '.convert-to-estimate', function(e){
     e.preventDefault();
     const id=$(this).data('id'), no=$(this).data('no');
+    const estId=$(this).data('estimate-id'), estNo=$(this).data('estimate-no');
+
+    if (estId) {
+        const displayEst = estNo ? (' (' + estNo + ')') : (' (#' + estId + ')');
+        alert('Estimate already created' + displayEst + '. No duplicate estimate should be converted.');
+        if (confirm('Estimate already created' + displayEst + '. Would you like to view it now?')) {
+            window.location.href = '/estimates/' + estId;
+        }
+        return;
+    }
+
     if(!confirm('Convert invoice '+no+' to a new estimate / quotation?')) return;
     const btn = $(this);
     btn.prop('disabled', true);
@@ -134,8 +147,16 @@ $(document).on('click', '.convert-to-estimate', function(e){
         alert(res.message || ('Invoice converted to Estimate #' + res.estimate_no));
         window.location.href = '/estimates/' + res.estimate_id;
     }).fail(function(x){
-        alert('Failed to convert: ' + (x.responseJSON?.detail || 'Error'));
         btn.prop('disabled', false);
+        if (x.status === 400 && x.responseJSON?.estimate_already_created) {
+            const eNo = x.responseJSON.estimate_no ? (' (' + x.responseJSON.estimate_no + ')') : '';
+            alert('Estimate already created' + eNo + '. No duplicate estimate should be converted.');
+            if (x.responseJSON.estimate_id && confirm('Estimate already created' + eNo + '. Would you like to open it now?')) {
+                window.location.href = '/estimates/' + x.responseJSON.estimate_id;
+            }
+            return;
+        }
+        alert('Failed to convert: ' + (x.responseJSON?.detail || 'Error'));
     });
 });
 $(document).on('click', '.cancel-invoice', function(e){
