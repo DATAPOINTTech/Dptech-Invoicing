@@ -15,14 +15,28 @@
             {% endif %}
             <form id="invoice-form" class="space-y-4">
                 <input type="hidden" id="page-invoice-id" value="{{ invoice_id }}">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div><label class="block text-sm font-medium text-gray-700">Client *</label>
                         <select id="client_id" required class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select></div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-800">
+                            Currency
+                            <span class="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase tracking-wider">Currency</span>
+                        </label>
+                        <select id="currency" class="w-full px-3 py-2 border border-emerald-300 bg-emerald-50/40 rounded-lg text-sm font-bold text-gray-800 mt-1 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                            <option value="PKR" selected>PKR - Pakistani Rupee (Rs.)</option>
+                            <option value="USD">USD - US Dollar ($)</option>
+                            <option value="EUR">EUR - Euro (€)</option>
+                            <option value="GBP">GBP - British Pound (£)</option>
+                            <option value="AED">AED - UAE Dirham</option>
+                            <option value="SAR">SAR - Saudi Riyal</option>
+                        </select>
+                    </div>
                     <div><label class="block text-sm font-medium text-gray-700">Project</label>
                         <select id="project_id" class="w-full px-4 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">None (Standalone)</option></select></div>
                     <div><label class="block text-sm font-medium text-gray-700">Invoice Date</label><input type="date" id="invoice_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
                     <div><label class="block text-sm font-medium text-gray-700">Due Date</label><input type="date" id="due_date" class="w-full px-4 py-2 border rounded-lg text-sm mt-1"></div>
-                    <div class="col-span-1 md:col-span-4"><label class="block text-sm font-medium text-gray-700">Title / Section Banner</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., ACTIVE COMPONENTS-ZONE-1"></div>
+                    <div class="col-span-1 md:col-span-5"><label class="block text-sm font-medium text-gray-700">Title / Section Banner</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., ACTIVE COMPONENTS-ZONE-1"></div>
                 </div>
                 <div class="flex gap-4 items-center">
                     <div class="flex items-center gap-2">
@@ -42,10 +56,10 @@
                     </div>
                 </div>
                 <div class="border-t pt-4 text-right space-y-1">
-                    <p class="text-sm text-gray-600">Subtotal: PKR <span id="display-subtotal">0.00</span></p>
-                    <p id="display-tax-row" class="text-sm text-gray-600">GST (18%): PKR <span id="display-tax">0.00</span></p>
-                    <p id="display-wht" class="text-sm text-gray-600 hidden">WHT: -PKR <span>0.00</span></p>
-                    <p class="text-xl font-bold text-gray-800">Total: PKR <span id="display-total">0.00</span></p>
+                    <p class="text-sm text-gray-600">Subtotal: <span class="curr-code">PKR</span> <span id="display-subtotal">0.00</span></p>
+                    <p id="display-tax-row" class="text-sm text-gray-600">GST (<span id="tax-rate-display">18</span>%): <span class="curr-code">PKR</span> <span id="display-tax">0.00</span></p>
+                    <p id="display-wht" class="text-sm text-gray-600 hidden">WHT: -<span class="curr-code">PKR</span> <span>0.00</span></p>
+                    <p class="text-xl font-bold text-gray-800">Total: <span class="curr-code">PKR</span> <span id="display-total">0.00</span></p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
                     <div>
@@ -139,6 +153,8 @@ function addItem(data){
     calcTotal();
 }
 function calcTotal(){
+    const currCode = $('#currency').val() || 'PKR';
+    $('.curr-code').text(currCode);
     let subtotal=0;$('.item-row').each(function(){const qty=parseFloat($(this).find('[name=qty]').val())||0,price=parseFloat($(this).find('[name=price]').val())||0,rowTotal=qty*price;$(this).find('[name=row-total]').val(rowTotal.toFixed(2));subtotal+=rowTotal;});
     const disc=parseFloat($('#discount').val())||0;const afterDisc=subtotal*(1-disc/100);
     const tr=parseFloat($('#tax_rate').val())||0;const tax=afterDisc*(tr/100);
@@ -147,7 +163,7 @@ function calcTotal(){
     const total=afterDisc+tax+fed-wht;
     $('#display-subtotal').text(subtotal.toFixed(2));$('#display-tax').text(tax.toFixed(2));$('#display-total').text(total.toFixed(2));
     if($('#apply_wht').is(':checked')){$('#display-wht span').text(wht.toFixed(2));}
-    if(tr>0){$('#display-tax-row').removeClass('hidden');$('#display-tax-row').find('span:first').text('GST ('+tr+'%): PKR ');}else{$('#display-tax-row').addClass('hidden');}
+    if(tr>0){$('#display-tax-row').removeClass('hidden');$('#tax-rate-display').text(tr);}else{$('#display-tax-row').addClass('hidden');}
 }
 function esc(s){return escHtml(s);}
 let priceCache=[],priceSearchTimer;
@@ -304,6 +320,7 @@ $(function(){
                 $('#payment_terms').val(inv.payment_terms||'');
                 $('#notes').val(inv.notes||'');
                 if(inv.terms_conditions) $('#terms').val(inv.terms_conditions);
+                if(inv.currency) $('#currency').val(inv.currency);
                 if(inv.tax_rate>=0) $('#tax_rate').val(inv.tax_rate);
                 if(inv.wht_rate>0) $('#apply_wht').prop('checked',true);
                 if(inv.fed_rate>0) $('#apply_fed').prop('checked',true);
@@ -335,7 +352,7 @@ $(function(){
         addItem();
     }
     $(document).on('input','.qty-input,.price-input,#discount,#tax_rate',calcTotal);
-    $('#apply_wht,#apply_fed').on('change',calcTotal);
+    $('#apply_wht,#apply_fed,#currency').on('change',calcTotal);
     $('#client_id').on('change',function(){
         const val = $(this).val();
         if(val === 'new'){
@@ -367,6 +384,7 @@ $(function(){
         const data={
             client_id:parseInt($('#client_id').val()),
             project_id:parseInt($('#project_id').val())||null,
+            currency:$('#currency').val()||'PKR',
             invoice_date:$('#invoice_date').val(),
             due_date:$('#due_date').val()||null,
             title:$('#title').val().trim()||null,

@@ -83,8 +83,8 @@
                                 <th class="text-left px-4 py-3">Model / Make</th>
                                 <th class="text-right px-4 py-3">Qty</th>
                                 <th class="text-right px-4 py-3">Unit</th>
-                                <th class="text-right px-4 py-3">Unit Price</th>
-                                <th class="text-right px-4 py-3">Total Amount</th>
+                                <th class="text-right px-4 py-3">Unit Price (<span class="curr-code">PKR</span>)</th>
+                                <th class="text-right px-4 py-3">Total Amount (<span class="curr-code">PKR</span>)</th>
                             </tr>
                         </thead>
                         <tbody id="items-body" class="divide-y divide-gray-100 text-sm"></tbody>
@@ -103,7 +103,7 @@
                         <div class="w-80 space-y-2">
                             <div class="flex justify-between text-sm text-gray-600">
                                 <span>Total Amount:</span>
-                                <span>PKR <span id="est-subtotal" class="font-semibold text-gray-800">0.00</span></span>
+                                <span><span class="curr-code">PKR</span> <span id="est-subtotal" class="font-semibold text-gray-800">0.00</span></span>
                             </div>
                             <div class="flex justify-between text-sm text-gray-600" id="row-discount">
                                 <span>Discount:</span>
@@ -111,11 +111,11 @@
                             </div>
                             <div class="flex justify-between text-sm text-gray-600">
                                 <span>Tax (<span id="tax-percent-label">18</span>% GST):</span>
-                                <span id="gst-label-color" class="font-bold text-red-600">PKR <span id="est-tax">0.00</span></span>
+                                <span id="gst-label-color" class="font-bold text-red-600"><span class="curr-code">PKR</span> <span id="est-tax">0.00</span></span>
                             </div>
                             <div id="grand-total-card" class="flex justify-between text-base font-extrabold p-3.5 rounded-xl shadow-sm text-white bg-slate-900 transition-all">
                                 <span>Grand Total:</span>
-                                <span>PKR <span id="est-total">0.00</span></span>
+                                <span><span class="curr-code">PKR</span> <span id="est-total">0.00</span></span>
                             </div>
                         </div>
                     </div>
@@ -259,6 +259,9 @@ $.ajax({
     method: 'GET',
     headers: { Authorization: 'Bearer ' + token }
 }).done(function(e) {
+    const curr = e.currency || 'PKR';
+    $('.curr-code').text(curr);
+
     const themeKey = getCompanyThemeKey(e);
     applyTheme(themeKey);
 
@@ -316,7 +319,7 @@ $.ajax({
                 <a href="/estimates/${Number(sib.id)}" class="px-3.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-2 ${cls}">
                     <span class="w-2.5 h-2.5 rounded-full ${dotColor} shrink-0"></span>
                     <span>${esc(sib.company_name)}</span>
-                    <span class="text-[10px] opacity-80">(PKR ${Number(sib.total_amount).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
+                    <span class="text-[10px] opacity-80">(${esc(sib.currency || curr)} ${Number(sib.total_amount).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
                     ${isCurrent ? '<i class="fas fa-check-circle ml-0.5 text-emerald-600"></i>' : ''}
                 </a>
             `;
@@ -354,14 +357,14 @@ $.ajax({
             <td class="px-4 py-3 text-gray-600">${esc(i.model_make || '-')}</td>
             <td class="px-4 py-3 text-right text-gray-600">${esc(i.quantity)}</td>
             <td class="px-4 py-3 text-right text-gray-500">${esc(i.unit || 'pcs')}</td>
-            <td class="px-4 py-3 text-right text-gray-600 font-mono">PKR ${Number(i.unit_price).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-            <td class="px-4 py-3 text-right font-bold text-gray-800 font-mono">PKR ${lineTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td class="px-4 py-3 text-right text-gray-600 font-mono">${esc(curr)} ${Number(i.unit_price).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td class="px-4 py-3 text-right font-bold text-gray-800 font-mono">${esc(curr)} ${lineTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
         </tr>
     `;}).join(''));
 
     $('#est-subtotal').text(Number(e.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     if (e.discount_percent > 0) {
-        $('#est-discount').text(`${e.discount_percent}% (-PKR ${Number(e.discount_amount||0).toLocaleString(undefined,{minimumFractionDigits:2})})`);
+        $('#est-discount').text(`${e.discount_percent}% (-${curr} ${Number(e.discount_amount||0).toLocaleString(undefined,{minimumFractionDigits:2})})`);
     } else {
         $('#est-discount').text('0.00');
     }

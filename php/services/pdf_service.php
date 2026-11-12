@@ -940,6 +940,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     }
 
     $theme = get_company_color_theme($doc);
+    $currency = !empty($doc['currency']) ? strtoupper(trim((string)$doc['currency'])) : 'PKR';
     $pdf = new DpPdfEngine($theme, $companyName, $companyPhone, $companyNtn, $companyEmail, $companyWebsite, $companyWhatsapp);
 
     // Margins: left=36, right=36, bottom=85, top=25
@@ -1215,7 +1216,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $colRate = 55.0;
     $colTotal = $width - $colNum - $colDesc - $colModel - $colUnit - $colQty - $colRate; // 69.28 pt
 
-    $drawTableHeader = function(DpPdfEngine $p) use ($left, $width, $colNum, $colDesc, $colModel, $colUnit, $colQty, $colRate, $colTotal, $theme) {
+    $drawTableHeader = function(DpPdfEngine $p) use ($left, $width, $colNum, $colDesc, $colModel, $colUnit, $colQty, $colRate, $colTotal, $theme, $currency) {
         $y = $p->getY();
         $p->setFillColorArray($theme['header_bg']);
         $p->drawRect($left, $y - 18.0, $width, 18.0, true, false);
@@ -1242,9 +1243,9 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $x += $colUnit;
         $p->drawText($x, $y - 13.0, 'Qty', 'F2', 8.0, 'center', $colQty);
         $x += $colQty;
-        $p->drawText($x, $y - 13.0, 'Rate (PKR)', 'F2', 8.0, 'right', $colRate - 3.0);
+        $p->drawText($x, $y - 13.0, 'Rate (' . $currency . ')', 'F2', 8.0, 'right', $colRate - 3.0);
         $x += $colRate;
-        $p->drawText($x, $y - 13.0, 'Total (PKR)', 'F2', 8.0, 'right', $colTotal - 4.0);
+        $p->drawText($x, $y - 13.0, 'Total (' . $currency . ')', 'F2', 8.0, 'right', $colTotal - 4.0);
 
         $p->setY($y - 18.0);
     };
@@ -1389,7 +1390,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $pdf->setFillColorArray($theme['total_bar_bg']);
     $pdf->drawRect($barX, $y - 16.0, $barW, 19.0, true, false);
     $pdf->setFillColor(1, 1, 1);
-    $pdf->drawText($barX + 8.0, $y - 12.0, 'GRAND TOTAL (PKR)', 'F2', 10.0);
+    $pdf->drawText($barX + 8.0, $y - 12.0, 'GRAND TOTAL (' . $currency . ')', 'F2', 10.0);
     $pdf->drawText($barX, $y - 12.0, number_format($totalAmount, 2), 'F2', 10.5, 'right', $barW - 8.0);
     $y -= 26.0;
 

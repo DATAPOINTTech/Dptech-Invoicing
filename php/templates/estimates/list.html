@@ -299,7 +299,7 @@ if (!token) {
                 <td><span class="text-slate-800 text-xs font-semibold whitespace-nowrap">${clientName}</span></td>
                 <td class="max-w-xs">${purposeHtml}</td>
                 <td class="text-slate-500 text-xs whitespace-nowrap">${estimateDate}</td>
-                <td class="text-right font-bold text-slate-900 whitespace-nowrap">PKR ${Number.isFinite(total) ? total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '0.00'}</td>
+                <td class="text-right font-bold text-slate-900 whitespace-nowrap">${esc(e.currency || 'PKR')} ${Number.isFinite(total) ? total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '0.00'}</td>
                 <td class="text-center">${statusBadge(status)}</td>
                 <td class="text-right">
                     <div class="flex gap-1.5 justify-end">

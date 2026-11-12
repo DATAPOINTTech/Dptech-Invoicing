@@ -91,8 +91,8 @@ function renderInvoices() {
             <td class="font-semibold text-slate-800 whitespace-nowrap">${escHtml(i.client_name || '-')}</td>
             <td class="max-w-xs">${purposeHtml}</td>
             <td class="text-slate-500 whitespace-nowrap">${escHtml(i.invoice_date || '-')}</td>
-            <td class="text-right font-medium">PKR ${Number(i.total_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-            <td class="text-right ${Number(i.balance_due || 0)>0?'text-red-600 font-semibold':'text-green-600'}">PKR ${Number(i.balance_due || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="text-right font-medium">${escHtml(i.currency || 'PKR')} ${Number(i.total_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="text-right ${Number(i.balance_due || 0)>0?'text-red-600 font-semibold':'text-green-600'}">${escHtml(i.currency || 'PKR')} ${Number(i.balance_due || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             <td class="text-center">${statusBadge(i.status)}</td>
             <td class="text-center">${fbrBadge(i.fbr_status, i.fbr_invoice_no)}</td>
             <td class="text-right">

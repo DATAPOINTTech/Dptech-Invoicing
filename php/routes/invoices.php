@@ -98,6 +98,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         if ($terms === null || $terms === '') {
             $terms = !empty($company['terms']) ? trim((string)$company['terms']) : "1. Payment: Net 30 days\n2. Prices include standard GST as per Pakistan tax law\n3. Validity: 15 days from date\n4. Goods once sold are subject to manufacturer warranty.";
         }
+        $currency = !empty($body['currency']) ? strtoupper(trim((string)$body['currency'])) : 'PKR';
 
         $stmt = $db->prepare('
             INSERT INTO invoices (
@@ -106,7 +107,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 withholding_tax_rate, withholding_tax_amount, fed_rate, fed_amount,
                 total_amount, amount_paid, balance_due, payment_terms, notes, terms_conditions,
                 company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp,
-                company_address, company_ntn, company_strn,
+                company_address, company_ntn, company_strn, currency,
                 created_by, created_at, updated_at
             ) VALUES (
                 :no, :cid, :eid, :pid, :title, :idate, :ddate,
@@ -114,7 +115,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 :wht_r, :wht_a, :fed_r, :fed_a,
                 :total, 0, :total, :pterms, :notes, :terms,
                 :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp,
-                :coaddr, :conntn, :costrn,
+                :coaddr, :conntn, :costrn, :currency,
                 :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
         ');
@@ -150,6 +151,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             'coaddr' => $company['address'] ?? env_value('COMPANY_ADDRESS', 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh'),
             'conntn' => $company['ntn'] ?? null,
             'costrn' => $company['strn'] ?? null,
+            'currency' => $currency,
             'uid' => $user->id,
         ]);
         $invoiceId = (int) $db->lastInsertId();
@@ -581,6 +583,8 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                     $st = ($newBal <= 0.0) ? 'paid' : ($curPaid > 0 ? 'partially_paid' : 'draft');
                 }
 
+                $currency = array_key_exists('currency', $body) && !empty($body['currency']) ? strtoupper(trim((string)$body['currency'])) : ($curr['currency'] ?? 'PKR');
+
                 $upd = $db->prepare('
                     UPDATE invoices SET
                         client_id = :cid,
@@ -603,6 +607,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                         total_amount = :total,
                         balance_due = :bal,
                         status = :st,
+                        currency = :currency,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id
                 ');
@@ -627,6 +632,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                     'total' => $totals['total_amount'],
                     'bal' => $newBal,
                     'st' => $st,
+                    'currency' => $currency,
                     'id' => $invoiceId,
                 ]);
 
@@ -637,6 +643,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                     'balance_due' => $newBal,
                 ]);
             } else {
+                $currency = array_key_exists('currency', $body) && !empty($body['currency']) ? strtoupper(trim((string)$body['currency'])) : ($curr['currency'] ?? 'PKR');
                 $upd = $db->prepare('
                     UPDATE invoices SET
                         client_id = :cid,
@@ -645,6 +652,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                         payment_terms = :pterms,
                         notes = :notes,
                         terms_conditions = :terms,
+                        currency = :currency,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id
                 ');
@@ -655,6 +663,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                     'pterms' => $paymentTerms,
                     'notes' => $notes,
                     'terms' => $terms,
+                    'currency' => $currency,
                     'id' => $invoiceId,
                 ]);
 
@@ -849,14 +858,14 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                     total_amount, terms_conditions, notes, created_by,
                     company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp,
                     company_address, company_ntn, company_strn,
-                    batch_id, markup_percent, created_at, updated_at
+                    batch_id, markup_percent, currency, created_at, updated_at
                 ) VALUES (
                     :no, :cid, :pid, :title, :edate, :vdate,
                     :status, :subtotal, :disc_pct, :disc_amt, :tr, :ta,
                     :total, :terms, :notes, :uid,
                     :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp,
                     :coaddr, :conntn, :costrn,
-                    NULL, 0.0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    NULL, 0.0, :currency, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
             ');
             $insEst->execute([
@@ -886,6 +895,7 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 'coaddr' => $inv['company_address'] ?? null,
                 'conntn' => $inv['company_ntn'] ?? null,
                 'costrn' => $inv['company_strn'] ?? null,
+                'currency' => !empty($inv['currency']) ? $inv['currency'] : 'PKR',
             ]);
             $estimateId = (int) $db->lastInsertId();
 

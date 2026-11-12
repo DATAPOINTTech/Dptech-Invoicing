@@ -372,6 +372,7 @@ CREATE TABLE IF NOT EXISTS estimates (
 	tax_rate FLOAT DEFAULT 18.0,
 	tax_amount FLOAT DEFAULT 0,
 	total_amount FLOAT DEFAULT 0,
+	currency VARCHAR(10) DEFAULT 'PKR',
 	terms_conditions TEXT,
 	notes TEXT,
 	created_by INTEGER,
@@ -416,6 +417,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 	total_amount FLOAT DEFAULT 0,
 	amount_paid FLOAT DEFAULT 0,
 	balance_due FLOAT DEFAULT 0,
+	currency VARCHAR(10) DEFAULT 'PKR',
 	payment_terms VARCHAR(200),
 	notes TEXT,
 	terms_conditions TEXT,
@@ -574,24 +576,39 @@ SQL);
             'company_strn' => 'VARCHAR(50)',
             'batch_id' => 'VARCHAR(50)',
             'markup_percent' => 'FLOAT DEFAULT 0.0',
+            'currency' => "VARCHAR(10) DEFAULT 'PKR'",
         ];
 
         foreach (['estimates', 'invoices'] as $tbl) {
             if (!db_table_exists($db, $tbl)) {
                 continue;
             }
-            $cols = $db->query("PRAGMA table_info({$tbl})")->fetchAll(PDO::FETCH_ASSOC);
-            $colNames = array_column($cols, 'name');
+            if ($driver === 'sqlite') {
+                $cols = $db->query("PRAGMA table_info({$tbl})")->fetchAll(PDO::FETCH_ASSOC);
+                $colNames = array_column($cols, 'name');
 
-            foreach ($neededCols as $col => $type) {
-                if ($tbl === 'invoices' && ($col === 'batch_id' || $col === 'markup_percent')) {
-                    continue;
+                foreach ($neededCols as $col => $type) {
+                    if ($tbl === 'invoices' && ($col === 'batch_id' || $col === 'markup_percent')) {
+                        continue;
+                    }
+                    if (!in_array($col, $colNames, true)) {
+                        try {
+                            $db->exec("ALTER TABLE {$tbl} ADD COLUMN {$col} {$type}");
+                        } catch (Throwable $e) {
+                            // Column might already exist
+                        }
+                    }
                 }
-                if (!in_array($col, $colNames, true)) {
-                    try {
-                        $db->exec("ALTER TABLE {$tbl} ADD COLUMN {$col} {$type}");
-                    } catch (Throwable $e) {
-                        // Column might already exist
+            } elseif ($driver === 'mysql') {
+                foreach ($neededCols as $col => $type) {
+                    if ($tbl === 'invoices' && ($col === 'batch_id' || $col === 'markup_percent')) {
+                        continue;
+                    }
+                    $chk = $db->query("SHOW COLUMNS FROM `{$tbl}` LIKE '{$col}'")->fetch();
+                    if (!$chk) {
+                        try {
+                            $db->exec("ALTER TABLE `{$tbl}` ADD COLUMN `{$col}` {$type}");
+                        } catch (Throwable $e) {}
                     }
                 }
             }

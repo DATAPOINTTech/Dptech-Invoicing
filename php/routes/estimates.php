@@ -49,6 +49,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
         $terms = $body['terms_conditions'] ?? null;
         $notes = $body['notes'] ?? null;
         $projectId = !empty($body['project_id']) ? (int) $body['project_id'] : null;
+        $currency = !empty($body['currency']) ? strtoupper(trim((string)$body['currency'])) : 'PKR';
 
         // Check multi-company flag (defaults to true if not explicitly set to false)
         $isMultiCompany = !array_key_exists('multi_company', $body) || (bool) $body['multi_company'];
@@ -121,13 +122,13 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         status, subtotal, discount_percent, discount_amount, tax_rate, tax_amount,
                         total_amount, terms_conditions, notes, created_by,
                         company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp, company_address, company_ntn, company_strn,
-                        batch_id, markup_percent, created_at, updated_at
+                        batch_id, markup_percent, currency, created_at, updated_at
                     ) VALUES (
                         :no, :cid, :pid, :title, :edate, :vdate,
                         :status, :subtotal, :disc_pct, :disc_amt, :tax_rate, :tax_amt,
                         :total, :terms, :notes, :uid,
                         :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp, :coaddr, :conntn, :costrn,
-                        :bid, :markup, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                        :bid, :markup, :currency, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                 ');
                 $stmt->execute([
@@ -159,6 +160,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     'costrn' => $co['strn'] ?? null,
                     'bid' => $batchId,
                     'markup' => $markupPct,
+                    'currency' => $currency,
                 ]);
                 $estId = (int) $db->lastInsertId();
 
@@ -268,13 +270,13 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 status, subtotal, discount_percent, discount_amount, tax_rate, tax_amount,
                 total_amount, terms_conditions, notes, created_by,
                 company_id, company_name, company_logo, company_phone, company_email, company_website, company_whatsapp, company_address, company_ntn, company_strn,
-                batch_id, markup_percent, created_at, updated_at
+                batch_id, markup_percent, currency, created_at, updated_at
             ) VALUES (
                 :no, :cid, :pid, :title, :edate, :vdate,
                 :status, :subtotal, :disc_pct, :disc_amt, :tax_rate, :tax_amt,
                 :total, :terms, :notes, :uid,
                 :coid, :coname, :cologo, :cophone, :coemail, :cowebsite, :cowhatsapp, :coaddr, :conntn, :costrn,
-                NULL, :markup, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                NULL, :markup, :currency, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
         ');
         $stmt->execute([
@@ -305,6 +307,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
             'conntn' => $co['ntn'] ?? null,
             'costrn' => $co['strn'] ?? null,
             'markup' => $markupPct,
+            'currency' => $currency,
         ]);
         $estimateId = (int) $db->lastInsertId();
 
@@ -462,7 +465,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     withholding_tax_rate, withholding_tax_amount, fed_rate, fed_amount,
                     total_amount, amount_paid, balance_due, payment_terms, notes, terms_conditions,
                     company_id, company_name, company_logo, company_phone, company_email,
-                    company_address, company_ntn, company_strn,
+                    company_address, company_ntn, company_strn, currency,
                     created_by, created_at, updated_at
                 ) VALUES (
                     :no, :cid, :eid, :pid, :title, :idate, :ddate,
@@ -470,7 +473,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     0, 0, 0, 0,
                     :total, 0, :total, :pterms, :notes, :terms,
                     :coid, :coname, :cologo, :cophone, :coemail,
-                    :coaddr, :conntn, :costrn,
+                    :coaddr, :conntn, :costrn, :currency,
                     :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
             ');
@@ -500,6 +503,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 'coaddr' => $est['company_address'] ?? null,
                 'conntn' => $est['company_ntn'] ?? null,
                 'costrn' => $est['company_strn'] ?? null,
+                'currency' => !empty($est['currency']) ? $est['currency'] : 'PKR',
                 'uid' => $user->id,
             ]);
             $invoiceId = (int) $db->lastInsertId();
@@ -660,6 +664,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                 $coAddrVal = $coToSave ? ($coToSave['address'] ?? null) : ($curr['company_address'] ?? null);
                 $coNtnVal = $coToSave ? ($coToSave['ntn'] ?? null) : ($curr['company_ntn'] ?? null);
                 $coStrnVal = $coToSave ? ($coToSave['strn'] ?? null) : ($curr['company_strn'] ?? null);
+                $currCurrency = array_key_exists('currency', $body) && !empty($body['currency']) ? strtoupper(trim((string)$body['currency'])) : ($curr['currency'] ?? 'PKR');
 
                 // Update current estimate header and totals
                 $updCurr = $db->prepare('
@@ -685,6 +690,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                         company_address = :coaddr,
                         company_ntn = :conntn,
                         company_strn = :costrn,
+                        currency = :currency,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id
                 ');
@@ -710,6 +716,7 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                     'coaddr' => $coAddrVal,
                     'conntn' => $coNtnVal,
                     'costrn' => $coStrnVal,
+                    'currency' => $currCurrency,
                     'id' => $estimateId,
                 ]);
 
@@ -761,7 +768,25 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                             ]);
                         }
 
-                        $updCurr->execute([
+                        $updSib = $db->prepare('
+                            UPDATE estimates SET
+                                client_id = :cid,
+                                title = :title,
+                                estimate_date = :edate,
+                                valid_until = :vdate,
+                                discount_percent = :disc_pct,
+                                discount_amount = :disc_amt,
+                                tax_rate = :tax_rate,
+                                tax_amount = :tax_amt,
+                                subtotal = :subtotal,
+                                total_amount = :total,
+                                terms_conditions = :terms,
+                                notes = :notes,
+                                currency = :currency,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = :id
+                        ');
+                        $updSib->execute([
                             'cid' => $clientId,
                             'title' => $title,
                             'edate' => $date,
@@ -774,19 +799,20 @@ function handle_estimates_routes(string $method, string $path, PDO $db): bool
                             'total' => $sibTotals['total_amount'],
                             'terms' => $terms,
                             'notes' => $notes,
+                            'currency' => $currCurrency,
                             'id' => $sibId,
                         ]);
                     }
                 }
             } else {
                 // Scalar update only
-                $allowed = ['title', 'estimate_date', 'valid_until', 'discount_percent', 'tax_rate', 'terms_conditions', 'notes', 'client_id', 'project_id'];
+                $allowed = ['title', 'estimate_date', 'valid_until', 'discount_percent', 'tax_rate', 'terms_conditions', 'notes', 'client_id', 'project_id', 'currency'];
                 $updates = [];
                 $values = ['id' => $estimateId];
                 foreach ($allowed as $f) {
                     if (array_key_exists($f, $body)) {
                         $updates[] = "{$f} = :{$f}";
-                        $values[$f] = $body[$f];
+                        $values[$f] = $f === 'currency' ? strtoupper(trim((string)$body[$f])) : $body[$f];
                     }
                 }
                 if ($updates !== []) {

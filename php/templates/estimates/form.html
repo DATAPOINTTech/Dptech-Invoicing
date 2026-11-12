@@ -45,7 +45,7 @@
 
             <form id="estimate-form" class="space-y-4">
                 <input type="hidden" id="page-estimate-id" value="{{ estimate_id }}">
-                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-800">
                             Primary Company *
@@ -60,6 +60,20 @@
                         <select id="client_id" required class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"><option value="">Select Client</option></select>
                     </div>
                     <div>
+                        <label class="block text-sm font-semibold text-gray-800">
+                            Currency
+                            <span class="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase tracking-wider">Currency</span>
+                        </label>
+                        <select id="currency" class="w-full px-3 py-2 border border-emerald-300 bg-emerald-50/40 rounded-lg text-sm font-bold text-gray-800 mt-1 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                            <option value="PKR" selected>PKR - Pakistani Rupee (Rs.)</option>
+                            <option value="USD">USD - US Dollar ($)</option>
+                            <option value="EUR">EUR - Euro (€)</option>
+                            <option value="GBP">GBP - British Pound (£)</option>
+                            <option value="AED">AED - UAE Dirham</option>
+                            <option value="SAR">SAR - Saudi Riyal</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700">Project</label>
                         <select id="project_id" class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none">
                             <option value="">None (Standalone)</option>
@@ -67,7 +81,7 @@
                     </div>
                     <div><label class="block text-sm font-medium text-gray-700">Estimate Date</label><input type="date" id="estimate_date" class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
                     <div><label class="block text-sm font-medium text-gray-700">Valid Until</label><input type="date" id="valid_until" class="w-full px-3 py-2 border rounded-lg text-sm mt-1 focus:ring-2 focus:ring-cyan-500 outline-none"></div>
-                    <div class="col-span-1 md:col-span-3 lg:col-span-5"><label class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., IT Equipment Supply & Setup"></div>
+                    <div class="col-span-1 md:col-span-3 lg:col-span-6"><label class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title" class="w-full px-4 py-2 border rounded-lg text-sm mt-1" placeholder="e.g., IT Equipment Supply & Setup"></div>
                 </div>
 
                 <div class="border-t pt-4">
@@ -108,9 +122,9 @@
                         </div>
                     </div>
                     <div class="text-right pt-2">
-                        <p class="text-sm text-gray-500">Total Amount (Items): <span id="display-subtotal" class="font-semibold text-gray-800">0.00</span></p>
-                        <p class="text-sm text-gray-500" id="display-tax-row">Tax (<span class="tax-label">18%</span>): <span id="display-tax" class="font-semibold text-gray-800">0.00</span></p>
-                        <p class="text-lg font-bold text-gray-800">Grand Total: PKR <span id="display-total">0.00</span></p>
+                        <p class="text-sm text-gray-500">Total Amount (Items): <span class="curr-code">PKR</span> <span id="display-subtotal" class="font-semibold text-gray-800">0.00</span></p>
+                        <p class="text-sm text-gray-500" id="display-tax-row">Tax (<span class="tax-label">18%</span>): <span class="curr-code">PKR</span> <span id="display-tax" class="font-semibold text-gray-800">0.00</span></p>
+                        <p class="text-lg font-bold text-gray-800">Grand Total: <span class="curr-code">PKR</span> <span id="display-total">0.00</span></p>
                     </div>
                 </div>
 
@@ -163,7 +177,7 @@
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-200 text-indigo-900 flex items-center gap-1" id="mc-co1-badge"><i class="fas fa-star text-amber-500 text-[9px]"></i> Option 1 (Primary)</span>
                             </div>
                             <p class="text-[11px] text-indigo-700">Main Quotation (0% Base Rate)</p>
-                            <p class="text-base font-extrabold text-indigo-950 mt-2">PKR <span id="mc-co1-total">0.00</span></p>
+                            <p class="text-base font-extrabold text-indigo-950 mt-2"><span class="curr-code">PKR</span> <span id="mc-co1-total">0.00</span></p>
                         </div>
 
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
@@ -175,7 +189,7 @@
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800" id="mc-co2-badge">Option 2 (+2%)</span>
                             </div>
                             <p class="text-[11px] text-gray-500">Supporting Quotation (+2% Markup)</p>
-                            <p class="text-base font-extrabold text-gray-900 mt-2">PKR <span id="mc-co2-total">0.00</span></p>
+                            <p class="text-base font-extrabold text-gray-900 mt-2"><span class="curr-code">PKR</span> <span id="mc-co2-total">0.00</span></p>
                         </div>
 
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
@@ -187,7 +201,7 @@
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800" id="mc-co3-badge">Option 3 (+3%)</span>
                             </div>
                             <p class="text-[11px] text-gray-500">Supporting Quotation (+3% Markup)</p>
-                            <p class="text-base font-extrabold text-gray-900 mt-2">PKR <span id="mc-co3-total">0.00</span></p>
+                            <p class="text-base font-extrabold text-gray-900 mt-2"><span class="curr-code">PKR</span> <span id="mc-co3-total">0.00</span></p>
                         </div>
                     </div>
 
@@ -205,7 +219,7 @@
                             </div>
                             <div class="text-right">
                                 <p class="text-[11px] text-slate-500">Quotation Total</p>
-                                <p class="text-base font-extrabold text-indigo-950">PKR <span id="sc-total">0.00</span></p>
+                                <p class="text-base font-extrabold text-indigo-950"><span class="curr-code">PKR</span> <span id="sc-total">0.00</span></p>
                             </div>
                         </div>
                     </div>
@@ -514,6 +528,9 @@ function calcTotal() {
     const taxRate = parseFloat($('#tax_rate').val()) || 0;
     const taxAmt = taxable * (taxRate / 100);
     const total = taxable + taxAmt;
+
+    const curr = $('#currency').val() || 'PKR';
+    $('.curr-code').text(curr);
 
     $('#display-subtotal').text(subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     $('.tax-label').text(taxRate + '%');
@@ -996,6 +1013,7 @@ function applyImportedDraft(draft) {
                     if (cId) {
                         loadClientProjects(cId, est.project_id);
                     }
+                    if (est.currency) $('#currency').val(est.currency);
                     $('#estimate_date').val(est.estimate_date);
                     $('#valid_until').val(est.valid_until || '');
                     $('#title').val(est.title || '');
@@ -1045,7 +1063,7 @@ function applyImportedDraft(draft) {
         }
     });
 
-    $(document).on('input', '.qty-input,.price-input,#discount,#tax_rate', calcTotal);
+    $(document).on('input change', '.qty-input,.price-input,#discount,#tax_rate,#currency', calcTotal);
     $('#client_id').on('change', function() {
         const val = $(this).val();
         if (val === 'new') {
@@ -1148,6 +1166,7 @@ function applyImportedDraft(draft) {
             client_id: parseInt($('#client_id').val()),
             project_id: projectId,
             company_id: companyId,
+            currency: $('#currency').val() || 'PKR',
             title: $('#title').val().trim(),
             estimate_date: $('#estimate_date').val(),
             valid_until: $('#valid_until').val() || null,
