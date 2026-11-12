@@ -151,10 +151,11 @@
                                     <th class="text-left px-3 py-2">Method</th>
                                     <th class="text-left px-3 py-2">Reference / Notes</th>
                                     <th class="text-right px-3 py-2">Amount</th>
+                                    <th class="text-right px-3 py-2">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="payments-history-body">
-                                <tr><td colspan="4" class="text-center py-4 text-gray-400 text-xs">No payments recorded yet.</td></tr>
+                                <tr><td colspan="5" class="text-center py-4 text-gray-400 text-xs">No payments recorded yet.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -328,6 +329,77 @@
                         </button>
                     </form>
                 </div>
+            </div>
+        </div>
+
+        <!-- Modal: Adjust Payment -->
+        <div id="adjust-payment-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-gray-100 overflow-hidden transform transition-all">
+                <div class="px-6 py-4 bg-gradient-to-r from-indigo-700 to-indigo-900 text-white flex justify-between items-center">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                            <i class="fas fa-sliders-h text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-base leading-tight">Adjust Payment</h3>
+                            <p class="text-xs text-indigo-200">Payment #<span id="adj-pay-id"></span> for Invoice <span id="adj-pay-inv-no"></span></p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeAdjustPaymentModal()" class="text-white/80 hover:text-white text-lg p-1">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <form id="adjust-payment-form" class="p-6 space-y-4">
+                    <input type="hidden" id="adj-payment-id">
+
+                    <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+                        <i class="fas fa-info-circle text-amber-600 mt-0.5 shrink-0"></i>
+                        <span>Adjusting this payment will recalculate the total paid amount, remaining balance due, and invoice status.</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Adjusted Amount (PKR) *</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 font-bold text-xs">PKR</span>
+                            <input type="number" step="0.01" min="0.01" id="adj-amount" class="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-xl font-bold text-base text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Payment Date *</label>
+                            <input type="date" id="adj-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Payment Method</label>
+                            <select id="adj-method" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Cash">Cash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Online Transfer">Online Transfer</option>
+                                <option value="Pay Order">Pay Order</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Reference / Cheque #</label>
+                        <input type="text" id="adj-ref" placeholder="Optional cheque number, transaction ID, or bank ref" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Reason for Adjustment / Notes</label>
+                        <textarea id="adj-notes" rows="2" placeholder="e.g. Corrected cash received amount, cheque cleared date, etc." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+
+                    <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                        <button type="button" onclick="closeAdjustPaymentModal()" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold transition">Cancel</button>
+                        <button type="submit" id="adj-submit-btn" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                            <i class="fas fa-check"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </main>
@@ -572,15 +644,35 @@ function loadInvoice() {
             $('#payments-history-body').html(payments.map(p => {
                 const amt = Number(p.amount || 0);
                 const ref = [p.reference_no, p.notes].filter(Boolean).join(' - ') || '-';
-                return `<tr class="border-b border-gray-50 hover:bg-slate-50">
-                    <td class="px-3 py-2 font-medium text-gray-700">${escHtml(p.payment_date || '')}</td>
-                    <td class="px-3 py-2"><span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">${escHtml(p.payment_method || 'Cash')}</span></td>
-                    <td class="px-3 py-2 text-gray-500 text-xs">${escHtml(ref)}</td>
-                    <td class="px-3 py-2 text-right font-bold text-emerald-600">PKR ${fmt(amt)}</td>
+                return `<tr class="border-b border-gray-50 hover:bg-slate-50 transition">
+                    <td class="px-3 py-2.5 font-medium text-gray-700 whitespace-nowrap">${escHtml(p.payment_date || '')}</td>
+                    <td class="px-3 py-2.5 whitespace-nowrap"><span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-semibold">${escHtml(p.payment_method || 'Cash')}</span></td>
+                    <td class="px-3 py-2.5 text-gray-600 text-xs">${escHtml(ref)}</td>
+                    <td class="px-3 py-2.5 text-right font-bold text-emerald-600 whitespace-nowrap">PKR ${fmt(amt)}</td>
+                    <td class="px-3 py-2.5 text-right whitespace-nowrap">
+                        <div class="inline-flex items-center gap-1.5">
+                            <button type="button" class="btn-adjust-payment inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-2xs transition" 
+                                data-id="${Number(p.id)}" 
+                                data-amount="${amt}" 
+                                data-date="${escHtml(p.payment_date || '')}" 
+                                data-method="${escHtml(p.payment_method || 'Cash')}" 
+                                data-ref="${escHtml(p.reference_no || '')}" 
+                                data-notes="${escHtml(p.notes || '')}"
+                                title="Adjust this payment amount, method, date or reference">
+                                <i class="fas fa-sliders-h"></i> Adjust
+                            </button>
+                            <button type="button" class="btn-delete-payment inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg shadow-2xs transition" 
+                                data-id="${Number(p.id)}" 
+                                data-amount="${amt}"
+                                title="Delete this payment record">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
                 </tr>`;
             }).join(''));
         } else {
-            $('#payments-history-body').html('<tr><td colspan="4" class="text-center py-4 text-gray-400 text-xs">No payments recorded yet.</td></tr>');
+            $('#payments-history-body').html('<tr><td colspan="5" class="text-center py-6 text-gray-400 text-xs">No payments recorded yet.</td></tr>');
         }
     }).fail(function(x) {
         if (x.status === 401) {
@@ -798,5 +890,93 @@ function copyFbrNumber() {
         prompt('Copy FBR Invoice Number:', num);
     }
 }
+
+function openAdjustPaymentModal(data) {
+    $('#adj-payment-id').val(data.id);
+    $('#adj-pay-id').text(data.id);
+    $('#adj-pay-inv-no').text($('#inv-no').text() || ('#' + iid));
+    $('#adj-amount').val(Number(data.amount || 0).toFixed(2));
+    $('#adj-date').val(data.date || new Date().toISOString().split('T')[0]);
+    $('#adj-method').val(data.method || 'Cash');
+    $('#adj-ref').val(data.ref || '');
+    $('#adj-notes').val(data.notes || '');
+    $('#adjust-payment-modal').removeClass('hidden');
+}
+
+function closeAdjustPaymentModal() {
+    $('#adjust-payment-modal').addClass('hidden');
+}
+
+$(document).on('click', '.btn-adjust-payment', function() {
+    const $btn = $(this);
+    openAdjustPaymentModal({
+        id: $btn.data('id'),
+        amount: $btn.data('amount'),
+        date: $btn.data('date'),
+        method: $btn.data('method'),
+        ref: $btn.data('ref'),
+        notes: $btn.data('notes')
+    });
+});
+
+$('#adjust-payment-form').submit(function(e) {
+    e.preventDefault();
+    const pid = $('#adj-payment-id').val();
+    const amt = parseFloat($('#adj-amount').val());
+    if (isNaN(amt) || amt <= 0) {
+        alert('Please enter a valid adjusted amount greater than zero.');
+        return;
+    }
+
+    const payload = {
+        amount: amt,
+        payment_date: $('#adj-date').val(),
+        payment_method: $('#adj-method').val(),
+        reference_no: ($('#adj-ref').val() || '').trim() || null,
+        notes: ($('#adj-notes').val() || '').trim() || null
+    };
+
+    const $btn = $('#adj-submit-btn');
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+    $.ajax({
+        url: '/api/invoices/' + iid + '/payments/' + pid,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(res) {
+        alert(res.message || 'Payment adjusted successfully!');
+        closeAdjustPaymentModal();
+        loadInvoice();
+    }).fail(function(x) {
+        alert('Failed to adjust payment: ' + (x.responseJSON?.detail || 'Error adjusting payment'));
+    }).always(function() {
+        $btn.prop('disabled', false).html('<i class="fas fa-check"></i> Save Changes');
+    });
+});
+
+$(document).on('click', '.btn-delete-payment', function() {
+    const pid = $(this).data('id');
+    const amt = $(this).data('amount');
+    if (!confirm('Are you sure you want to delete payment #' + pid + ' of PKR ' + fmt(amt) + '? The invoice balance will be readjusted.')) {
+        return;
+    }
+
+    const $btn = $(this);
+    $btn.prop('disabled', true);
+
+    $.ajax({
+        url: '/api/invoices/' + iid + '/payments/' + pid,
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token }
+    }).done(function(res) {
+        alert(res.message || 'Payment deleted successfully!');
+        loadInvoice();
+    }).fail(function(x) {
+        alert('Failed to delete payment: ' + (x.responseJSON?.detail || 'Error'));
+        $btn.prop('disabled', false);
+    });
+});
 </script>
 {% endblock %}

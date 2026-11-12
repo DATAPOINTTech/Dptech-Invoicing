@@ -1380,6 +1380,10 @@ function json_response(array $payload, int $status = 200): never
 
 function request_data(): array
 {
+    if (isset($GLOBALS['_TEST_INPUT_DATA']) && is_array($GLOBALS['_TEST_INPUT_DATA'])) {
+        return $GLOBALS['_TEST_INPUT_DATA'];
+    }
+
     $contentType = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
     if (str_contains($contentType, 'application/json')) {
         return request_json();
@@ -1391,12 +1395,16 @@ function request_data(): array
 
 function request_json(): array
 {
-    $raw = file_get_contents('php://input');
-    if ($raw === false || trim($raw) === '') {
+    if (isset($GLOBALS['_TEST_INPUT_DATA']) && is_array($GLOBALS['_TEST_INPUT_DATA'])) {
+        return $GLOBALS['_TEST_INPUT_DATA'];
+    }
+
+    $raw = isset($GLOBALS['_TEST_INPUT_RAW']) ? (string)$GLOBALS['_TEST_INPUT_RAW'] : file_get_contents('php://input');
+    if ($raw === false || trim((string)$raw) === '') {
         return [];
     }
 
-    $payload = json_decode($raw, true);
+    $payload = json_decode((string)$raw, true);
     if (!is_array($payload)) {
         json_response(['detail' => 'Request body must be a JSON object.'], 400);
     }

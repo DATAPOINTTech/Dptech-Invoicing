@@ -336,6 +336,160 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             ]);
         }
 
+        // Adjust, update or delete a recorded payment on an invoice
+        if (preg_match('#^/payments/([1-9][0-9]*)(/.*)?$#', $sub, $pm)) {
+            $paymentId = (int) $pm[1];
+            $action = $pm[2] ?? '';
+
+            // GET single payment record
+            if ($action === '' && $method === 'GET') {
+                require_permission_for($db, $user, 'invoices', 'view');
+                $pStmt = $db->prepare('SELECT * FROM payments WHERE id = :pid AND invoice_id = :iid');
+                $pStmt->execute(['pid' => $paymentId, 'iid' => $invoiceId]);
+                $payment = $pStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$payment) {
+                    json_response(['detail' => 'Payment record not found for this invoice'], 404);
+                }
+                json_response($payment);
+            }
+
+            // Adjust / Update payment record
+            if (($action === '' && ($method === 'PUT' || $method === 'POST')) || ($action === '/adjust' && $method === 'POST')) {
+                require_permission_for($db, $user, 'invoices', 'edit');
+
+                $pStmt = $db->prepare('SELECT * FROM payments WHERE id = :pid AND invoice_id = :iid');
+                $pStmt->execute(['pid' => $paymentId, 'iid' => $invoiceId]);
+                $payment = $pStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$payment) {
+                    json_response(['detail' => 'Payment record not found for this invoice'], 404);
+                }
+
+                $stmt = $db->prepare('SELECT * FROM invoices WHERE id = :id');
+                $stmt->execute(['id' => $invoiceId]);
+                $inv = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$inv) {
+                    json_response(['detail' => 'Invoice not found'], 404);
+                }
+
+                $data = request_data();
+                $amount = isset($data['amount']) ? (float) $data['amount'] : (float) $payment['amount'];
+                if ($amount <= 0.0) {
+                    json_response(['detail' => 'Amount must be greater than zero.'], 422);
+                }
+
+                $payDate = !empty($data['payment_date']) ? (string) $data['payment_date'] : $payment['payment_date'];
+                $payMethod = !empty($data['payment_method']) ? (string) $data['payment_method'] : ($payment['payment_method'] ?: 'Cash');
+                $refNo = array_key_exists('reference_no', $data) ? ($data['reference_no'] !== null && trim((string)$data['reference_no']) !== '' ? (string)$data['reference_no'] : null) : $payment['reference_no'];
+                $notes = array_key_exists('notes', $data) ? ($data['notes'] !== null && trim((string)$data['notes']) !== '' ? (string)$data['notes'] : null) : $payment['notes'];
+
+                $updPay = $db->prepare('
+                    UPDATE payments
+                    SET amount = :amt, payment_date = :pdate, payment_method = :pmethod, reference_no = :ref, notes = :notes
+                    WHERE id = :pid AND invoice_id = :iid
+                ');
+                $updPay->execute([
+                    'amt' => $amount,
+                    'pdate' => $payDate,
+                    'pmethod' => $payMethod,
+                    'ref' => $refNo,
+                    'notes' => $notes,
+                    'pid' => $paymentId,
+                    'iid' => $invoiceId,
+                ]);
+
+                // Recalculate invoice totals
+                $sumStmt = $db->prepare('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = :id');
+                $sumStmt->execute(['id' => $invoiceId]);
+                $newPaid = (float) $sumStmt->fetchColumn();
+
+                $totalAmount = (float) $inv['total_amount'];
+                $newBalance = max(0.0, $totalAmount - $newPaid);
+                if ($newPaid <= 0.0) {
+                    if (!empty($inv['sent_at'])) {
+                        $newStatus = 'sent';
+                    } elseif (!empty($inv['approved_at']) || ($inv['status'] === 'approved')) {
+                        $newStatus = 'approved';
+                    } elseif ($inv['status'] === 'draft') {
+                        $newStatus = 'draft';
+                    } else {
+                        $newStatus = 'approved';
+                    }
+                } elseif ($newBalance <= 0.0) {
+                    $newStatus = 'paid';
+                } else {
+                    $newStatus = 'partially_paid';
+                }
+
+                $upd = $db->prepare('UPDATE invoices SET amount_paid = :paid, balance_due = :bal, status = :st, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+                $upd->execute(['paid' => $newPaid, 'bal' => $newBalance, 'st' => $newStatus, 'id' => $invoiceId]);
+
+                json_response([
+                    'message' => 'Payment adjusted successfully',
+                    'payment_id' => $paymentId,
+                    'amount' => $amount,
+                    'amount_paid' => $newPaid,
+                    'balance_due' => $newBalance,
+                    'status' => $newStatus,
+                ]);
+            }
+
+            // Delete / Void payment record
+            if (($action === '' && $method === 'DELETE') || ($action === '/delete' && ($method === 'POST' || $method === 'DELETE'))) {
+                require_permission_for($db, $user, 'invoices', 'edit');
+
+                $pStmt = $db->prepare('SELECT * FROM payments WHERE id = :pid AND invoice_id = :iid');
+                $pStmt->execute(['pid' => $paymentId, 'iid' => $invoiceId]);
+                $payment = $pStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$payment) {
+                    json_response(['detail' => 'Payment record not found for this invoice'], 404);
+                }
+
+                $stmt = $db->prepare('SELECT * FROM invoices WHERE id = :id');
+                $stmt->execute(['id' => $invoiceId]);
+                $inv = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$inv) {
+                    json_response(['detail' => 'Invoice not found'], 404);
+                }
+
+                $delStmt = $db->prepare('DELETE FROM payments WHERE id = :pid AND invoice_id = :iid');
+                $delStmt->execute(['pid' => $paymentId, 'iid' => $invoiceId]);
+
+                // Recalculate invoice totals
+                $sumStmt = $db->prepare('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = :id');
+                $sumStmt->execute(['id' => $invoiceId]);
+                $newPaid = (float) $sumStmt->fetchColumn();
+
+                $totalAmount = (float) $inv['total_amount'];
+                $newBalance = max(0.0, $totalAmount - $newPaid);
+                if ($newPaid <= 0.0) {
+                    if (!empty($inv['sent_at'])) {
+                        $newStatus = 'sent';
+                    } elseif (!empty($inv['approved_at']) || ($inv['status'] === 'approved')) {
+                        $newStatus = 'approved';
+                    } elseif ($inv['status'] === 'draft') {
+                        $newStatus = 'draft';
+                    } else {
+                        $newStatus = 'approved';
+                    }
+                } elseif ($newBalance <= 0.0) {
+                    $newStatus = 'paid';
+                } else {
+                    $newStatus = 'partially_paid';
+                }
+
+                $upd = $db->prepare('UPDATE invoices SET amount_paid = :paid, balance_due = :bal, status = :st, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+                $upd->execute(['paid' => $newPaid, 'bal' => $newBalance, 'st' => $newStatus, 'id' => $invoiceId]);
+
+                json_response([
+                    'message' => 'Payment deleted and invoice balance readjusted successfully',
+                    'payment_id' => $paymentId,
+                    'amount_paid' => $newPaid,
+                    'balance_due' => $newBalance,
+                    'status' => $newStatus,
+                ]);
+            }
+        }
+
         if ($sub === '' && $method === 'PUT') {
             require_permission_for($db, $user, 'invoices', 'edit');
             $body = request_json();
