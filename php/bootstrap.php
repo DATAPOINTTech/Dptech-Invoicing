@@ -14,6 +14,7 @@ require_once PHP_APP_ROOT . '/services/invoice_import.php';
 require_once PHP_APP_ROOT . '/services/scraper.php';
 require_once PHP_APP_ROOT . '/services/support_agent.php';
 require_once PHP_APP_ROOT . '/services/google_sheet_sync.php';
+require_once PHP_APP_ROOT . '/services/product_export_service.php';
 
 function load_dotenv(string $path): void
 {

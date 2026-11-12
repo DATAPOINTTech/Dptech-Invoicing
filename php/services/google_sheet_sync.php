@@ -278,16 +278,8 @@ function parse_product_sheet_csv(string $csvContent): array
     return $rows;
 }
 
-function sync_products_from_google_sheet(PDO $db, string $sheetUrl, float $profitPercent = 10.0, bool $allowAnyUrl = false): array
+function sync_products_from_parsed_items(PDO $db, array $parsedItems, float $profitPercent = 10.0, ?string $sheetUrl = null): array
 {
-    $exportUrl = normalize_google_sheet_csv_url($sheetUrl);
-    $csvContent = fetch_remote_csv($exportUrl, $allowAnyUrl);
-    $parsedItems = parse_product_sheet_csv($csvContent);
-
-    if (empty($parsedItems)) {
-        throw new RuntimeException('No valid products found in the sheet. Please make sure the sheet contains Product Name and Rate columns.');
-    }
-
     $updated = 0;
     $created = 0;
     $multiplier = 1.0 + ($profitPercent / 100.0);
@@ -369,19 +361,44 @@ function sync_products_from_google_sheet(PDO $db, string $sheetUrl, float $profi
     }
 
     $timestamp = date('Y-m-d H:i:s');
-    set_app_setting($db, 'google_sheet_url', $sheetUrl);
+    if ($sheetUrl !== null && $sheetUrl !== '') {
+        set_app_setting($db, 'google_sheet_url', $sheetUrl);
+    }
     set_app_setting($db, 'google_sheet_last_synced', $timestamp);
     set_app_setting($db, 'product_profit_percent', (string) $profitPercent);
 
+    $sourceLabel = ($sheetUrl !== null && $sheetUrl !== '') ? 'Google Sheet' : 'Sheet File';
     return [
         'success' => true,
-        'message' => "Successfully synced {$created} new and {$updated} updated products from Google Sheet.",
+        'message' => "Successfully synced {$created} new and {$updated} updated products from {$sourceLabel}.",
         'total_rows' => count($parsedItems),
         'created_count' => $created,
         'updated_count' => $updated,
         'last_synced_at' => $timestamp,
         'profit_percent' => $profitPercent,
     ];
+}
+
+function sync_products_from_csv_content(PDO $db, string $csvContent, float $profitPercent = 10.0): array
+{
+    $parsedItems = parse_product_sheet_csv($csvContent);
+    if (empty($parsedItems)) {
+        throw new RuntimeException('No valid products found in the file. Please make sure the sheet contains Product Name and Rate columns.');
+    }
+    return sync_products_from_parsed_items($db, $parsedItems, $profitPercent, null);
+}
+
+function sync_products_from_google_sheet(PDO $db, string $sheetUrl, float $profitPercent = 10.0, bool $allowAnyUrl = false): array
+{
+    $exportUrl = normalize_google_sheet_csv_url($sheetUrl);
+    $csvContent = fetch_remote_csv($exportUrl, $allowAnyUrl);
+    $parsedItems = parse_product_sheet_csv($csvContent);
+
+    if (empty($parsedItems)) {
+        throw new RuntimeException('No valid products found in the sheet. Please make sure the sheet contains Product Name and Rate columns.');
+    }
+
+    return sync_products_from_parsed_items($db, $parsedItems, $profitPercent, $sheetUrl);
 }
 
 function export_products_to_csv(PDO $db): string

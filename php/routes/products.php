@@ -119,6 +119,52 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
         exit;
     }
 
+    if ($method === 'GET' && ($path === '/api/products/export-excel' || $path === '/api/products/export-xlsx')) {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'view');
+        $xlsx = export_products_to_excel($db);
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="datapoint_products_rates_' . date('Ymd_His') . '.xlsx"');
+        header('Content-Length: ' . strlen($xlsx));
+        echo $xlsx;
+        exit;
+    }
+
+    if ($method === 'GET' && ($path === '/api/products/export-docx' || $path === '/api/products/export-word')) {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'view');
+        $docx = export_products_to_docx($db);
+        header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        header('Content-Disposition: attachment; filename="datapoint_products_catalog_' . date('Ymd_His') . '.docx"');
+        header('Content-Length: ' . strlen($docx));
+        echo $docx;
+        exit;
+    }
+
+    if ($method === 'POST' && $path === '/api/products/import-sheet-file') {
+        $user = require_authenticated_user($db);
+        require_permission_for($db, $user, 'products', 'edit');
+
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            json_response(['detail' => 'Please select a valid CSV file to upload.'], 422);
+        }
+
+        $tmpPath = (string) $_FILES['file']['tmp_name'];
+        $content = file_get_contents($tmpPath);
+        if ($content === false || strlen($content) === 0) {
+            json_response(['detail' => 'The uploaded file is empty.'], 422);
+        }
+
+        $profitMargin = (float) get_app_setting($db, 'product_profit_percent', '10.0');
+
+        try {
+            $result = sync_products_from_csv_content($db, $content, $profitMargin);
+            json_response($result);
+        } catch (Throwable $e) {
+            json_response(['detail' => 'Import failed: ' . $e->getMessage()], 400);
+        }
+    }
+
     if ($method === 'GET' && $path === '/api/products') {
         // Everyone who can quote/invoice needs the product list, but the purchase (cost) price
         // is only for staff who may view the Products module.
