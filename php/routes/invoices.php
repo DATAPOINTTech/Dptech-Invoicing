@@ -26,17 +26,23 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         $user = require_authenticated_user($db);
         require_permission_for($db, $user, 'invoices', 'view');
         $status = $_GET['status'] ?? null;
-        $sql = 'SELECT i.*, c.name AS client_name, p.name AS project_name, p.description AS project_description, e.estimate_no AS linked_estimate_no FROM invoices i LEFT JOIN clients c ON c.id = i.client_id LEFT JOIN projects p ON p.id = i.project_id LEFT JOIN estimates e ON e.id = i.estimate_id';
+        $search = trim((string)($_GET['search'] ?? ($_GET['q'] ?? '')));
+
+        $sql = 'SELECT i.*, c.name AS client_name, p.name AS project_name, p.description AS project_description, e.estimate_no AS linked_estimate_no, e.title AS linked_estimate_title FROM invoices i LEFT JOIN clients c ON c.id = i.client_id LEFT JOIN projects p ON p.id = i.project_id LEFT JOIN estimates e ON e.id = i.estimate_id WHERE 1=1';
         $params = [];
         if ($status !== null && $status !== '') {
             if ($status === 'fbr_posted') {
-                $sql .= " WHERE i.fbr_status = 'posted'";
+                $sql .= " AND i.fbr_status = 'posted'";
             } elseif ($status === 'fbr_unposted') {
-                $sql .= " WHERE (i.fbr_status IS NULL OR i.fbr_status != 'posted')";
+                $sql .= " AND (i.fbr_status IS NULL OR i.fbr_status != 'posted')";
             } else {
-                $sql .= ' WHERE i.status = :st';
+                $sql .= ' AND i.status = :st';
                 $params['st'] = $status;
             }
+        }
+        if ($search !== '') {
+            $sql .= ' AND (i.invoice_no LIKE :q OR i.title LIKE :q OR c.name LIKE :q OR p.name LIKE :q OR p.description LIKE :q OR e.estimate_no LIKE :q OR e.title LIKE :q)';
+            $params['q'] = '%' . $search . '%';
         }
         $sql .= ' ORDER BY i.invoice_date DESC, i.id DESC';
         $stmt = $db->prepare($sql);

@@ -87,8 +87,14 @@
                     <span class="text-xs text-slate-500" id="table-filter-caption">Showing all estimates</span>
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <input type="text" id="table-search" placeholder="Search by #, client, title..." class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 w-52">
+                <div class="flex items-center gap-2 flex-1 max-w-md justify-end">
+                    <div class="relative w-full">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="table-search" placeholder="Search by Estimation Name / Title, Inv #, Est #, Client..." class="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-all shadow-2xs">
+                        <button type="button" id="btn-clear-search" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs" title="Clear search">
+                            <i class="fas fa-times-circle"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -279,15 +285,20 @@ if (!token) {
                 ? `<span class="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-mono" title="Batch Set: ${esc(e.batch_id)}"><i class="fas fa-layer-group mr-0.5"></i> 3-Set</span>`
                 : '';
 
+            const invTag = e.linked_invoice_no
+                ? `<a href="/invoices/${esc(e.linked_invoice_id || '')}" class="text-[10px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded font-mono inline-flex items-center gap-1 shrink-0 transition-colors" title="Converted to Invoice ${esc(e.linked_invoice_no)}"><i class="fas fa-receipt text-emerald-600"></i> ${esc(e.linked_invoice_no)}</a>`
+                : '';
+
             const rowAction = status === 'rejected'
                 ? `<button class="btn btn-ghost btn-sm text-red-500 delete-estimate" data-id="${id}" data-no="${estimateNo}" title="Delete"><i class="fas fa-trash"></i></button>`
                 : `<button class="btn btn-ghost btn-sm text-red-500 reject-estimate" data-id="${id}" data-no="${estimateNo}" title="Reject"><i class="fas fa-times"></i></button>`;
 
             return `<tr>
                 <td class="font-medium text-slate-800">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                         <a href="/estimates/${id}" class="text-indigo-600 hover:text-indigo-900 font-bold">${estimateNo}</a>
                         ${batchTag}
+                        ${invTag}
                     </div>
                 </td>
                 <td>
@@ -337,11 +348,18 @@ if (!token) {
     }
 
     function filterAndRender() {
-        const q = $('#table-search').val().toLowerCase().trim();
+        const q = ($('#table-search').val() || '').toLowerCase().trim();
+        if (q) {
+            $('#btn-clear-search').removeClass('hidden');
+        } else {
+            $('#btn-clear-search').addClass('hidden');
+        }
+
         let list = cachedEstimates;
         if (q) {
             list = list.filter(e => 
                 (e.estimate_no && e.estimate_no.toLowerCase().includes(q)) ||
+                (e.linked_invoice_no && e.linked_invoice_no.toLowerCase().includes(q)) ||
                 (e.client_name && e.client_name.toLowerCase().includes(q)) ||
                 (e.company_name && e.company_name.toLowerCase().includes(q)) ||
                 (e.title && e.title.toLowerCase().includes(q)) ||
@@ -353,11 +371,19 @@ if (!token) {
     }
 
     $(function() {
+        const urlQ = new URLSearchParams(window.location.search).get('search') || new URLSearchParams(window.location.search).get('q') || '';
+        if (urlQ) {
+            $('#table-search').val(urlQ);
+        }
         loadCompanyTabs();
         load();
 
         $('#status-filter').change(load);
         $('#table-search').on('input', filterAndRender);
+        $('#btn-clear-search').on('click', function() {
+            $('#table-search').val('').focus();
+            filterAndRender();
+        });
 
         // Click on company folder tab
         $(document).on('click', '.co-tab-btn', function() {

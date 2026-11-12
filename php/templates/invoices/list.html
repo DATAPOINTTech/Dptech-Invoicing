@@ -25,8 +25,14 @@
                         <option value="fbr_unposted">FBR: Unposted</option>
                     </select>
                 </div>
-                <div class="flex items-center gap-2">
-                    <input type="text" id="invoice-search" placeholder="Search #, client, project, purpose..." class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 w-64">
+                <div class="flex items-center gap-2 flex-1 max-w-md justify-end">
+                    <div class="relative w-full">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="invoice-search" placeholder="Search by Inv #, Estimation Name / Title, Est #, Client..." class="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white transition-all shadow-2xs">
+                        <button type="button" id="btn-clear-invoice-search" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs" title="Clear search">
+                            <i class="fas fa-times-circle"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="table-container">
@@ -41,10 +47,18 @@ let cachedInvoices = [];
 
 function renderInvoices() {
     const q = ($('#invoice-search').val() || '').toLowerCase().trim();
+    if (q) {
+        $('#btn-clear-invoice-search').removeClass('hidden');
+    } else {
+        $('#btn-clear-invoice-search').addClass('hidden');
+    }
+
     let invs = cachedInvoices;
     if (q) {
         invs = invs.filter(i =>
             (i.invoice_no && i.invoice_no.toLowerCase().includes(q)) ||
+            (i.linked_estimate_no && i.linked_estimate_no.toLowerCase().includes(q)) ||
+            (i.linked_estimate_title && i.linked_estimate_title.toLowerCase().includes(q)) ||
             (i.client_name && i.client_name.toLowerCase().includes(q)) ||
             (i.project_name && i.project_name.toLowerCase().includes(q)) ||
             (i.project_description && i.project_description.toLowerCase().includes(q)) ||
@@ -174,9 +188,18 @@ $(document).on('click', '.delete-invoice', function(e){
     }
 });
 $(function(){
+    // Check initial search param from URL if any
+    const urlQ = new URLSearchParams(window.location.search).get('search') || new URLSearchParams(window.location.search).get('q') || '';
+    if (urlQ) {
+        $('#invoice-search').val(urlQ);
+    }
     load();
     $('#status-filter').on('change', load);
     $('#invoice-search').on('input', renderInvoices);
+    $('#btn-clear-invoice-search').on('click', function() {
+        $('#invoice-search').val('').focus();
+        renderInvoices();
+    });
 });
 </script>
 {% endblock %}
