@@ -150,11 +150,60 @@ function db_table_exists(PDO $db, string $table): bool
     return (bool) $stmt->fetchColumn();
 }
 
+function db_get_table_columns(PDO $db, string $table): array
+{
+    if (!db_table_exists($db, $table)) {
+        return [];
+    }
+    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+    try {
+        if ($driver === 'sqlite') {
+            $cols = $db->query("PRAGMA table_info(`{$table}`)")->fetchAll(PDO::FETCH_ASSOC);
+            return array_map('strtolower', array_column($cols, 'name'));
+        }
+        if ($driver === 'mysql') {
+            $cols = $db->query("SHOW COLUMNS FROM `{$table}`")->fetchAll(PDO::FETCH_ASSOC);
+            return array_map('strtolower', array_column($cols, 'Field'));
+        }
+        $stmt = $db->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = :tbl");
+        $stmt->execute(['tbl' => $table]);
+        return array_map('strtolower', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    } catch (\Throwable $e) {
+        return [];
+    }
+}
+
+function db_column_exists(PDO $db, string $table, string $column): bool
+{
+    $cols = db_get_table_columns($db, $table);
+    return in_array(strtolower($column), $cols, true);
+}
+
+function db_add_column_if_missing(PDO $db, string $table, string $column, string $typeDef): bool
+{
+    if (!db_table_exists($db, $table)) {
+        return false;
+    }
+    if (db_column_exists($db, $table, $column)) {
+        return true;
+    }
+    try {
+        $db->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$typeDef}");
+        return true;
+    } catch (\Throwable $e) {
+        try {
+            $db->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$typeDef}");
+            return true;
+        } catch (\Throwable $e2) {
+            return false;
+        }
+    }
+}
+
 function ensure_all_schema_tables(PDO $db): void
 {
     $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-    if ($driver !== 'sqlite') {
-        // In PostgreSQL/MySQL, tables are either managed by migrations or created via standard schema
+    if ($driver !== 'sqlite' && $driver !== 'mysql') {
         return;
     }
 
@@ -495,7 +544,20 @@ SQL,
 
     foreach ($schemas as $table => $sql) {
         if (!db_table_exists($db, $table)) {
-            $db->exec($sql);
+            try {
+                if ($driver === 'mysql') {
+                    $mysqlSql = str_replace(
+                        ['INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT', 'INTEGER PRIMARY KEY AUTOINCREMENT', 'AUTOINCREMENT'],
+                        ['INT NOT NULL AUTO_INCREMENT PRIMARY KEY', 'INT AUTO_INCREMENT PRIMARY KEY', 'AUTO_INCREMENT'],
+                        $sql
+                    );
+                    $db->exec($mysqlSql);
+                } else {
+                    $db->exec($sql);
+                }
+            } catch (\Throwable $e) {
+                error_log("Failed to create table {$table}: " . $e->getMessage());
+            }
         }
     }
 }
@@ -540,8 +602,37 @@ function set_app_setting(PDO $db, string $key, string $value): void
 
 function ensure_multicompany_schema(PDO $db): void
 {
+    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+
     // 1. Ensure companies table
-    $db->exec(<<<'SQL'
+    if (!db_table_exists($db, 'companies')) {
+        try {
+            if ($driver === 'mysql') {
+                $db->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS `companies` (
+    `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(200) NOT NULL,
+    `code` VARCHAR(50) DEFAULT NULL,
+    `logo_url` TEXT DEFAULT NULL,
+    `email` VARCHAR(100) DEFAULT NULL,
+    `phone` VARCHAR(50) DEFAULT NULL,
+    `mobile` VARCHAR(50) DEFAULT NULL,
+    `whatsapp` VARCHAR(50) DEFAULT NULL,
+    `website` VARCHAR(100) DEFAULT NULL,
+    `address` TEXT DEFAULT NULL,
+    `city` VARCHAR(50) DEFAULT NULL,
+    `ntn` VARCHAR(50) DEFAULT NULL,
+    `strn` VARCHAR(50) DEFAULT NULL,
+    `terms` TEXT DEFAULT NULL,
+    `is_default` TINYINT(1) DEFAULT 0,
+    `markup_percent` FLOAT DEFAULT 0.0,
+    `sort_order` INT DEFAULT 1,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SQL);
+            } else {
+                $db->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS companies (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(200) NOT NULL,
@@ -550,6 +641,8 @@ CREATE TABLE IF NOT EXISTS companies (
     email VARCHAR(100),
     phone VARCHAR(50),
     mobile VARCHAR(50),
+    whatsapp VARCHAR(50),
+    website VARCHAR(100),
     address TEXT,
     city VARCHAR(50),
     ntn VARCHAR(50),
@@ -562,263 +655,201 @@ CREATE TABLE IF NOT EXISTS companies (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 SQL);
+            }
+        } catch (\Throwable $e) {}
+    }
 
-    // 2. Add multi-company columns to estimates and invoices if missing
-    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-    if ($driver === 'sqlite') {
-        $neededCols = [
-            'company_id' => 'INTEGER',
-            'company_name' => 'VARCHAR(200)',
-            'company_logo' => 'TEXT',
-            'company_phone' => 'VARCHAR(50)',
-            'company_email' => 'VARCHAR(100)',
-            'company_address' => 'TEXT',
-            'company_ntn' => 'VARCHAR(50)',
-            'company_strn' => 'VARCHAR(50)',
-            'batch_id' => 'VARCHAR(50)',
-            'markup_percent' => 'FLOAT DEFAULT 0.0',
-            'currency' => "VARCHAR(10) DEFAULT 'PKR'",
-        ];
+    // 2. Add multi-company and contact columns to estimates and invoices if missing
+    $neededCols = [
+        'company_id' => 'INTEGER',
+        'company_name' => 'VARCHAR(200)',
+        'company_logo' => 'TEXT',
+        'company_phone' => 'VARCHAR(50)',
+        'company_email' => 'VARCHAR(100)',
+        'company_address' => 'TEXT',
+        'company_ntn' => 'VARCHAR(50)',
+        'company_strn' => 'VARCHAR(50)',
+        'batch_id' => 'VARCHAR(50)',
+        'markup_percent' => 'FLOAT DEFAULT 0.0',
+        'currency' => "VARCHAR(10) DEFAULT 'PKR'",
+        'title' => 'VARCHAR(200)',
+        'company_website' => 'VARCHAR(150)',
+        'company_whatsapp' => 'VARCHAR(50)',
+    ];
 
-        foreach (['estimates', 'invoices'] as $tbl) {
-            if (!db_table_exists($db, $tbl)) {
+    foreach (['estimates', 'invoices'] as $tbl) {
+        if (!db_table_exists($db, $tbl)) {
+            continue;
+        }
+        foreach ($neededCols as $col => $type) {
+            if ($tbl === 'invoices' && ($col === 'batch_id' || $col === 'markup_percent')) {
                 continue;
             }
-            if ($driver === 'sqlite') {
-                $cols = $db->query("PRAGMA table_info({$tbl})")->fetchAll(PDO::FETCH_ASSOC);
-                $colNames = array_column($cols, 'name');
-
-                foreach ($neededCols as $col => $type) {
-                    if ($tbl === 'invoices' && ($col === 'batch_id' || $col === 'markup_percent')) {
-                        continue;
-                    }
-                    if (!in_array($col, $colNames, true)) {
-                        try {
-                            $db->exec("ALTER TABLE {$tbl} ADD COLUMN {$col} {$type}");
-                        } catch (Throwable $e) {
-                            // Column might already exist
-                        }
-                    }
-                }
-            } elseif ($driver === 'mysql') {
-                foreach ($neededCols as $col => $type) {
-                    if ($tbl === 'invoices' && ($col === 'batch_id' || $col === 'markup_percent')) {
-                        continue;
-                    }
-                    $chk = $db->query("SHOW COLUMNS FROM `{$tbl}` LIKE '{$col}'")->fetch();
-                    if (!$chk) {
-                        try {
-                            $db->exec("ALTER TABLE `{$tbl}` ADD COLUMN `{$col}` {$type}");
-                        } catch (Throwable $e) {}
-                    }
-                }
-            }
-        }
-
-        // Add model_make to item tables
-        foreach (['estimate_items', 'invoice_items'] as $itemTbl) {
-            if (db_table_exists($db, $itemTbl)) {
-                $cols = $db->query("PRAGMA table_info({$itemTbl})")->fetchAll(PDO::FETCH_ASSOC);
-                $colNames = array_column($cols, 'name');
-                if (!in_array('model_make', $colNames, true)) {
-                    try {
-                        $db->exec("ALTER TABLE {$itemTbl} ADD COLUMN model_make VARCHAR(300)");
-                    } catch (Throwable $e) {}
-                }
-            }
-        }
-
-        // Add website & whatsapp to companies table
-        if (db_table_exists($db, 'companies')) {
-            $cols = $db->query("PRAGMA table_info(companies)")->fetchAll(PDO::FETCH_ASSOC);
-            $colNames = array_column($cols, 'name');
-            foreach (['website' => 'VARCHAR(100)', 'whatsapp' => 'VARCHAR(50)'] as $c => $t) {
-                if (!in_array($c, $colNames, true)) {
-                    try {
-                        $db->exec("ALTER TABLE companies ADD COLUMN {$c} {$t}");
-                    } catch (Throwable $e) {}
-                }
-            }
-        }
-
-        // Add website & whatsapp to invoices table
-        if (db_table_exists($db, 'invoices')) {
-            $cols = $db->query("PRAGMA table_info(invoices)")->fetchAll(PDO::FETCH_ASSOC);
-            $colNames = array_column($cols, 'name');
-            if (!in_array('title', $colNames, true)) {
-                try {
-                    $db->exec("ALTER TABLE invoices ADD COLUMN title VARCHAR(200)");
-                } catch (Throwable $e) {}
-            }
-            foreach (['company_website' => 'VARCHAR(150)', 'company_whatsapp' => 'VARCHAR(50)'] as $c => $t) {
-                if (!in_array($c, $colNames, true)) {
-                    try {
-                        $db->exec("ALTER TABLE invoices ADD COLUMN {$c} {$t}");
-                    } catch (Throwable $e) {}
-                }
-            }
-        }
-
-        // Add website & whatsapp to estimates table
-        if (db_table_exists($db, 'estimates')) {
-            $cols = $db->query("PRAGMA table_info(estimates)")->fetchAll(PDO::FETCH_ASSOC);
-            $colNames = array_column($cols, 'name');
-            foreach (['company_website' => 'VARCHAR(150)', 'company_whatsapp' => 'VARCHAR(50)'] as $c => $t) {
-                if (!in_array($c, $colNames, true)) {
-                    try {
-                        $db->exec("ALTER TABLE estimates ADD COLUMN {$c} {$t}");
-                    } catch (Throwable $e) {}
-                }
-            }
-        }
-
-        // Update default company & legacy records with official DATAPOINT contact info
-        $officialEmail = env_value('COMPANY_EMAIL', 'sales@datapoinittechnology.com');
-        $officialWebsite = env_value('COMPANY_WEBSITE', 'https://datapointtechnology.com');
-        $officialLandline = env_value('COMPANY_PHONE', '+92 22 3669326');
-        $officialWhatsapp = env_value('COMPANY_WHATSAPP', '+923712566540');
-
-        if (db_table_exists($db, 'companies')) {
-            try {
-                $updCo = $db->prepare("
-                    UPDATE companies SET
-                        email = :em,
-                        website = :ws,
-                        phone = :ph,
-                        mobile = :wa,
-                        whatsapp = :wa
-                    WHERE id = 1 OR is_default = 1 OR name LIKE '%DATAPOINT%'
-                ");
-                $updCo->execute([
-                    'em' => $officialEmail,
-                    'ws' => $officialWebsite,
-                    'ph' => $officialLandline,
-                    'wa' => $officialWhatsapp,
-                ]);
-            } catch (Throwable $e) {}
-        }
-
-        if (db_table_exists($db, 'invoices')) {
-            try {
-                $updInv = $db->prepare("
-                    UPDATE invoices SET
-                        company_email = :em,
-                        company_phone = :ph,
-                        company_website = :ws,
-                        company_whatsapp = :wa
-                    WHERE company_id = 1 
-                       OR company_name IS NULL 
-                       OR company_name = '' 
-                       OR company_name LIKE '%DATAPOINT%' 
-                       OR company_email IS NULL 
-                       OR company_email = '' 
-                       OR company_email LIKE '%datapoint%' 
-                       OR company_email LIKE '%example.com%'
-                ");
-                $updInv->execute([
-                    'em' => $officialEmail,
-                    'ph' => $officialLandline,
-                    'ws' => $officialWebsite,
-                    'wa' => $officialWhatsapp,
-                ]);
-            } catch (Throwable $e) {}
-        }
-
-        if (db_table_exists($db, 'estimates')) {
-            try {
-                $updEst = $db->prepare("
-                    UPDATE estimates SET
-                        company_email = :em,
-                        company_phone = :ph,
-                        company_website = :ws,
-                        company_whatsapp = :wa
-                    WHERE company_id = 1 
-                       OR company_name IS NULL 
-                       OR company_name = '' 
-                       OR company_name LIKE '%DATAPOINT%' 
-                       OR company_email IS NULL 
-                       OR company_email = '' 
-                       OR company_email LIKE '%datapoint%' 
-                       OR company_email LIKE '%example.com%'
-                ");
-                $updEst->execute([
-                    'em' => $officialEmail,
-                    'ph' => $officialLandline,
-                    'ws' => $officialWebsite,
-                    'wa' => $officialWhatsapp,
-                ]);
-            } catch (Throwable $e) {}
+            db_add_column_if_missing($db, $tbl, $col, $type);
         }
     }
 
+    // Add model_make to item tables
+    foreach (['estimate_items', 'invoice_items'] as $itemTbl) {
+        if (db_table_exists($db, $itemTbl)) {
+            db_add_column_if_missing($db, $itemTbl, 'model_make', 'VARCHAR(300)');
+        }
+    }
+
+    // Add website & whatsapp to companies table
+    if (db_table_exists($db, 'companies')) {
+        db_add_column_if_missing($db, 'companies', 'website', 'VARCHAR(100)');
+        db_add_column_if_missing($db, 'companies', 'whatsapp', 'VARCHAR(50)');
+    }
+
+    // Update default company & legacy records with official DATAPOINT contact info
+    $officialEmail = env_value('COMPANY_EMAIL', 'sales@datapoinittechnology.com');
+    $officialWebsite = env_value('COMPANY_WEBSITE', 'https://datapointtechnology.com');
+    $officialLandline = env_value('COMPANY_PHONE', '+92 22 3669326');
+    $officialWhatsapp = env_value('COMPANY_WHATSAPP', '+923712566540');
+
+    if (db_table_exists($db, 'companies')) {
+        try {
+            $updCo = $db->prepare("
+                UPDATE companies SET
+                    email = :em,
+                    website = :ws,
+                    phone = :ph,
+                    mobile = :wa,
+                    whatsapp = :wa
+                WHERE id = 1 OR is_default = 1 OR name LIKE '%DATAPOINT%'
+            ");
+            $updCo->execute([
+                'em' => $officialEmail,
+                'ws' => $officialWebsite,
+                'ph' => $officialLandline,
+                'wa' => $officialWhatsapp,
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    if (db_table_exists($db, 'invoices')) {
+        try {
+            $updInv = $db->prepare("
+                UPDATE invoices SET
+                    company_email = :em,
+                    company_phone = :ph,
+                    company_website = :ws,
+                    company_whatsapp = :wa
+                WHERE company_id = 1 
+                   OR company_name IS NULL 
+                   OR company_name = '' 
+                   OR company_name LIKE '%DATAPOINT%' 
+                   OR company_email IS NULL 
+                   OR company_email = '' 
+                   OR company_email LIKE '%datapoint%' 
+                   OR company_email LIKE '%example.com%'
+            ");
+            $updInv->execute([
+                'em' => $officialEmail,
+                'ph' => $officialLandline,
+                'ws' => $officialWebsite,
+                'wa' => $officialWhatsapp,
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    if (db_table_exists($db, 'estimates')) {
+        try {
+            $updEst = $db->prepare("
+                UPDATE estimates SET
+                    company_email = :em,
+                    company_phone = :ph,
+                    company_website = :ws,
+                    company_whatsapp = :wa
+                WHERE company_id = 1 
+                   OR company_name IS NULL 
+                   OR company_name = '' 
+                   OR company_name LIKE '%DATAPOINT%' 
+                   OR company_email IS NULL 
+                   OR company_email = '' 
+                   OR company_email LIKE '%datapoint%' 
+                   OR company_email LIKE '%example.com%'
+            ");
+            $updEst->execute([
+                'em' => $officialEmail,
+                'ph' => $officialLandline,
+                'ws' => $officialWebsite,
+                'wa' => $officialWhatsapp,
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
     // 3. Seed initial 3 companies if empty
-    $count = (int) $db->query('SELECT COUNT(*) FROM companies')->fetchColumn();
-    if ($count === 0) {
-        $primaryCompany = env_value('COMPANY_NAME', 'DATAPOINT Technologies');
-        $primaryAddress = env_value('COMPANY_ADDRESS', 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh');
-        $primaryPhone = env_value('COMPANY_PHONE', '+92 22 3669326');
-        $primaryEmail = env_value('COMPANY_EMAIL', 'sales@datapoinittechnology.com');
-        $primaryWebsite = env_value('COMPANY_WEBSITE', 'https://datapointtechnology.com');
-        $primaryWhatsapp = env_value('COMPANY_WHATSAPP', '+923712566540');
+    if (db_table_exists($db, 'companies')) {
+        $count = (int) $db->query('SELECT COUNT(*) FROM companies')->fetchColumn();
+        if ($count === 0) {
+            $primaryCompany = env_value('COMPANY_NAME', 'DATAPOINT Technologies');
+            $primaryAddress = env_value('COMPANY_ADDRESS', 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh');
+            $primaryPhone = env_value('COMPANY_PHONE', '+92 22 3669326');
+            $primaryEmail = env_value('COMPANY_EMAIL', 'sales@datapoinittechnology.com');
+            $primaryWebsite = env_value('COMPANY_WEBSITE', 'https://datapointtechnology.com');
+            $primaryWhatsapp = env_value('COMPANY_WHATSAPP', '+923712566540');
 
-        $initialCompanies = [
-            [
-                'name' => $primaryCompany,
-                'code' => 'CO1',
-                'logo_url' => '/static/img/logo.png',
-                'email' => $primaryEmail,
-                'phone' => $primaryPhone,
-                'mobile' => $primaryWhatsapp,
-                'whatsapp' => $primaryWhatsapp,
-                'website' => $primaryWebsite,
-                'address' => $primaryAddress,
-                'city' => 'Hyderabad',
-                'ntn' => '1234567-8',
-                'strn' => '12-34-5678-901-23',
-                'terms' => "1. Payment: Net 30 days\n2. Prices include standard GST\n3. Validity: 15 days",
-                'is_default' => 1,
-                'markup_percent' => 0.0,
-                'sort_order' => 1,
-            ],
-            [
-                'name' => 'TechPoint Solutions',
-                'code' => 'CO2',
-                'logo_url' => '/static/img/logo.png',
-                'email' => 'sales@techpoint.pk',
-                'phone' => '+92-300-8899112',
-                'mobile' => '+92-315-9988776',
-                'address' => 'Suite 402, Trade Center, Qasimabad, Hyderabad Sindh',
-                'city' => 'Hyderabad',
-                'ntn' => '8765432-1',
-                'strn' => '98-76-5432-109-87',
-                'terms' => "1. Payment: Net 30 days\n2. Prices include standard GST\n3. Validity: 15 days",
-                'is_default' => 0,
-                'markup_percent' => 2.0,
-                'sort_order' => 2,
-            ],
-            [
-                'name' => 'Apex Data Systems',
-                'code' => 'CO3',
-                'logo_url' => '/static/img/logo.png',
-                'email' => 'info@apexdata.com.pk',
-                'phone' => '+92-312-3344556',
-                'mobile' => '+92-333-5566778',
-                'address' => 'Plot 15, Industrial Estate, Autobahn Road, Hyderabad Sindh',
-                'city' => 'Hyderabad',
-                'ntn' => '5432167-9',
-                'strn' => '54-32-1678-901-45',
-                'terms' => "1. Payment: Net 30 days\n2. Prices include standard GST\n3. Validity: 15 days",
-                'is_default' => 0,
-                'markup_percent' => 3.0,
-                'sort_order' => 3,
-            ],
-        ];
+            $initialCompanies = [
+                [
+                    'name' => $primaryCompany,
+                    'code' => 'CO1',
+                    'logo_url' => '/static/img/logo.png',
+                    'email' => $primaryEmail,
+                    'phone' => $primaryPhone,
+                    'mobile' => $primaryWhatsapp,
+                    'whatsapp' => $primaryWhatsapp,
+                    'website' => $primaryWebsite,
+                    'address' => $primaryAddress,
+                    'city' => 'Hyderabad',
+                    'ntn' => '1234567-8',
+                    'strn' => '12-34-5678-901-23',
+                    'terms' => "1. Payment: Net 30 days\n2. Prices include standard GST\n3. Validity: 15 days",
+                    'is_default' => 1,
+                    'markup_percent' => 0.0,
+                    'sort_order' => 1,
+                ],
+                [
+                    'name' => 'TechPoint Solutions',
+                    'code' => 'CO2',
+                    'logo_url' => '/static/img/logo.png',
+                    'email' => 'sales@techpoint.pk',
+                    'phone' => '+92-300-8899112',
+                    'mobile' => '+92-315-9988776',
+                    'address' => 'Suite 402, Trade Center, Qasimabad, Hyderabad Sindh',
+                    'city' => 'Hyderabad',
+                    'ntn' => '8765432-1',
+                    'strn' => '98-76-5432-109-87',
+                    'terms' => "1. Payment: Net 30 days\n2. Prices include standard GST\n3. Validity: 15 days",
+                    'is_default' => 0,
+                    'markup_percent' => 2.0,
+                    'sort_order' => 2,
+                ],
+                [
+                    'name' => 'Apex Data Systems',
+                    'code' => 'CO3',
+                    'logo_url' => '/static/img/logo.png',
+                    'email' => 'info@apexdata.com.pk',
+                    'phone' => '+92-312-3344556',
+                    'mobile' => '+92-333-5566778',
+                    'address' => 'Plot 15, Industrial Estate, Autobahn Road, Hyderabad Sindh',
+                    'city' => 'Hyderabad',
+                    'ntn' => '5432167-9',
+                    'strn' => '54-32-1678-901-45',
+                    'terms' => "1. Payment: Net 30 days\n2. Prices include standard GST\n3. Validity: 15 days",
+                    'is_default' => 0,
+                    'markup_percent' => 3.0,
+                    'sort_order' => 3,
+                ],
+            ];
 
-        $ins = $db->prepare('INSERT INTO companies (name, code, logo_url, email, phone, mobile, whatsapp, website, address, city, ntn, strn, terms, is_default, markup_percent, sort_order, created_at, updated_at) VALUES (:name, :code, :logo_url, :email, :phone, :mobile, :whatsapp, :website, :address, :city, :ntn, :strn, :terms, :is_default, :markup_percent, :sort_order, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
-        foreach ($initialCompanies as $co) {
-            $co['whatsapp'] = $co['whatsapp'] ?? ($co['mobile'] ?? null);
-            $co['website'] = $co['website'] ?? null;
-            $ins->execute($co);
+            $ins = $db->prepare('INSERT INTO companies (name, code, logo_url, email, phone, mobile, whatsapp, website, address, city, ntn, strn, terms, is_default, markup_percent, sort_order, created_at, updated_at) VALUES (:name, :code, :logo_url, :email, :phone, :mobile, :whatsapp, :website, :address, :city, :ntn, :strn, :terms, :is_default, :markup_percent, :sort_order, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
+            foreach ($initialCompanies as $co) {
+                $co['whatsapp'] = $co['whatsapp'] ?? ($co['mobile'] ?? null);
+                $co['website'] = $co['website'] ?? null;
+                $ins->execute($co);
+            }
         }
     }
 }
@@ -1234,25 +1265,8 @@ function ensure_fbr_schema(PDO $db): void
 {
     ensure_app_settings_schema($db);
 
-    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-
-    $getColumns = function(string $table) use ($db, $driver): array {
-        if (!db_table_exists($db, $table)) return [];
-        try {
-            if ($driver === 'sqlite') {
-                $cols = $db->query("PRAGMA table_info({$table})")->fetchAll(PDO::FETCH_ASSOC);
-                return array_column($cols, 'name');
-            }
-            $cols = $db->query("SHOW COLUMNS FROM {$table}")->fetchAll(PDO::FETCH_ASSOC);
-            return array_column($cols, 'Field');
-        } catch (\Throwable $e) {
-            return [];
-        }
-    };
-
     // 1. Invoices table FBR integration columns
     if (db_table_exists($db, 'invoices')) {
-        $existing = $getColumns('invoices');
         $fbrCols = [
             'fbr_status' => "VARCHAR(50) DEFAULT 'unposted'",
             'fbr_invoice_no' => 'VARCHAR(100)',
@@ -1266,17 +1280,12 @@ function ensure_fbr_schema(PDO $db): void
             'approved_by' => 'INTEGER',
         ];
         foreach ($fbrCols as $col => $type) {
-            if (!in_array($col, $existing, true)) {
-                try {
-                    $db->exec("ALTER TABLE invoices ADD COLUMN {$col} {$type}");
-                } catch (\Throwable $e) {}
-            }
+            db_add_column_if_missing($db, 'invoices', $col, $type);
         }
     }
 
     // 2. Companies table FBR per-company settings
     if (db_table_exists($db, 'companies')) {
-        $existing = $getColumns('companies');
         $coCols = [
             'fbr_pos_id' => 'VARCHAR(50)',
             'fbr_bearer_token' => 'TEXT',
@@ -1284,23 +1293,14 @@ function ensure_fbr_schema(PDO $db): void
             'fbr_enabled' => 'BOOLEAN DEFAULT 1',
         ];
         foreach ($coCols as $col => $type) {
-            if (!in_array($col, $existing, true)) {
-                try {
-                    $db->exec("ALTER TABLE companies ADD COLUMN {$col} {$type}");
-                } catch (\Throwable $e) {}
-            }
+            db_add_column_if_missing($db, 'companies', $col, $type);
         }
     }
 
     // 3. Line items & products PCT/HS Code
     foreach (['products', 'invoice_items'] as $tbl) {
         if (db_table_exists($db, $tbl)) {
-            $existing = $getColumns($tbl);
-            if (!in_array('pct_code', $existing, true)) {
-                try {
-                    $db->exec("ALTER TABLE {$tbl} ADD COLUMN pct_code VARCHAR(50)");
-                } catch (\Throwable $e) {}
-            }
+            db_add_column_if_missing($db, $tbl, 'pct_code', 'VARCHAR(50)');
         }
     }
 

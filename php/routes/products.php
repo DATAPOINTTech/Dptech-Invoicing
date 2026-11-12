@@ -181,9 +181,9 @@ function handle_products_routes(string $method, string $path, PDO $db): bool
         try {
             $hasInventory = db_table_exists($db, 'inventory');
             if ($hasInventory) {
-                $stmt = $db->query('SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE (p.is_active = 1 OR p.is_active IS NULL OR p.is_active = "1") ORDER BY p.category ASC, p.name ASC');
+                $stmt = $db->query("SELECT p.*, COALESCE(i.quantity, 0) AS stock_quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE (p.is_active = 1 OR p.is_active IS NULL OR p.is_active = '1') ORDER BY p.category ASC, p.name ASC");
             } else {
-                $stmt = $db->query('SELECT p.*, 0 AS stock_quantity FROM products p WHERE (p.is_active = 1 OR p.is_active IS NULL OR p.is_active = "1") ORDER BY p.category ASC, p.name ASC');
+                $stmt = $db->query("SELECT p.*, 0 AS stock_quantity FROM products p WHERE (p.is_active = 1 OR p.is_active IS NULL OR p.is_active = '1') ORDER BY p.category ASC, p.name ASC");
             }
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (\Throwable $e) {

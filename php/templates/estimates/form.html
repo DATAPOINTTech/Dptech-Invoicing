@@ -383,30 +383,70 @@ let printEstimateAfterSave = false;
 let configuredCompanies = [];
 let currentPickerSource = 'products';
 
+// Seed from cache immediately if available
+try {
+    const _cached = JSON.parse(sessionStorage.getItem('dptech_products_cache') || '[]');
+    if (Array.isArray(_cached) && _cached.length > 0) {
+        productList = _cached;
+    }
+} catch (e) {}
+
 function loadProducts(cb) {
+    function onLoaded(prods) {
+        if (Array.isArray(prods) && prods.length > 0) {
+            productList = prods;
+            try { sessionStorage.setItem('dptech_products_cache', JSON.stringify(prods)); } catch (e) {}
+        } else if (Array.isArray(prods)) {
+            productList = prods;
+        }
+        updateAllProductDropdowns();
+        if (cb) cb(productList);
+    }
+
     $.ajax({
         url: '/api/products',
         method: 'GET',
-        headers: authHeaders
+        headers: authHeaders,
+        cache: false
     }).done(function(prods) {
-        productList = Array.isArray(prods) ? prods : [];
-        updateAllProductDropdowns();
-        if (cb) cb(productList);
+        if (Array.isArray(prods) && prods.length > 0) {
+            onLoaded(prods);
+        } else {
+            // Secondary attempt with query token in case authorization header was stripped by FastCGI
+            $.ajax({
+                url: '/api/products?token=' + encodeURIComponent(token) + '&_t=' + Date.now(),
+                method: 'GET',
+                cache: false
+            }).done(onLoaded).fail(function() {
+                onLoaded(prods || []);
+            });
+        }
     }).fail(function(x) {
         console.warn('Failed to load products with header, retrying with token param...', x);
         $.ajax({
-            url: '/api/products?token=' + encodeURIComponent(token),
-            method: 'GET'
-        }).done(function(prods) {
-            productList = Array.isArray(prods) ? prods : [];
-            updateAllProductDropdowns();
-            if (cb) cb(productList);
-        }).fail(function(err) {
+            url: '/api/products?token=' + encodeURIComponent(token) + '&_t=' + Date.now(),
+            method: 'GET',
+            cache: false
+        }).done(onLoaded).fail(function(err) {
             console.error('Products fallback also failed:', err);
-            if (cb) cb([]);
+            onLoaded(productList || []);
         });
     });
 }
+
+$(document).on('mousedown focus', '.product-select', function() {
+    if ((!productList || productList.length === 0) && !window._fetchingProducts) {
+        window._fetchingProducts = true;
+        const currentSel = $(this);
+        const curVal = currentSel.val();
+        loadProducts(function(loaded) {
+            window._fetchingProducts = false;
+            if (loaded && loaded.length > 0 && curVal) {
+                currentSel.val(curVal);
+            }
+        });
+    }
+});
 
 function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
