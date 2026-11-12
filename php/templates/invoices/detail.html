@@ -556,7 +556,7 @@ function loadInvoice() {
 
         // Pre-fill email/phone in send form
         $('#send-email').val(inv.client_email || inv.client?.email || '');
-        $('#send-whatsapp').val(inv.client_mobile || inv.client_phone || inv.client?.mobile || '');
+        $('#send-whatsapp').val(inv.client_mobile || inv.client_phone || inv.client?.mobile || '+923712566540');
 
         // Items body
         const items = inv.items || [];
@@ -799,7 +799,7 @@ $(function() {
 
 function sendInvoiceWhatsappDirect() {
     const wa = $('#send-whatsapp').val().trim();
-    const phone = prompt('Enter or confirm client WhatsApp mobile number (e.g. 03167788990 or +923167788990):', wa || '');
+    const phone = prompt('Enter or confirm client WhatsApp mobile number (e.g. 03167788990 or +923712566540):', wa || '+923712566540');
     if (!phone) return;
 
     const btn = $('#whatsapp-quick-btn');
@@ -815,7 +815,18 @@ function sendInvoiceWhatsappDirect() {
         alert(res.message || 'Invoice PDF sent via WhatsApp successfully!');
         loadInvoice();
     }).fail(function(err) {
-        alert('Failed to send WhatsApp: ' + (err.responseJSON?.detail || 'Unknown error. Ensure WhatsApp is linked on the Dashboard.'));
+        const errMsg = err.responseJSON?.detail || 'WhatsApp microservice is offline or not linked.';
+        const cleanDigits = phone.replace(/\D+/g, '');
+        const waPhone = cleanDigits.startsWith('0') ? ('92' + cleanDigits.substring(1)) : cleanDigits;
+        const pdfLink = window.location.origin + '/api/invoices/' + iid + '/pdf?token=' + encodeURIComponent(token);
+        const waMsg = 'Dear Customer, please find attached your official Sales Tax Invoice from DATAPOINT Technologies.\n\n' +
+                      'You can view / download your official PDF directly here:\n' + pdfLink + '\n\n' +
+                      'Official WhatsApp Helpline: +923712566540\nThank you for doing business with DATAPOINT Technologies!';
+        const waUrl = 'https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg);
+
+        if (confirm(errMsg + '\n\nWould you like to open WhatsApp directly to send the Invoice message and PDF link to ' + phone + '?')) {
+            window.open(waUrl, '_blank');
+        }
     }).always(function() {
         btn.prop('disabled', false).html('<i class="fab fa-whatsapp text-lg"></i> Send WhatsApp');
     });

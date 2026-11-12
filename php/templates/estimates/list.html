@@ -316,6 +316,7 @@ if (!token) {
                     <div class="flex gap-1.5 justify-end">
                         <a href="/estimates/${id}" class="btn btn-ghost btn-sm" title="View Detail"><i class="fas fa-eye"></i></a>
                         <a href="/api/estimates/${id}/pdf?token=${encodeURIComponent(token)}" target="_blank" class="btn btn-ghost btn-sm text-cyan-600" title="Print PDF"><i class="fas fa-file-pdf"></i></a>
+                        <button type="button" class="btn btn-ghost btn-sm text-emerald-600 send-estimate-whatsapp" data-id="${id}" data-phone="${esc(e.client_mobile || e.client_phone || '+923712566540')}" title="Send PDF via WhatsApp"><i class="fab fa-whatsapp text-sm"></i></button>
                         <a href="/estimates/${id}/edit" class="btn btn-ghost btn-sm" title="Edit"><i class="fas fa-pen"></i></a>
                         ${rowAction}
                     </div>
@@ -370,6 +371,36 @@ if (!token) {
         renderEstimatesTable(list);
     }
 
+    function sendEstimateWhatsappDirect(customId, defaultPhone) {
+        const targetId = customId;
+        const phone = prompt('Enter or confirm client WhatsApp mobile number (e.g. 03167788990 or +923712566540):', defaultPhone || '+923712566540');
+        if (!phone) return;
+
+        $.ajax({
+            url: '/api/estimates/' + targetId + '/whatsapp',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ recipient_phone: phone }),
+            headers: { Authorization: 'Bearer ' + token }
+        }).done(function(res) {
+            alert(res.message || 'Quotation PDF sent via WhatsApp successfully!');
+            load();
+        }).fail(function(err) {
+            const errMsg = err.responseJSON?.detail || 'WhatsApp microservice is offline or not linked.';
+            const cleanDigits = phone.replace(/\D+/g, '');
+            const waPhone = cleanDigits.startsWith('0') ? ('92' + cleanDigits.substring(1)) : cleanDigits;
+            const pdfLink = window.location.origin + '/api/estimates/' + targetId + '/pdf?token=' + encodeURIComponent(token);
+            const waMsg = 'Dear Customer, please find attached our official Quotation from DATAPOINT Technologies.\n\n' +
+                          'You can view / download your official PDF directly here:\n' + pdfLink + '\n\n' +
+                          'Official WhatsApp Helpline: +923712566540\nThank you for choosing DATAPOINT Technologies!';
+            const waUrl = 'https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg);
+
+            if (confirm(errMsg + '\n\nWould you like to open WhatsApp directly to send the Quotation message and PDF link to ' + phone + '?')) {
+                window.open(waUrl, '_blank');
+            }
+        });
+    }
+
     $(function() {
         const urlQ = new URLSearchParams(window.location.search).get('search') || new URLSearchParams(window.location.search).get('q') || '';
         if (urlQ) {
@@ -395,6 +426,13 @@ if (!token) {
         window.addEventListener('popstate', function() {
             updateFolderUI();
             load();
+        });
+
+        $(document).on('click', '.send-estimate-whatsapp', function(e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+            const phone = $(this).data('phone');
+            sendEstimateWhatsappDirect(id, phone);
         });
 
         $(document).on('click', '.reject-estimate', function() {

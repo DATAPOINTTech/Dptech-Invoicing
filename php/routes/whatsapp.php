@@ -81,21 +81,19 @@ function handle_whatsapp_routes(string $method, string $path, PDO $db): bool
         $body = request_json();
         $targetPhone = !empty($body['recipient_phone']) 
             ? (string) $body['recipient_phone'] 
-            : ($inv['client_mobile'] ?: $inv['client_phone'] ?: '');
-
-        if ($targetPhone === '') {
-            json_response(['detail' => 'No phone number found for this client. Please specify recipient_phone.'], 422);
-        }
+            : ($inv['client_mobile'] ?: $inv['client_phone'] ?: '+923712566540');
 
         $clientName = $inv['client_name'] ?: 'Valued Customer';
         $invNo = $inv['invoice_no'];
         $amountFmt = number_format((float) $inv['total_amount'], 2);
         $balFmt = number_format((float) ($inv['balance_due'] ?? $inv['total_amount']), 2);
+        $coWhatsapp = !empty($inv['company_whatsapp']) ? (string)$inv['company_whatsapp'] : env_value('COMPANY_WHATSAPP', '+923712566540');
 
         $defaultMessage = "Dear *{$clientName}*,\n\n" .
             "Please find attached your official Sales Tax Invoice *#{$invNo}* from DATAPOINT Technologies.\n\n" .
             "• Invoice Amount: *PKR {$amountFmt}*\n" .
-            "• Balance Due: *PKR {$balFmt}*\n\n" .
+            "• Balance Due: *PKR {$balFmt}*\n" .
+            "• Official WhatsApp Helpline: *{$coWhatsapp}*\n\n" .
             "Thank you for choosing DATAPOINT Technologies!";
 
         $caption = !empty($body['message']) ? (string) $body['message'] : $defaultMessage;
@@ -146,22 +144,20 @@ function handle_whatsapp_routes(string $method, string $path, PDO $db): bool
         $body = request_json();
         $targetPhone = !empty($body['recipient_phone']) 
             ? (string) $body['recipient_phone'] 
-            : ($est['client_mobile'] ?: $est['client_phone'] ?: '');
-
-        if ($targetPhone === '') {
-            json_response(['detail' => 'No phone number found for this client. Please specify recipient_phone.'], 422);
-        }
+            : ($est['client_mobile'] ?: $est['client_phone'] ?: '+923712566540');
 
         $clientName = $est['client_name'] ?: 'Valued Customer';
         $estNo = $est['estimate_no'];
         $amountFmt = number_format((float) $est['total_amount'], 2);
 
         $coName = !empty($est['company_name']) ? (string)$est['company_name'] : 'DATAPOINT Technologies';
+        $coWhatsapp = !empty($est['company_whatsapp']) ? (string)$est['company_whatsapp'] : env_value('COMPANY_WHATSAPP', '+923712566540');
         $defaultMessage = "Dear *{$clientName}*,\n\n" .
             "Thank you for contacting {$coName}.\n" .
             "Please find attached our official Quotation *#{$estNo}*.\n\n" .
             "• Total Quote: *PKR {$amountFmt}*\n" .
-            "• Valid Until: *" . ($est['valid_until'] ?: '15 Days') . "*\n\n" .
+            "• Valid Until: *" . ($est['valid_until'] ?: '15 Days') . "*\n" .
+            "• Official WhatsApp Helpline: *{$coWhatsapp}*\n\n" .
             "Please feel free to reach out if you have any questions or require revisions.";
 
         $caption = !empty($body['message']) ? (string) $body['message'] : $defaultMessage;

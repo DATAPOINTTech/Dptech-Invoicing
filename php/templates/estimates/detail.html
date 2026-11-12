@@ -439,7 +439,8 @@ function convert(id) {
 let currentClientPhone = '';
 
 function sendEstimateWhatsappDirect() {
-    const phone = prompt('Enter or confirm client WhatsApp mobile number (e.g. 03167788990 or +923167788990):', currentClientPhone || '');
+    const initialPhone = currentClientPhone || '+923712566540';
+    const phone = prompt('Enter or confirm client WhatsApp mobile number (e.g. 03167788990 or +923712566540):', initialPhone);
     if (!phone) return;
 
     const btn = $('#whatsapp-est-btn');
@@ -455,7 +456,18 @@ function sendEstimateWhatsappDirect() {
         alert(res.message || 'Quotation PDF sent via WhatsApp successfully!');
         location.reload();
     }).fail(function(err) {
-        alert('Failed to send WhatsApp: ' + (err.responseJSON?.detail || 'Unknown error. Ensure WhatsApp is linked on Dashboard.'));
+        const errMsg = err.responseJSON?.detail || 'WhatsApp microservice is offline or not linked.';
+        const cleanDigits = phone.replace(/\D+/g, '');
+        const waPhone = cleanDigits.startsWith('0') ? ('92' + cleanDigits.substring(1)) : cleanDigits;
+        const pdfLink = window.location.origin + '/api/estimates/' + eid + '/pdf?token=' + encodeURIComponent(token);
+        const waMsg = 'Dear Customer, please find attached our official Quotation from DATAPOINT Technologies.\n\n' +
+                      'You can view / download your official PDF directly here:\n' + pdfLink + '\n\n' +
+                      'Official WhatsApp Helpline: +923712566540\nThank you for choosing DATAPOINT Technologies!';
+        const waUrl = 'https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg);
+
+        if (confirm(errMsg + '\n\nWould you like to open WhatsApp directly to send the Quotation message and PDF link to ' + phone + '?')) {
+            window.open(waUrl, '_blank');
+        }
     }).always(function() {
         btn.prop('disabled', false).html('<i class="fab fa-whatsapp text-base"></i> Send WhatsApp');
     });

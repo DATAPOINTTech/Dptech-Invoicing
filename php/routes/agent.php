@@ -43,7 +43,7 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
 
                 $phone = !empty($action['target_phone']) 
                     ? $action['target_phone'] 
-                    : (!empty($inv['client_mobile']) ? $inv['client_mobile'] : ($inv['client_phone'] ?? ''));
+                    : (!empty($inv['client_mobile']) ? $inv['client_mobile'] : ($inv['client_phone'] ?: '+923712566540'));
                 $amountFormatted = number_format((float) $inv['total_amount'], 2);
                 $balFormatted = number_format((float) ($inv['balance_due'] ?? $inv['total_amount']), 2);
 
@@ -118,7 +118,7 @@ function handle_agent_routes(string $method, string $path, PDO $db): bool
 
                 $phone = !empty($actionQuote['target_phone']) 
                     ? $actionQuote['target_phone'] 
-                    : (!empty($est['client_mobile']) ? $est['client_mobile'] : ($est['client_phone'] ?? ''));
+                    : (!empty($est['client_mobile']) ? $est['client_mobile'] : ($est['client_phone'] ?: '+923712566540'));
                 $amountFormatted = number_format((float) $est['total_amount'], 2);
 
                 $caption = "Dear *" . ($est['client_name'] ?: 'Valued Customer') . "*,\n\n"
