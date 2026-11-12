@@ -41,6 +41,13 @@ $('#client-form').submit(function(e) {
     const url = editId ? '/api/clients/'+editId : '/api/clients';
     $.ajax({url, method, contentType:'application/json', data:JSON.stringify(data), headers:{Authorization:'Bearer '+token}})
         .done(function(){
+            if (window.opener && !window.opener.closed) {
+                try {
+                    if (window.opener.loadClients) window.opener.loadClients();
+                    window.close();
+                    return;
+                } catch(e) {}
+            }
             window.location.href='/clients';
         })
         .fail(function(x){

@@ -692,12 +692,12 @@ function showCompanySetupModal() {
         `).join('');
 
         $('#modal-companies-cards').html(html);
-        $('#company-setup-modal').removeClass('hidden').addClass('flex');
+        $('#company-setup-modal').removeClass('hidden').addClass('flex').css('display', 'flex');
     });
 }
 
 function hideCompanySetupModal() {
-    $('#company-setup-modal').addClass('hidden').removeClass('flex');
+    $('#company-setup-modal').addClass('hidden').removeClass('flex').css('display', 'none');
 }
 
 // Logo upload in modal
@@ -886,12 +886,12 @@ $('#price-search').on('input', function() {
 
 function showNewClient() {
     $('#new-client-form')[0].reset();
-    $('#new-client-modal').removeClass('hidden').addClass('flex');
+    $('#new-client-modal').removeClass('hidden').addClass('flex').css('display', 'flex');
     $('#nc-name').focus();
 }
 
 function hideNewClient() {
-    $('#new-client-modal').addClass('hidden').removeClass('flex');
+    $('#new-client-modal').addClass('hidden').removeClass('flex').css('display', 'none');
     if ($('#client_id').val() === 'new') $('#client_id').val('');
 }
 
@@ -908,16 +908,20 @@ $('#new-client-form').submit(function(e) {
         .done(function(c) {
             $('#client_id').append(`<option value="${esc(c.id)}">${esc(c.name)}${c.company ? ' (' + esc(c.company) + ')' : ''}</option>`);
             $('#client_id').val(c.id);
-            loadClientProjects(c.id);
             hideNewClient();
+            if (typeof window.loadClientProjects === 'function') {
+                try { window.loadClientProjects(c.id); } catch (err) { console.error(err); }
+            }
         })
         .fail(function(x) {
             if (x.status === 409 && x.responseJSON?.duplicate) {
                 const dup = x.responseJSON.duplicate;
                 if (confirm(x.responseJSON.detail + '\n\nWould you like to select the existing client instead?')) {
                     $('#client_id').val(dup.id);
-                    loadClientProjects(dup.id);
                     hideNewClient();
+                    if (typeof window.loadClientProjects === 'function') {
+                        try { window.loadClientProjects(dup.id); } catch (err) { console.error(err); }
+                    }
                     return;
                 }
             }
@@ -955,6 +959,7 @@ $(function() {
             }
         });
     }
+    window.loadClientProjects = loadClientProjects;
 
     function loadClients(cb) {
         $.ajax({ url: '/api/clients', method: 'GET', headers: authHeaders }).done(function(clients) {
