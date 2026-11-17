@@ -910,20 +910,23 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         } catch (\Throwable $e) {}
     }
 
-    // Enforce official DATAPOINT credentials if primary
-    if (empty($doc['company_id']) || (int)$doc['company_id'] === 1 || stripos($companyName, 'DATAPOINT') !== false) {
-        if (empty($companyEmail) || stripos($companyEmail, 'example.com') !== false || $companyEmail === 'info@datapointtechnology.com') {
-            $companyEmail = 'sales@datapoinittechnology.com';
-        }
-        if (empty($companyWebsite)) {
-            $companyWebsite = 'https://datapointtechnology.com';
-        }
-        if (empty($companyPhone) || $companyPhone === '+92-316-7788990' || $companyPhone === '0316 7788990' || $companyPhone === '+92 21 34567890') {
-            $companyPhone = '+92 22 3669326';
-        }
-        if (empty($companyWhatsapp)) {
-            $companyWhatsapp = '+923712566540';
-        }
+    // Fallback to configured company credentials if blank
+    $cfgEmail = (string)(getenv('COMPANY_EMAIL') ?: 'sales@datapoinittechnology.com');
+    $cfgWebsite = (string)(getenv('COMPANY_WEBSITE') ?: 'https://datapointtechnology.com');
+    $cfgPhone = (string)(getenv('COMPANY_PHONE') ?: '+92 22 3669326');
+    $cfgWhatsapp = (string)(getenv('COMPANY_WHATSAPP') ?: '+923712566540');
+
+    if (empty($companyEmail)) {
+        $companyEmail = $cfgEmail;
+    }
+    if (empty($companyWebsite)) {
+        $companyWebsite = $cfgWebsite;
+    }
+    if (empty($companyPhone)) {
+        $companyPhone = $cfgPhone;
+    }
+    if (empty($companyWhatsapp)) {
+        $companyWhatsapp = $cfgWhatsapp;
     }
 
     // Refresh client party details (company name, contact name, phone, address)
@@ -1331,7 +1334,7 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     }
 
     // 6. Summary Block printed at the end of the columns
-    $pdf->checkPageBreak(130.0);
+    $pdf->checkPageBreak(170.0);
     $y = $pdf->getY() - 4.0;
 
     // Subtotal: sum of all items (Qty * Rate), without individual item tax
@@ -1355,6 +1358,49 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $taxable = max(0.0, round($subtotal - $discAmount, 2));
     $taxAmount = round($taxable * ($taxRate / 100.0), 2);
     $totalAmount = round($taxable + $taxAmount, 2);
+
+    // Payments & Remaining Balance Calculation (for Invoices)
+    $amountPaid = 0.0;
+    if (isset($doc['amount_paid']) && $doc['amount_paid'] !== null && $doc['amount_paid'] !== '') {
+        $amountPaid = (float)$doc['amount_paid'];
+    }
+    $payments = !empty($doc['payments']) && is_array($doc['payments']) ? $doc['payments'] : [];
+    if (!empty($payments)) {
+        $sumPayments = 0.0;
+        foreach ($payments as $p) {
+            $sumPayments += (float)($p['amount'] ?? 0);
+        }
+        $amountPaid = max($amountPaid, $sumPayments);
+    }
+
+    if ($type === 'INVOICE' && $amountPaid <= 0.0 && !empty($doc['id'])) {
+        try {
+            $db = database_connection();
+            $payStmt = $db->prepare('SELECT * FROM payments WHERE invoice_id = :id ORDER BY payment_date ASC, id ASC');
+            $payStmt->execute(['id' => (int)$doc['id']]);
+            $dbPayments = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+            if (!empty($dbPayments)) {
+                $payments = $dbPayments;
+                $sumPayments = 0.0;
+                foreach ($payments as $p) {
+                    $sumPayments += (float)($p['amount'] ?? 0);
+                }
+                $amountPaid = max($amountPaid, $sumPayments);
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    if (($doc['status'] ?? '') === 'paid' && $amountPaid <= 0.0) {
+        $amountPaid = $totalAmount;
+    }
+
+    $balanceDue = max(0.0, round($totalAmount - $amountPaid, 2));
+    if (isset($doc['balance_due']) && $doc['balance_due'] !== null && $doc['balance_due'] !== '') {
+        $explicitBalance = (float)$doc['balance_due'];
+        if ($amountPaid > 0.0) {
+            $balanceDue = max(0.0, min($balanceDue, $explicitBalance));
+        }
+    }
 
     $summaryValX = $left + $width - $colTotal;
     $summaryValW = $colTotal;
@@ -1394,9 +1440,40 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
     $pdf->setFillColorArray($theme['total_bar_bg']);
     $pdf->drawRect($barX, $y - 16.0, $barW, 19.0, true, false);
     $pdf->setFillColor(1, 1, 1);
-    $pdf->drawText($barX + 8.0, $y - 12.0, 'GRAND TOTAL (' . $currency . ')', 'F2', 10.0);
+    $grandLabel = ($type === 'INVOICE' && $amountPaid > 0.0) ? 'TOTAL INVOICE AMOUNT (' . $currency . ')' : 'GRAND TOTAL (' . $currency . ')';
+    $pdf->drawText($barX + 8.0, $y - 12.0, $grandLabel, 'F2', 9.5);
     $pdf->drawText($barX, $y - 12.0, number_format($totalAmount, 2), 'F2', 10.5, 'right', $barW - 8.0);
-    $y -= 26.0;
+    $y -= 22.0;
+
+    // For Invoices: If amount has been received / paid, display Amount Paid and Remaining Balance Due
+    if ($type === 'INVOICE' && ($amountPaid > 0.0 || ($doc['status'] ?? '') === 'paid' || ($doc['status'] ?? '') === 'partially_paid')) {
+        // 1. Amount Paid / Received row
+        $pdf->setFillColor(0.05, 0.52, 0.28); // Emerald Green
+        $pdf->drawText($summaryLabelX, $y - 11.0, 'Amount Paid / Received:', 'F2', 9.5, 'right', $summaryLabelW - 8.0);
+        $pdf->drawText($summaryValX, $y - 11.0, '-' . number_format($amountPaid, 2), 'F2', 9.5, 'right', $summaryValW - 4.0);
+        $y -= 16.0;
+
+        // 2. Remaining Balance Due Bar
+        $balBarH = 20.0;
+        if ($balanceDue > 0.001) {
+            // Outstanding balance: Bold Crimson Red Alert Bar
+            $pdf->setFillColor(0.80, 0.12, 0.12); // #cc1f1f
+            $pdf->drawRect($barX, $y - 16.0, $barW, $balBarH, true, false);
+            $pdf->setFillColor(1, 1, 1);
+            $pdf->drawText($barX + 8.0, $y - 12.0, 'REMAINING BALANCE DUE (' . $currency . ')', 'F2', 9.5);
+            $pdf->drawText($barX, $y - 12.0, number_format($balanceDue, 2), 'F2', 11.0, 'right', $barW - 8.0);
+        } else {
+            // Fully paid: Solid Emerald Green Bar
+            $pdf->setFillColor(0.05, 0.50, 0.25); // #0d8040
+            $pdf->drawRect($barX, $y - 16.0, $barW, $balBarH, true, false);
+            $pdf->setFillColor(1, 1, 1);
+            $pdf->drawText($barX + 8.0, $y - 12.0, 'PAID IN FULL  -  BALANCE DUE', 'F2', 9.5);
+            $pdf->drawText($barX, $y - 12.0, number_format(0.0, 2) . ' ' . $currency, 'F2', 10.5, 'right', $barW - 8.0);
+        }
+        $y -= ($balBarH + 8.0);
+    } else {
+        $y -= 4.0;
+    }
 
     // 7. Stamp Box (Right), FBR Verification Box (Middle if posted), & Terms (Left)
     $hasFbr = ($type === 'INVOICE' && !empty($doc['fbr_invoice_no']));
@@ -1497,6 +1574,21 @@ function render_branded_sales_tax_document(array $doc, string $type = 'INVOICE')
         $notes = trim((string)$doc['notes']);
         if ($notes !== '' && !str_contains($termsRaw, $notes)) {
             $termsRaw .= "\nNote: " . $notes;
+        }
+    }
+
+    // 4. Append Payment Receipt info on invoices if payment has been received
+    if ($type === 'INVOICE' && !empty($payments) && is_array($payments)) {
+        $receiptLines = [];
+        foreach ($payments as $p) {
+            $pDate = !empty($p['payment_date']) ? substr((string)$p['payment_date'], 0, 10) : '';
+            $pMethod = !empty($p['payment_method']) ? (string)$p['payment_method'] : 'Payment';
+            $pAmt = number_format((float)($p['amount'] ?? 0), 2);
+            $pRef = !empty($p['reference_no']) ? " [Ref: " . trim((string)$p['reference_no']) . "]" : '';
+            $receiptLines[] = "Received {$currency} {$pAmt} on {$pDate} via {$pMethod}{$pRef}";
+        }
+        if (!empty($receiptLines)) {
+            $termsRaw .= "\nPayment History: " . implode(' | ', $receiptLines);
         }
     }
 

@@ -1,12 +1,12 @@
 <aside class="fixed inset-y-0 left-0 w-64 z-30 flex flex-col" id="sidebar">
     <!-- Logo -->
     <div class="flex items-center gap-3.5 px-4 py-4 border-b border-white/[0.08] bg-slate-950/60 backdrop-blur-md">
-        <div class="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg p-1.5 border border-white/10 ring-1 ring-white/20">
-            <img src="/static/img/logo.png" alt="Logo" class="max-w-full max-h-full object-contain">
+        <div class="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg p-1.5 border border-white/10 ring-1 ring-white/20 overflow-hidden">
+            <img src="{{ company_logo }}" alt="{{ company }}" class="max-w-full max-h-full object-contain">
         </div>
         <div class="min-w-0">
-            <p class="text-white font-extrabold text-base tracking-wider leading-tight truncate bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-300">DATAPOINT</p>
-            <p class="text-[10px] font-bold tracking-widest uppercase mt-0.5 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-indigo-400">Invoicing Suite</p>
+            <p class="text-white font-extrabold text-base tracking-wider leading-tight truncate bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-300">{{ company_brand_name }}</p>
+            <p class="text-[10px] font-bold tracking-widest uppercase mt-0.5 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-indigo-400 truncate">{{ company_tagline }}</p>
         </div>
     </div>
 
@@ -113,6 +113,13 @@
         <a href="/companies" class="nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg">
             <i class="fas fa-building w-4 text-center text-slate-400"></i> Companies Setup
         </a>
+        <a href="/settings" class="nav-item flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg" id="nav-settings" style="display:none">
+            <span class="flex items-center gap-3">
+                <i class="fas fa-sliders w-4 text-center text-indigo-400"></i>
+                <span>System &amp; Branding</span>
+            </span>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-800/50">Admin</span>
+        </a>
         <a href="/users" class="nav-item flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg" id="nav-users" style="display:none">
             <span class="flex items-center gap-3">
                 <i class="fas fa-user-gear w-4 text-center text-slate-400"></i>
@@ -191,7 +198,10 @@
 $(function() {
     const esc = (s = '') => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] || c));
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.role && String(user.role).toLowerCase() === 'admin') $('#nav-users').show();
+    if (user.role && String(user.role).toLowerCase() === 'admin') {
+        $('#nav-users').show();
+        $('#nav-settings').show();
+    }
     if (user.name) {
         $('#sidebar-username').text(user.name);
         $('#sidebar-avatar').text(user.name.charAt(0).toUpperCase());

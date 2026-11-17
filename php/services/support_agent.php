@@ -9,14 +9,14 @@ class SupportAgent
 
     public function __construct()
     {
-        $company = (string) (getenv('COMPANY_NAME') ?: 'DATAPOINT Technologies');
+        $company = (string) (getenv('COMPANY_NAME') ?: 'Enterprise Invoicing');
         $this->context = [
             'company' => $company,
-            'address' => (string) (getenv('COMPANY_ADDRESS') ?: 'G 32 Shayas Residence, Jamshoro Road, Hyderabad Sindh'),
-            'phone' => (string) (getenv('COMPANY_PHONE') ?: '+92-316-7788990'),
-            'email' => (string) (getenv('COMPANY_EMAIL') ?: 'info@datapointtechnology.com'),
-            'sales_email' => 'sales@datapointtechnology.com',
-            'website' => 'http://datapointtechnology.com',
+            'address' => (string) (getenv('COMPANY_ADDRESS') ?: ''),
+            'phone' => (string) (getenv('COMPANY_PHONE') ?: ''),
+            'email' => (string) (getenv('COMPANY_EMAIL') ?: 'info@example.com'),
+            'sales_email' => (string) (getenv('COMPANY_EMAIL') ?: 'sales@example.com'),
+            'website' => (string) (getenv('COMPANY_WEBSITE') ?: ''),
             'hours' => 'Monday–Saturday, 9:00 AM – 7:00 PM',
         ];
         $this->knowledgeBase = $this->loadKnowledgeBase();
@@ -416,7 +416,8 @@ class SupportAgent
             'Services' => '🛠️',
         ];
 
-        $output = "🏢 *DATAPOINT Technologies - Official Product Catalog*\n";
+        $co = $this->context['company'] ?? 'Official';
+        $output = "🏢 *{$co} - Product Catalog*\n";
         $output .= "📅 _Live Effective Rates (PKR)_\n";
         $output .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 

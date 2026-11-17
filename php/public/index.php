@@ -44,6 +44,7 @@ require_once $appRoot . '/routes/reports.php';
 require_once $appRoot . '/routes/agent.php';
 require_once $appRoot . '/routes/companies.php';
 require_once $appRoot . '/routes/whatsapp.php';
+require_once $appRoot . '/routes/settings.php';
 
 function serve_static_asset(string $path): bool
 {
@@ -204,12 +205,13 @@ function handle_request(): never
         handle_agent_routes($method, $path, $db);
         handle_companies_routes($method, $path, $db);
         handle_whatsapp_routes($method, $path, $db);
+        handle_settings_routes($method, $path, $db);
 
         // 6. Web UI views (renders full Tailwind CSS frontend)
         if (in_array($method, ['GET', 'HEAD'], true)) {
             $uiRoutes = [
                 '/' => 'login.html',
-                '/login' => 'login.html',
+                '/' . 'login' => 'login.html',
                 '/landing' => 'landing.html',
                 '/dashboard' => 'dashboard.html',
                 '/clients' => 'clients/list.html',
@@ -234,7 +236,7 @@ function handle_request(): never
                 '/prices' => 'prices.html',
                 '/users' => 'users/list.html',
                 '/companies' => 'companies.html',
-                '/settings' => 'companies.html',
+                '/settings' => 'settings.html',
                 '/settings/companies' => 'companies.html',
             ];
 

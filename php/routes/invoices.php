@@ -205,6 +205,25 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
         $pdfUser = require_authenticated_user($db);
         require_permission_for($db, $pdfUser, 'invoices', 'view');
         $payload = request_json();
+
+        // If invoice ID is provided, ensure payment records and live balance are loaded
+        if (!empty($payload['id']) && (empty($payload['payments']) || !isset($payload['amount_paid']))) {
+            $invId = (int) $payload['id'];
+            $pStmt = $db->prepare('SELECT * FROM payments WHERE invoice_id = :id ORDER BY payment_date ASC, id ASC');
+            $pStmt->execute(['id' => $invId]);
+            $payload['payments'] = $pStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $sumStmt = $db->prepare('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = :id');
+            $sumStmt->execute(['id' => $invId]);
+            $totPaid = (float) $sumStmt->fetchColumn();
+            if ($totPaid > 0.0 || !empty($payload['amount_paid'])) {
+                $payload['amount_paid'] = max((float) ($payload['amount_paid'] ?? 0), $totPaid);
+            }
+            if (!empty($payload['total_amount'])) {
+                $payload['balance_due'] = max(0.0, round((float) $payload['total_amount'] - (float) ($payload['amount_paid'] ?? 0), 2));
+            }
+        }
+
         $pdf = generate_invoice_pdf($payload);
         header('Content-Type: application/pdf');
         header('Content-Disposition: inline; filename="invoice.pdf"');
@@ -236,6 +255,19 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $itStmt->execute(['id' => $invoiceId]);
             $inv['items'] = $itStmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Fetch payment history & aggregate live amount_paid / balance_due
+            $payStmt = $db->prepare('SELECT * FROM payments WHERE invoice_id = :id ORDER BY payment_date ASC, id ASC');
+            $payStmt->execute(['id' => $invoiceId]);
+            $inv['payments'] = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $sumStmt = $db->prepare('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = :id');
+            $sumStmt->execute(['id' => $invoiceId]);
+            $paidTotal = (float) $sumStmt->fetchColumn();
+            if ($paidTotal > 0.0 || !empty($inv['amount_paid'])) {
+                $inv['amount_paid'] = max((float) ($inv['amount_paid'] ?? 0), $paidTotal);
+            }
+            $inv['balance_due'] = max(0.0, round((float) ($inv['total_amount'] ?? 0) - (float) ($inv['amount_paid'] ?? 0), 2));
+
             // Backwards compatibility client object
             $inv['client'] = [
                 'name' => $inv['client_name'] ?? '',
@@ -248,11 +280,6 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
                 'ntn' => $inv['client_ntn'] ?? '',
                 'strn' => $inv['client_strn'] ?? '',
             ];
-
-            // Payments history
-            $payStmt = $db->prepare('SELECT * FROM payments WHERE invoice_id = :id ORDER BY payment_date DESC, id DESC');
-            $payStmt->execute(['id' => $invoiceId]);
-            $inv['payments'] = $payStmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (!empty($inv['fbr_invoice_no'])) {
                 $qrTarget = fbr_get_invoice_qr_target($db, $inv);
@@ -697,6 +724,19 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $itStmt->execute(['id' => $invoiceId]);
             $inv['items'] = $itStmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Fetch payment history & aggregate live amount_paid / balance_due
+            $payStmt = $db->prepare('SELECT * FROM payments WHERE invoice_id = :id ORDER BY payment_date ASC, id ASC');
+            $payStmt->execute(['id' => $invoiceId]);
+            $inv['payments'] = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $sumStmt = $db->prepare('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = :id');
+            $sumStmt->execute(['id' => $invoiceId]);
+            $paidTotal = (float) $sumStmt->fetchColumn();
+            if ($paidTotal > 0.0 || !empty($inv['amount_paid'])) {
+                $inv['amount_paid'] = max((float) ($inv['amount_paid'] ?? 0), $paidTotal);
+            }
+            $inv['balance_due'] = max(0.0, round((float) ($inv['total_amount'] ?? 0) - (float) ($inv['amount_paid'] ?? 0), 2));
+
             if (!empty($inv['fbr_invoice_no'])) {
                 $inv['fbr_qr_code'] = fbr_get_invoice_qr_target($db, $inv);
             }
@@ -742,6 +782,19 @@ function handle_invoices_routes(string $method, string $path, PDO $db): bool
             $itStmt = $db->prepare('SELECT * FROM invoice_items WHERE invoice_id = :id');
             $itStmt->execute(['id' => $invoiceId]);
             $inv['items'] = $itStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Fetch payment history & aggregate live amount_paid / balance_due
+            $payStmt = $db->prepare('SELECT * FROM payments WHERE invoice_id = :id ORDER BY payment_date ASC, id ASC');
+            $payStmt->execute(['id' => $invoiceId]);
+            $inv['payments'] = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $sumStmt = $db->prepare('SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = :id');
+            $sumStmt->execute(['id' => $invoiceId]);
+            $paidTotal = (float) $sumStmt->fetchColumn();
+            if ($paidTotal > 0.0 || !empty($inv['amount_paid'])) {
+                $inv['amount_paid'] = max((float) ($inv['amount_paid'] ?? 0), $paidTotal);
+            }
+            $inv['balance_due'] = max(0.0, round((float) ($inv['total_amount'] ?? 0) - (float) ($inv['amount_paid'] ?? 0), 2));
 
             $sendEmail = (bool) ($body['email'] ?? true);
             $sendWhatsapp = (bool) ($body['whatsapp'] ?? false);

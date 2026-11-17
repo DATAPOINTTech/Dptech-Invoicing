@@ -1614,10 +1614,61 @@ function find_template_file(string $name): string
     throw new RuntimeException("Template not found: {$name}");
 }
 
+function get_whitelabel_context(PDO $db): array
+{
+    static $cached;
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $appName = get_app_setting($db, 'app_name') ?: (env_value('COMPANY_NAME') ?: 'Enterprise Invoicing');
+    $brandName = get_app_setting($db, 'brand_name') ?: (env_value('BRAND_NAME') ?: '');
+    if ($brandName === '') {
+        $parts = preg_split('/\s+/', trim($appName));
+        $brandName = strtoupper($parts[0] ?? 'INVOICING');
+    }
+    $tagline = get_app_setting($db, 'app_tagline') ?: (env_value('COMPANY_TAGLINE') ?: 'Invoicing Suite');
+    $logo = get_app_setting($db, 'app_logo') ?: (env_value('COMPANY_LOGO') ?: '/static/img/logo.png');
+    $favicon = get_app_setting($db, 'app_favicon') ?: (env_value('COMPANY_FAVICON') ?: '/static/img/favicon.svg');
+    $currency = get_app_setting($db, 'default_currency') ?: (env_value('DEFAULT_CURRENCY') ?: 'PKR');
+    $currencySymbol = get_app_setting($db, 'currency_symbol') ?: (env_value('CURRENCY_SYMBOL') ?: 'PKR ');
+    $email = get_app_setting($db, 'company_email') ?: (env_value('COMPANY_EMAIL') ?: 'info@example.com');
+    $phone = get_app_setting($db, 'company_phone') ?: (env_value('COMPANY_PHONE') ?: '');
+    $whatsapp = get_app_setting($db, 'company_whatsapp') ?: (env_value('COMPANY_WHATSAPP') ?: '');
+    $website = get_app_setting($db, 'company_website') ?: (env_value('COMPANY_WEBSITE') ?: '');
+    $address = get_app_setting($db, 'company_address') ?: (env_value('COMPANY_ADDRESS') ?: '');
+
+    $cached = [
+        'company'                 => $appName,
+        'company_name'            => $appName,
+        'company_brand_name'      => $brandName,
+        'company_tagline'         => $tagline,
+        'company_logo'            => $logo,
+        'company_favicon'         => $favicon,
+        'company_currency'        => $currency,
+        'company_currency_symbol' => $currencySymbol,
+        'company_email'           => $email,
+        'company_phone'           => $phone,
+        'company_whatsapp'        => $whatsapp,
+        'company_website'         => $website,
+        'company_address'         => $address,
+    ];
+    return $cached;
+}
+
 function render_template(string $templateName, array $context = []): never
 {
-    $companyName = env_value('COMPANY_NAME', 'DATAPOINT Technologies');
-    $context['company'] = $context['company'] ?? $companyName;
+    try {
+        $db = database_connection();
+        $whitelabel = get_whitelabel_context($db);
+        $context = array_merge($whitelabel, $context);
+    } catch (\Throwable $e) {
+        $context['company'] = $context['company'] ?? (env_value('COMPANY_NAME') ?: 'Enterprise Invoicing');
+        $context['company_brand_name'] = $context['company_brand_name'] ?? 'INVOICING';
+        $context['company_tagline'] = $context['company_tagline'] ?? 'Invoicing Suite';
+        $context['company_logo'] = $context['company_logo'] ?? '/static/img/logo.png';
+        $context['company_favicon'] = $context['company_favicon'] ?? '/static/img/favicon.svg';
+    }
 
     $templatePath = find_template_file($templateName);
     $content = file_get_contents($templatePath);

@@ -390,9 +390,12 @@ if (!token) {
             const cleanDigits = phone.replace(/\D+/g, '');
             const waPhone = cleanDigits.startsWith('0') ? ('92' + cleanDigits.substring(1)) : cleanDigits;
             const pdfLink = window.location.origin + '/api/estimates/' + targetId + '/pdf?token=' + encodeURIComponent(token);
-            const waMsg = 'Dear Customer, please find attached our official Quotation from DATAPOINT Technologies.\n\n' +
+            const coName = '{{ company }}' || 'Our Company';
+            const coWa = '{{ company_whatsapp }}' || '';
+            const waMsg = 'Dear Customer, please find attached our official Quotation from ' + coName + '.\n\n' +
                           'You can view / download your official PDF directly here:\n' + pdfLink + '\n\n' +
-                          'Official WhatsApp Helpline: +923712566540\nThank you for choosing DATAPOINT Technologies!';
+                          (coWa ? ('Official WhatsApp Helpline: ' + coWa + '\n') : '') +
+                          'Thank you for choosing ' + coName + '!';
             const waUrl = 'https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg);
 
             if (confirm(errMsg + '\n\nWould you like to open WhatsApp directly to send the Quotation message and PDF link to ' + phone + '?')) {

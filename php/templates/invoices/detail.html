@@ -45,7 +45,7 @@
                                     <span class="text-slate-300">•</span>
                                     <span id="inv-co-email-wrap"><i class="fas fa-envelope text-slate-400 mr-1"></i><span id="inv-co-email">sales@datapoinittechnology.com</span></span>
                                     <span class="text-slate-300">•</span>
-                                    <span id="inv-co-web-wrap"><i class="fas fa-globe text-slate-400 mr-1"></i><a id="inv-co-web" href="https://datapointtechnology.com" target="_blank" class="text-blue-600 hover:underline">datapointtechnology.com</a></span>
+                                    <span id="inv-co-web-wrap"><i class="fas fa-globe text-slate-400 mr-1"></i><a id="inv-co-web" href="{{ company_website }}" target="_blank" class="text-blue-600 hover:underline">{{ company_website }}</a></span>
                                 </p>
                                 <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide mt-1" id="inv-title" style="display:none"></p>
                                 <div class="mt-1.5 flex items-center gap-2" id="inv-fbr-container" style="display:none">
@@ -454,10 +454,10 @@ function loadInvoice() {
             $('#inv-company-badge').hide();
         }
 
-        const coPhone = inv.company_phone || '+92 22 3669326';
-        const coWa = inv.company_whatsapp || '+923712566540';
-        const coEmail = inv.company_email || 'sales@datapoinittechnology.com';
-        const coWeb = inv.company_website || 'https://datapointtechnology.com';
+        const coPhone = inv.company_phone || '{{ company_phone }}';
+        const coWa = inv.company_whatsapp || '{{ company_whatsapp }}';
+        const coEmail = inv.company_email || '{{ company_email }}';
+        const coWeb = inv.company_website || '{{ company_website }}';
         $('#inv-co-phone').text(coPhone);
         $('#inv-co-wa').text(coWa);
         $('#inv-co-email').text(coEmail);
@@ -819,9 +819,12 @@ function sendInvoiceWhatsappDirect() {
         const cleanDigits = phone.replace(/\D+/g, '');
         const waPhone = cleanDigits.startsWith('0') ? ('92' + cleanDigits.substring(1)) : cleanDigits;
         const pdfLink = window.location.origin + '/api/invoices/' + iid + '/pdf?token=' + encodeURIComponent(token);
-        const waMsg = 'Dear Customer, please find attached your official Sales Tax Invoice from DATAPOINT Technologies.\n\n' +
+        const coName = '{{ company }}' || 'Our Company';
+        const coWa = '{{ company_whatsapp }}' || '';
+        const waMsg = 'Dear Customer, please find attached your official Sales Tax Invoice from ' + coName + '.\n\n' +
                       'You can view / download your official PDF directly here:\n' + pdfLink + '\n\n' +
-                      'Official WhatsApp Helpline: +923712566540\nThank you for doing business with DATAPOINT Technologies!';
+                      (coWa ? ('Official WhatsApp Helpline: ' + coWa + '\n') : '') +
+                      'Thank you for doing business with ' + coName + '!';
         const waUrl = 'https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg);
 
         if (confirm(errMsg + '\n\nWould you like to open WhatsApp directly to send the Invoice message and PDF link to ' + phone + '?')) {

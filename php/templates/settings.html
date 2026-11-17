@@ -1,0 +1,787 @@
+{% extends "base.html" %}
+{% block title %}System & White Label Settings - {{ company }}{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include "includes/sidebar.html" %}
+    <main class="flex-1 ml-64 p-6 space-y-6">
+
+        <!-- Top Header -->
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2.5">
+                    <h1 class="page-title text-2xl font-extrabold text-slate-900 tracking-tight">System &amp; White Label Settings</h1>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs">
+                        <i class="fas fa-sliders text-indigo-500 text-[10px]"></i> Master Admin
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Configure your corporate identity, branding, separate database connection, payment terms, gateways, and backup tools.</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <a href="/companies" class="btn btn-ghost text-xs"><i class="fas fa-building mr-1 text-slate-400"></i> Multi-Company Setup</a>
+                <button type="button" id="btn-save-settings" class="btn btn-primary text-xs shadow-md">
+                    <i class="fas fa-floppy-disk mr-1"></i> Save All Changes
+                </button>
+            </div>
+        </div>
+
+        <!-- Alert Notification Box -->
+        <div id="settings-alert" class="hidden p-4 rounded-xl text-xs font-semibold border transition-all"></div>
+
+        <!-- Navigation Tabs -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-1.5 shadow-2xs flex flex-wrap gap-1.5">
+            <button type="button" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-indigo-600 text-white shadow-xs" data-tab="branding">
+                <i class="fas fa-palette"></i> <span>Branding &amp; White Label</span>
+            </button>
+            <button type="button" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100" data-tab="company">
+                <i class="fas fa-building-user"></i> <span>Company Contact &amp; Legal</span>
+            </button>
+            <button type="button" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100" data-tab="gateways">
+                <i class="fas fa-network-wired"></i> <span>Gateways &amp; Integrations</span>
+            </button>
+            <button type="button" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100" data-tab="tax">
+                <i class="fas fa-scale-balanced"></i> <span>Tax &amp; Compliance</span>
+            </button>
+            <button type="button" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100" data-tab="database">
+                <i class="fas fa-database"></i> <span>Database &amp; Tools</span>
+            </button>
+        </div>
+
+        <!-- Tab 1: Branding & White Label -->
+        <div id="tab-content-branding" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Branding Details -->
+                <div class="lg:col-span-2 card p-6 space-y-5">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fas fa-signature text-indigo-600"></i> Corporate Brand Identity
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Customize your company application name, brand title, and default currencies.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Application / Company Name *</label>
+                            <input type="text" id="cfg-app-name" required placeholder="e.g. Acme Corporation" class="form-input text-xs">
+                            <p class="text-[11px] text-slate-400 mt-1">Displayed in page titles, PDF headers, and customer communications.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Sidebar Brand Header *</label>
+                            <input type="text" id="cfg-brand-name" required placeholder="e.g. ACME" class="form-input text-xs font-bold tracking-wider">
+                            <p class="text-[11px] text-slate-400 mt-1">Short headline text displayed at the top of the sidebar navigation.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tagline / Slogan</label>
+                        <input type="text" id="cfg-app-tagline" placeholder="e.g. Enterprise Invoicing Suite" class="form-input text-xs">
+                        <p class="text-[11px] text-slate-400 mt-1">Appears below the brand title in the sidebar and document footers.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Default Currency</label>
+                            <select id="cfg-default-currency" class="form-input text-xs font-bold">
+                                <option value="PKR">PKR (Pakistani Rupee)</option>
+                                <option value="USD">USD (US Dollar - $)</option>
+                                <option value="EUR">EUR (Euro - €)</option>
+                                <option value="GBP">GBP (British Pound - £)</option>
+                                <option value="AED">AED (UAE Dirham)</option>
+                                <option value="SAR">SAR (Saudi Riyal)</option>
+                                <option value="CAD">CAD (Canadian Dollar)</option>
+                                <option value="AUD">AUD (Australian Dollar)</option>
+                                <option value="INR">INR (Indian Rupee)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Currency Symbol / Prefix</label>
+                            <input type="text" id="cfg-currency-symbol" placeholder="e.g. PKR or $" class="form-input text-xs font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Default Tax Rate (%)</label>
+                            <input type="number" step="0.1" id="cfg-tax-rate" placeholder="18.0" class="form-input text-xs font-mono">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tax Terminology / Label</label>
+                        <input type="text" id="cfg-tax-label" placeholder="e.g. Sales Tax (GST) or VAT" class="form-input text-xs">
+                    </div>
+                </div>
+
+                <!-- Logo & Favicon Card -->
+                <div class="card p-6 space-y-6 flex flex-col justify-between">
+                    <div>
+                        <div class="border-b border-slate-100 pb-3 mb-4">
+                            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fas fa-image text-indigo-600"></i> Logo &amp; Favicon
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Upload brand assets.</p>
+                        </div>
+
+                        <!-- Logo Preview & Upload -->
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Company Logo</label>
+                            <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                                <div class="w-16 h-16 bg-white rounded-xl border border-slate-200 flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-2xs">
+                                    <img id="preview-logo" src="/static/img/logo.png" alt="Logo Preview" class="max-w-full max-h-full object-contain">
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <input type="file" id="upload-logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden">
+                                    <button type="button" onclick="$('#upload-logo-file').click()" class="btn btn-outline text-xs w-full mb-1.5">
+                                        <i class="fas fa-upload mr-1"></i> Upload New Logo
+                                    </button>
+                                    <input type="text" id="cfg-app-logo" placeholder="/static/img/logo.png" class="form-input text-[11px] py-1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Favicon Preview & Upload -->
+                        <div class="space-y-2 mt-4">
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Browser Favicon</label>
+                            <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                                <div class="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center p-1 shrink-0 shadow-2xs">
+                                    <img id="preview-favicon" src="/static/img/favicon.svg" alt="Favicon Preview" class="max-w-full max-h-full object-contain">
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <input type="file" id="upload-favicon-file" accept="image/svg+xml,image/png,image/x-icon" class="hidden">
+                                    <button type="button" onclick="$('#upload-favicon-file').click()" class="btn btn-ghost text-xs w-full mb-1.5">
+                                        <i class="fas fa-upload mr-1"></i> Upload Favicon
+                                    </button>
+                                    <input type="text" id="cfg-app-favicon" placeholder="/static/img/favicon.svg" class="form-input text-[11px] py-1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-900 leading-relaxed">
+                        <i class="fas fa-circle-info text-indigo-600 mr-1"></i> Transparent PNG or SVG files with square or 3:1 landscape aspect ratio produce the crispest appearance.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Company Contact & Legal -->
+        <div id="tab-content-company" class="tab-content space-y-6 hidden">
+            <div class="card p-6 space-y-5">
+                <div class="border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fas fa-building text-indigo-600"></i> Registered Corporate Details
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Official contact numbers, address, and legal registrations rendered on statutory invoices and quotation documents.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Official Legal Entity Name *</label>
+                        <input type="text" id="cfg-co-name" placeholder="e.g. Acme Corporation Pvt. Ltd." class="form-input text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Billing &amp; Inquiry Email</label>
+                        <input type="email" id="cfg-co-email" placeholder="billing@example.com" class="form-input text-xs">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Landline / Office Phone</label>
+                        <input type="text" id="cfg-co-phone" placeholder="e.g. +92 22 1234567" class="form-input text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Mobile Phone</label>
+                        <input type="text" id="cfg-co-mobile" placeholder="e.g. +92 300 1234567" class="form-input text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Official WhatsApp Helpline</label>
+                        <input type="text" id="cfg-co-whatsapp" placeholder="+923712566540" class="form-input text-xs font-mono font-bold text-emerald-700">
+                        <p class="text-[11px] text-slate-400 mt-1">Used for customer WhatsApp PDF dispatch.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Official Website URL</label>
+                        <input type="url" id="cfg-co-website" placeholder="https://example.com" class="form-input text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">City, Country</label>
+                        <input type="text" id="cfg-co-city" placeholder="e.g. Karachi, Pakistan" class="form-input text-xs">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Registered Office Address</label>
+                    <textarea id="cfg-co-address" rows="2" placeholder="Full street address, office number, building..." class="form-input text-xs"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tax Number / NTN</label>
+                        <input type="text" id="cfg-co-ntn" placeholder="e.g. 1234567-8" class="form-input text-xs font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Sales Tax / STRN / VAT Registration</label>
+                        <input type="text" id="cfg-co-strn" placeholder="e.g. 12-34-5678-901-23" class="form-input text-xs font-mono">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Default Invoice &amp; Quotation Terms &amp; Conditions</label>
+                    <textarea id="cfg-payment-terms" rows="3" class="form-input text-xs font-mono"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Gateways & Integrations -->
+        <div id="tab-content-gateways" class="tab-content space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- WhatsApp Integration -->
+                <div class="card p-6 space-y-4">
+                    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-base">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900">WhatsApp Dispatch Gateway</h3>
+                                <p class="text-[11px] text-slate-400">Direct estimate &amp; invoice PDF dispatch to client phones</p>
+                            </div>
+                        </div>
+                        <span class="badge badge-green">Supported</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Gateway Status</label>
+                            <select id="cfg-wa-enabled" class="form-input text-xs font-semibold">
+                                <option value="1">Enabled (Active)</option>
+                                <option value="0">Disabled</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Provider Mode</label>
+                            <select id="cfg-wa-provider" class="form-input text-xs font-semibold">
+                                <option value="local">Local Node.js Baileys Bridge / Web Fallback</option>
+                                <option value="cloud_api">Meta WhatsApp Business Cloud API</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Phone Number ID (Cloud API)</label>
+                            <input type="text" id="cfg-wa-phone-id" placeholder="Optional for cloud API" class="form-input text-xs font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">API Token / Secret Key</label>
+                            <input type="password" id="cfg-wa-api-key" placeholder="Enter new API key to update" class="form-input text-xs font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SMTP Email Configuration -->
+                <div class="card p-6 space-y-4">
+                    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-base">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900">SMTP Outgoing Email</h3>
+                                <p class="text-[11px] text-slate-400">Dispatch invoices and quotations via corporate mail</p>
+                            </div>
+                        </div>
+                        <span class="badge badge-blue">SMTP</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="col-span-2">
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">SMTP Host</label>
+                                <input type="text" id="cfg-smtp-host" placeholder="mail.yourdomain.com" class="form-input text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Port</label>
+                                <input type="number" id="cfg-smtp-port" placeholder="587" class="form-input text-xs font-mono">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">SMTP Username</label>
+                                <input type="text" id="cfg-smtp-user" placeholder="info@yourdomain.com" class="form-input text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">SMTP Password</label>
+                                <input type="password" id="cfg-smtp-pass" placeholder="••••••••" class="form-input text-xs">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">From Sender Address</label>
+                            <input type="email" id="cfg-smtp-from" placeholder="invoices@yourdomain.com" class="form-input text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google Sheet Live Rates Sync -->
+                <div class="card p-6 space-y-4 lg:col-span-2">
+                    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-base">
+                                <i class="fas fa-table-cells"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900">Google Sheet Live Product Rates &amp; Catalog Sync</h3>
+                                <p class="text-[11px] text-slate-400">Link your live inventory pricing sheet to update catalog prices in real-time</p>
+                            </div>
+                        </div>
+                        <a href="/product-sheet" class="btn btn-outline text-xs"><i class="fas fa-arrow-up-right-from-square mr-1"></i> Open Product Sheet</a>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Published Google Sheet CSV / TSV URL</label>
+                            <input type="url" id="cfg-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" class="form-input text-xs font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Quotation Markup (%)</label>
+                            <input type="number" step="0.5" id="cfg-sheet-markup" placeholder="10.0" class="form-input text-xs font-mono">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Tax & Regional Compliance -->
+        <div id="tab-content-tax" class="tab-content space-y-6 hidden">
+            <div class="card p-6 space-y-5">
+                <div class="border-b border-slate-100 pb-3 flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-900 text-emerald-300 border border-emerald-700 flex items-center justify-center font-black text-sm">
+                            FBR
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">FBR Pakistan Digital Invoicing &amp; POS Gateway</h3>
+                            <p class="text-xs text-slate-500">Certified POS system integrated with Federal Board of Revenue Digital Invoicing Gateway (Rule 150ZEB)</p>
+                        </div>
+                    </div>
+                    <span id="badge-fbr-status" class="badge badge-green">Configured</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Integration State</label>
+                        <select id="cfg-fbr-enabled" class="form-input text-xs font-bold">
+                            <option value="1">Enabled (Active for Pakistan Tax Laws)</option>
+                            <option value="0">Disabled (Non-Pakistan / Standard Billing)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-400 mt-1">If your business is outside Pakistan, set to Disabled.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Gateway Environment</label>
+                        <select id="cfg-fbr-env" class="form-input text-xs font-semibold">
+                            <option value="sandbox">Sandbox / Testing (PRAL IMS)</option>
+                            <option value="production">Production (Live FBR Gateway)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Transmission Mode</label>
+                        <select id="cfg-fbr-mode" class="form-input text-xs font-semibold">
+                            <option value="simulation">Sandbox Simulation (Test Posting)</option>
+                            <option value="live">Live Direct Posting</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">FBR POS ID *</label>
+                        <input type="text" id="cfg-fbr-pos-id" placeholder="e.g. 100001" class="form-input text-xs font-mono">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Bearer Token</label>
+                        <input type="password" id="cfg-fbr-token" placeholder="Enter Bearer Token from IRIS / POS portal" class="form-input text-xs font-mono">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Database & Tools -->
+        <div id="tab-content-database" class="tab-content space-y-6 hidden">
+            <!-- Stats & Connection Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="card p-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Database Engine</p>
+                    <p class="text-lg font-black text-slate-900 mt-1 font-mono" id="diag-driver">MySQL / SQLite</p>
+                    <p class="text-[11px] text-slate-400 truncate mt-0.5" id="diag-dbname">Checking...</p>
+                </div>
+                <div class="card p-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Invoices</p>
+                    <p class="text-2xl font-black text-indigo-600 mt-1 font-mono" id="count-invoices">0</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Stored in database</p>
+                </div>
+                <div class="card p-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Estimates</p>
+                    <p class="text-2xl font-black text-cyan-600 mt-1 font-mono" id="count-estimates">0</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Multi-company quotes</p>
+                </div>
+                <div class="card p-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Product Catalog</p>
+                    <p class="text-2xl font-black text-emerald-600 mt-1 font-mono" id="count-products">0</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Inventory items</p>
+                </div>
+            </div>
+
+            <!-- Maintenance Actions Card -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Backup Card -->
+                <div class="card p-6 flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                                <i class="fas fa-file-arrow-down"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">1-Click Full Database Backup</h3>
+                                <p class="text-xs text-slate-500">Generate and download complete SQL dump</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed mt-3">
+                            Creates a complete standalone <code>.sql</code> archive containing table definitions, schemas, invoices, quotations, clients, inventory records, and settings. You can import this dump at any time into phpMyAdmin or SQLite.
+                        </p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400">Format: Standard SQL</span>
+                        <a href="/api/settings/database-backup" target="_blank" class="btn btn-primary text-xs">
+                            <i class="fas fa-download mr-1"></i> Download Database Backup (.sql)
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Reset Demo Data Card -->
+                <div class="card p-6 flex flex-col justify-between space-y-4 border-rose-200/80">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg">
+                                <i class="fas fa-trash-can"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-rose-950">Reset Demonstration Data</h3>
+                                <p class="text-xs text-rose-600">Start clean with an empty ledger</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed mt-3">
+                            Safely clears all demo invoices, estimates, client transactions, and expenses. Keeps your <strong>administrator accounts, company configuration, and product catalog intact</strong> so your company can start invoicing immediately.
+                        </p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-xs font-mono text-rose-500 font-semibold">Requires Admin Password</span>
+                        <button type="button" onclick="openResetModal()" class="btn btn-danger text-xs">
+                            <i class="fas fa-triangle-exclamation mr-1"></i> Reset Transaction Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagnostics Table -->
+            <div class="card p-6 space-y-4">
+                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fas fa-server text-indigo-600"></i> Server Environment Diagnostics
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                    <div class="p-3 bg-slate-50 rounded-xl">
+                        <span class="text-slate-400 block uppercase font-bold text-[10px]">PHP Version</span>
+                        <span class="font-bold text-slate-800 font-mono text-sm" id="diag-php">-</span>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-xl">
+                        <span class="text-slate-400 block uppercase font-bold text-[10px]">OS Platform</span>
+                        <span class="font-bold text-slate-800 font-mono text-sm" id="diag-os">-</span>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-xl">
+                        <span class="text-slate-400 block uppercase font-bold text-[10px]">Memory Limit</span>
+                        <span class="font-bold text-slate-800 font-mono text-sm" id="diag-memory">-</span>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-xl">
+                        <span class="text-slate-400 block uppercase font-bold text-[10px]">Storage Writable</span>
+                        <span class="font-bold text-emerald-600 font-mono text-sm" id="diag-writable">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Reset Password Confirmation Modal -->
+<div id="reset-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4 transition-all">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-lg font-bold">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Confirm Data Reset</h3>
+                <p class="text-xs text-rose-600 font-medium">This will clear invoices, estimates, and client data!</p>
+            </div>
+        </div>
+
+        <p class="text-xs text-slate-600 leading-relaxed">
+            Please enter your administrator account login password to authorize resetting all demonstration transactions to zero.
+        </p>
+
+        <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Admin Password *</label>
+            <input type="password" id="reset-admin-password" placeholder="Enter your current password" class="form-input text-xs">
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">
+            <button type="button" onclick="closeResetModal()" class="btn btn-ghost text-xs">Cancel</button>
+            <button type="button" id="btn-confirm-reset" class="btn btn-danger text-xs">Authorize Reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+$(function() {
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login';
+
+    // Tab navigation
+    $('.tab-btn').on('click', function() {
+        const tab = $(this).data('tab');
+        $('.tab-btn').removeClass('bg-indigo-600 text-white shadow-xs').addClass('text-slate-600 hover:bg-slate-100');
+        $(this).removeClass('text-slate-600 hover:bg-slate-100').addClass('bg-indigo-600 text-white shadow-xs');
+        $('.tab-content').addClass('hidden');
+        $('#tab-content-' + tab).removeClass('hidden');
+    });
+
+    // Load current settings
+    function loadSettings() {
+        $.ajax({
+            url: '/api/settings',
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + token },
+            success: function(res) {
+                const s = res.settings || {};
+                const c = res.counts || {};
+                const sys = res.system || {};
+
+                // Tab 1: Branding
+                $('#cfg-app-name').val(s.app_name || '');
+                $('#cfg-brand-name').val(s.brand_name || '');
+                $('#cfg-app-tagline').val(s.app_tagline || '');
+                $('#cfg-default-currency').val(s.default_currency || 'PKR');
+                $('#cfg-currency-symbol').val(s.currency_symbol || '');
+                $('#cfg-tax-rate').val(s.default_tax_rate || '18.0');
+                $('#cfg-tax-label').val(s.tax_label || '');
+                $('#cfg-app-logo').val(s.app_logo || '');
+                $('#cfg-app-favicon').val(s.app_favicon || '');
+                if (s.app_logo) $('#preview-logo').attr('src', s.app_logo);
+                if (s.app_favicon) $('#preview-favicon').attr('src', s.app_favicon);
+
+                // Tab 2: Company Contact
+                $('#cfg-co-name').val(s.company_name || '');
+                $('#cfg-co-email').val(s.company_email || '');
+                $('#cfg-co-phone').val(s.company_phone || '');
+                $('#cfg-co-mobile').val(s.company_mobile || '');
+                $('#cfg-co-whatsapp').val(s.company_whatsapp || '');
+                $('#cfg-co-website').val(s.company_website || '');
+                $('#cfg-co-city').val(s.company_city || '');
+                $('#cfg-co-address').val(s.company_address || '');
+                $('#cfg-co-ntn').val(s.company_ntn || '');
+                $('#cfg-co-strn').val(s.company_strn || '');
+                $('#cfg-payment-terms').val(s.payment_terms || '');
+
+                // Tab 3: Gateways
+                $('#cfg-wa-enabled').val(s.whatsapp_enabled ? '1' : '0');
+                $('#cfg-wa-provider').val(s.whatsapp_provider || 'local');
+                $('#cfg-wa-phone-id').val(s.whatsapp_phone_number_id || '');
+                $('#cfg-wa-api-key').val(s.whatsapp_api_key || '');
+
+                $('#cfg-smtp-host').val(s.smtp_host || '');
+                $('#cfg-smtp-port').val(s.smtp_port || '587');
+                $('#cfg-smtp-user').val(s.smtp_user || '');
+                $('#cfg-smtp-from').val(s.smtp_from || '');
+
+                $('#cfg-sheet-url').val(s.google_sheet_url || '');
+                $('#cfg-sheet-markup').val(s.sheet_markup || '10.0');
+
+                // Tab 4: Tax
+                $('#cfg-fbr-enabled').val(s.fbr_enabled ? '1' : '0');
+                $('#cfg-fbr-env').val(s.fbr_environment || 'sandbox');
+                $('#cfg-fbr-mode').val(s.fbr_mode || 'simulation');
+                $('#cfg-fbr-pos-id').val(s.fbr_pos_id || '');
+                $('#cfg-fbr-token').val(s.fbr_bearer_token || '');
+                if (!s.fbr_enabled) {
+                    $('#badge-fbr-status').removeClass('badge-green').addClass('badge-gray').text('Disabled');
+                } else {
+                    $('#badge-fbr-status').removeClass('badge-gray').addClass('badge-green').text('Active');
+                }
+
+                // Tab 5: Database & Diagnostics
+                $('#diag-driver').text(sys.driver || 'MySQL');
+                $('#diag-dbname').text(sys.database_name || 'Connected');
+                $('#count-invoices').text(c.invoices || 0);
+                $('#count-estimates').text(c.estimates || 0);
+                $('#count-products').text(c.products || 0);
+
+                $('#diag-php').text('v' + (sys.php_version || '8.x'));
+                $('#diag-os').text(sys.os || 'Linux');
+                $('#diag-memory').text(sys.memory_limit || '512M');
+                $('#diag-writable').text(sys.storage_writable ? 'Yes (Writable)' : 'Read-Only').toggleClass('text-emerald-600', !!sys.storage_writable).toggleClass('text-rose-600', !sys.storage_writable);
+            },
+            error: function(xhr) {
+                showAlert('Failed to load system settings: ' + (xhr.responseJSON?.detail || 'Unauthorized access.'), 'danger');
+            }
+        });
+    }
+
+    loadSettings();
+
+    // Save All Settings
+    $('#btn-save-settings').on('click', function() {
+        const payload = {
+            app_name: $('#cfg-app-name').val(),
+            brand_name: $('#cfg-brand-name').val(),
+            app_tagline: $('#cfg-app-tagline').val(),
+            default_currency: $('#cfg-default-currency').val(),
+            currency_symbol: $('#cfg-currency-symbol').val(),
+            default_tax_rate: parseFloat($('#cfg-tax-rate').val() || '0'),
+            tax_label: $('#cfg-tax-label').val(),
+            app_logo: $('#cfg-app-logo').val(),
+            app_favicon: $('#cfg-app-favicon').val(),
+
+            company_name: $('#cfg-co-name').val(),
+            company_email: $('#cfg-co-email').val(),
+            company_phone: $('#cfg-co-phone').val(),
+            company_mobile: $('#cfg-co-mobile').val(),
+            company_whatsapp: $('#cfg-co-whatsapp').val(),
+            company_website: $('#cfg-co-website').val(),
+            company_city: $('#cfg-co-city').val(),
+            company_address: $('#cfg-co-address').val(),
+            company_ntn: $('#cfg-co-ntn').val(),
+            company_strn: $('#cfg-co-strn').val(),
+            payment_terms: $('#cfg-payment-terms').val(),
+
+            whatsapp_enabled: $('#cfg-wa-enabled').val() === '1',
+            whatsapp_provider: $('#cfg-wa-provider').val(),
+            whatsapp_phone_number_id: $('#cfg-wa-phone-id').val(),
+            whatsapp_api_key: $('#cfg-wa-api-key').val(),
+
+            smtp_host: $('#cfg-smtp-host').val(),
+            smtp_port: parseInt($('#cfg-smtp-port').val() || '587', 10),
+            smtp_user: $('#cfg-smtp-user').val(),
+            smtp_pass: $('#cfg-smtp-pass').val(),
+            smtp_from: $('#cfg-smtp-from').val(),
+
+            google_sheet_url: $('#cfg-sheet-url').val(),
+            sheet_markup: parseFloat($('#cfg-sheet-markup').val() || '10.0'),
+
+            fbr_enabled: $('#cfg-fbr-enabled').val() === '1',
+            fbr_environment: $('#cfg-fbr-env').val(),
+            fbr_mode: $('#cfg-fbr-mode').val(),
+            fbr_pos_id: $('#cfg-fbr-pos-id').val(),
+            fbr_bearer_token: $('#cfg-fbr-token').val()
+        };
+
+        const $btn = $('#btn-save-settings');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+        $.ajax({
+            url: '/api/settings',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: { 'Authorization': 'Bearer ' + token },
+            data: JSON.stringify(payload),
+            success: function(res) {
+                $btn.prop('disabled', false).html('<i class="fas fa-floppy-disk mr-1"></i> Save All Changes');
+                showAlert('System branding and configuration saved successfully!', 'success');
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).html('<i class="fas fa-floppy-disk mr-1"></i> Save All Changes');
+                showAlert('Failed to save settings: ' + (xhr.responseJSON?.detail || 'Error occurred.'), 'danger');
+            }
+        });
+    });
+
+    // Asset uploads (Logo & Favicon)
+    function uploadAsset(file, type) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        $.ajax({
+            url: '/api/settings/upload-asset?type=' + type,
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(res) {
+                if (type === 'favicon') {
+                    $('#cfg-app-favicon').val(res.url);
+                    $('#preview-favicon').attr('src', res.url);
+                } else {
+                    $('#cfg-app-logo').val(res.url);
+                    $('#preview-logo').attr('src', res.url);
+                }
+                showAlert(type.toUpperCase() + ' uploaded successfully! Click "Save All Changes" to finalize.', 'success');
+            },
+            error: function(xhr) {
+                showAlert('Failed to upload ' + type + ': ' + (xhr.responseJSON?.detail || 'Error'), 'danger');
+            }
+        });
+    }
+
+    $('#upload-logo-file').on('change', function() {
+        if (this.files && this.files[0]) uploadAsset(this.files[0], 'logo');
+    });
+    $('#upload-favicon-file').on('change', function() {
+        if (this.files && this.files[0]) uploadAsset(this.files[0], 'favicon');
+    });
+
+    // Alert helper
+    function showAlert(msg, kind) {
+        const cls = kind === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200';
+        $('#settings-alert').removeClass('hidden bg-emerald-50 text-emerald-800 border-emerald-200 bg-rose-50 text-rose-800 border-rose-200')
+            .addClass(cls).html(msg).show();
+        $('html, body').animate({ scrollTop: 0 }, 200);
+        setTimeout(function() { $('#settings-alert').fadeOut(400); }, 6000);
+    }
+
+    // Modal controls for data reset
+    window.openResetModal = function() {
+        $('#reset-admin-password').val('');
+        $('#reset-modal').removeClass('hidden').addClass('flex');
+    };
+    window.closeResetModal = function() {
+        $('#reset-modal').addClass('hidden').removeClass('flex');
+    };
+
+    $('#btn-confirm-reset').on('click', function() {
+        const password = $('#reset-admin-password').val();
+        if (!password) {
+            alert('Please enter your administrator password.');
+            return;
+        }
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Resetting...');
+
+        $.ajax({
+            url: '/api/settings/reset-demo-data',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: { 'Authorization': 'Bearer ' + token },
+            data: JSON.stringify({ password: password }),
+            success: function(res) {
+                closeResetModal();
+                $btn.prop('disabled', false).text('Authorize Reset');
+                showAlert('Demonstration data has been successfully cleared to zero!', 'success');
+                loadSettings();
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).text('Authorize Reset');
+                alert(xhr.responseJSON?.detail || 'Authorization failed.');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
