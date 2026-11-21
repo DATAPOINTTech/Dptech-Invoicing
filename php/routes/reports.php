@@ -38,6 +38,7 @@ function handle_reports_routes(string $method, string $path, PDO $db): bool
         $statusCounts = [];
         $clientRevenue = [];
         $partyReports = [];
+        $allInvoices = [];
         $paidInvoices = [];
         $dueInvoices = [];
         $todayTs = strtotime(date('Y-m-d'));
@@ -81,7 +82,7 @@ function handle_reports_routes(string $method, string $path, PDO $db): bool
             $totalPaid += $paid;
             $totalOutstanding += $bal;
 
-            // Separation: Paid vs Due
+            // Separation: Paid vs Due/Pending
             $isPaid = ($st === 'paid' || ($bal <= 0.001 && $tot > 0));
             $isDue = (!$isPaid && $bal > 0.001);
             $dueTs = !empty($inv['due_date']) ? strtotime((string)$inv['due_date']) : null;
@@ -94,6 +95,7 @@ function handle_reports_routes(string $method, string $path, PDO $db): bool
             if (!isset($partyReports[$partyKey])) {
                 $partyReports[$partyKey] = [
                     'client_id' => $cid > 0 ? $cid : null,
+                    'party_key' => $partyKey,
                     'name' => $cname,
                     'company' => (string)($inv['client_company'] ?? ''),
                     'phone' => (string)($inv['client_phone'] ?? ''),
@@ -102,16 +104,24 @@ function handle_reports_routes(string $method, string $path, PDO $db): bool
                     'city' => (string)($inv['client_city'] ?? ''),
                     'total_billed' => 0.0,
                     'total_received' => 0.0,
+                    'paid_total' => 0.0,
                     'total_due' => 0.0,
+                    'pending_total' => 0.0,
                     'invoice_count' => 0,
                     'paid_count' => 0,
                     'due_count' => 0,
+                    'pending_count' => 0,
+                    'invoices' => [],
+                    'paid_invoices' => [],
+                    'due_invoices' => [],
                 ];
             }
 
             $partyReports[$partyKey]['total_billed'] += $tot;
             $partyReports[$partyKey]['total_received'] += $paid;
+            $partyReports[$partyKey]['paid_total'] += $paid;
             $partyReports[$partyKey]['total_due'] += $bal;
+            $partyReports[$partyKey]['pending_total'] += $bal;
             $partyReports[$partyKey]['invoice_count']++;
 
             $invItem = [
@@ -125,19 +135,29 @@ function handle_reports_routes(string $method, string $path, PDO $db): bool
                 'total_amount' => round($tot, 2),
                 'amount_paid' => round($paid, 2),
                 'balance_due' => round($bal, 2),
+                'paid_amount' => round($paid, 2),
+                'pending_amount' => round($bal, 2),
                 'status' => $st,
                 'is_paid' => $isPaid,
                 'is_due' => $isDue,
+                'is_pending' => $isDue,
                 'is_overdue' => $isOverdue,
                 'fbr_status' => (string)($inv['fbr_status'] ?? 'unposted'),
                 'fbr_invoice_no' => (string)($inv['fbr_invoice_no'] ?? ''),
             ];
 
+            // Attach to party's all invoices list
+            $partyReports[$partyKey]['invoices'][] = $invItem;
+            $allInvoices[] = $invItem;
+
             if ($isPaid) {
                 $partyReports[$partyKey]['paid_count']++;
+                $partyReports[$partyKey]['paid_invoices'][] = $invItem;
                 $paidInvoices[] = $invItem;
             } else {
                 $partyReports[$partyKey]['due_count']++;
+                $partyReports[$partyKey]['pending_count']++;
+                $partyReports[$partyKey]['due_invoices'][] = $invItem;
                 $dueInvoices[] = $invItem;
             }
         }
@@ -163,7 +183,9 @@ function handle_reports_routes(string $method, string $path, PDO $db): bool
         foreach ($sortedParties as &$p) {
             $p['total_billed'] = round($p['total_billed'], 2);
             $p['total_received'] = round($p['total_received'], 2);
+            $p['paid_total'] = round($p['paid_total'] ?? $p['total_received'], 2);
             $p['total_due'] = round($p['total_due'], 2);
+            $p['pending_total'] = round($p['pending_total'] ?? $p['total_due'], 2);
         }
         unset($p);
 
@@ -222,14 +244,18 @@ function handle_reports_routes(string $method, string $path, PDO $db): bool
             'kpis' => [
                 'total_revenue' => round($totalRevenue, 2),
                 'total_paid' => round($totalPaid, 2),
+                'paid_total' => round($totalPaid, 2),
                 'total_outstanding' => round($totalOutstanding, 2),
+                'pending_total' => round($totalOutstanding, 2),
                 'total_expenses' => round($totalExpenses, 2),
                 'net_profit' => round($totalRevenue - $totalExpenses, 2),
                 'invoice_count' => count($invoices),
                 'paid_count' => count($paidInvoices),
                 'due_count' => count($dueInvoices),
+                'pending_count' => count($dueInvoices),
             ],
             'party_reports' => $sortedParties,
+            'all_invoices' => $allInvoices,
             'paid_invoices' => $paidInvoices,
             'due_invoices' => $dueInvoices,
             'clients_list' => $clientsList,

@@ -1,16 +1,61 @@
 {% extends "base.html" %}
-{% block title %}Reports - {{ company }}{% endblock %}
+{% block title %}Party-Wise Reports &amp; Invoices - {{ company }}{% endblock %}
 {% block content %}
+<style>
+@media print {
+    #sidebar, #top-filter-bar, .no-print, button, .action-cell, #active-party-banner button {
+        display: none !important;
+    }
+    main {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    .party-ledger-details {
+        display: table-row !important;
+    }
+    .print-only {
+        display: block !important;
+    }
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+    .card-print {
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+    }
+}
+.print-only {
+    display: none;
+}
+</style>
+
 <div class="flex min-h-screen">
     {% include "includes/sidebar.html" %}
     <main class="flex-1 ml-64 p-6 space-y-6">
+        <!-- Print Header -->
+        <div class="print-only mb-6 border-b border-gray-300 pb-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-black text-gray-900">{{ company_brand_name }}</h1>
+                    <p class="text-xs text-gray-600 font-semibold">Party-Wise Account Statement &amp; Invoice Ledger</p>
+                </div>
+                <div class="text-right text-xs text-gray-600">
+                    <p>Printed on: <span id="print-date"></span></p>
+                    <p id="print-period-label"></p>
+                </div>
+            </div>
+        </div>
+
         <!-- Topbar Filter Controls -->
-        <div class="flex flex-wrap justify-between items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div id="top-filter-bar" class="flex flex-wrap justify-between items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 no-print">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <i class="fas fa-chart-line text-cyan-600"></i> Reports &amp; Analytics
                 </h1>
-                <p class="text-gray-500 text-xs mt-0.5">Party-wise business performance, separated paid &amp; due invoices</p>
+                <p class="text-gray-500 text-xs mt-0.5">Party-wise business ledger, all invoices with separate paid and pending totals</p>
             </div>
             <div class="flex flex-wrap gap-2.5 items-center">
                 <!-- Party / Client Selector -->
@@ -30,32 +75,42 @@
                     <i class="fas fa-filter text-xs"></i> Apply
                 </button>
                 <button onclick="window.print()" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3.5 py-2 rounded-xl text-sm font-semibold shadow-xs flex items-center gap-1.5 transition">
-                    <i class="fas fa-print text-xs"></i> Print
+                    <i class="fas fa-print text-xs"></i> Print Report
                 </button>
             </div>
         </div>
 
         <!-- Active Party Filter Banner -->
-        <div id="active-party-banner" class="hidden p-3.5 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl flex justify-between items-center shadow-xs">
-            <div class="flex items-center gap-2">
-                <span class="w-7 h-7 rounded-lg bg-cyan-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+        <div id="active-party-banner" class="hidden p-4 bg-gradient-to-r from-cyan-50 via-blue-50 to-indigo-50 border border-cyan-200 rounded-2xl flex flex-wrap justify-between items-center gap-4 shadow-xs">
+            <div class="flex items-center gap-3">
+                <span class="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center text-sm font-bold shadow-xs">
                     <i class="fas fa-user-check"></i>
                 </span>
                 <div>
-                    <span class="text-xs text-cyan-800">Viewing filtered party statement for:</span>
-                    <span id="active-party-name" class="font-bold text-cyan-950 text-sm ml-1"></span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-cyan-800 font-semibold uppercase tracking-wider">Party Statement</span>
+                        <span id="active-party-name" class="font-extrabold text-cyan-950 text-base"></span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mt-1" id="active-party-metrics">
+                        <!-- Filled dynamically: paid total & pending total -->
+                    </div>
                 </div>
             </div>
-            <button onclick="clearPartyFilter()" class="text-xs bg-white text-cyan-700 hover:text-cyan-900 border border-cyan-300 font-bold px-3 py-1.5 rounded-lg shadow-2xs hover:bg-cyan-50 transition">
-                <i class="fas fa-times mr-1"></i> Show All Parties
-            </button>
+            <div class="flex items-center gap-2 no-print">
+                <button onclick="window.print()" class="text-xs bg-cyan-700 hover:bg-cyan-800 text-white font-bold px-3 py-1.5 rounded-lg shadow-xs transition flex items-center gap-1">
+                    <i class="fas fa-print"></i> Print Statement
+                </button>
+                <button onclick="clearPartyFilter()" class="text-xs bg-white text-cyan-800 hover:text-cyan-950 border border-cyan-300 font-bold px-3 py-1.5 rounded-lg shadow-2xs hover:bg-cyan-50 transition flex items-center gap-1">
+                    <i class="fas fa-times"></i> Show All Parties
+                </button>
+            </div>
         </div>
 
         <!-- KPI Cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 card-print">
             <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
-                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Revenue</p>
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Billed</p>
                     <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-file-invoice"></i></span>
                 </div>
                 <div class="mt-2">
@@ -63,24 +118,32 @@
                     <p class="text-[11px] text-gray-400 font-medium mt-0.5 truncate" id="kpi-invoice-count">0 invoices</p>
                 </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-emerald-100 border-l-4 border-l-emerald-500 flex flex-col justify-between min-h-[115px]">
+            <!-- SEPARATE PAID TOTAL KPI -->
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-emerald-200 border-l-4 border-l-emerald-500 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
-                    <p class="text-xs text-emerald-800 uppercase font-bold tracking-wider">Total Received</p>
+                    <div>
+                        <p class="text-xs text-emerald-800 uppercase font-black tracking-wider">Paid Total</p>
+                        <span class="text-[10px] text-emerald-600 font-semibold">Total Amount Received</span>
+                    </div>
                     <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-hand-holding-dollar"></i></span>
                 </div>
                 <div class="mt-2">
                     <p class="text-lg xl:text-xl font-black font-mono text-emerald-600 tracking-tight truncate" id="kpi-paid">—</p>
-                    <p class="text-[11px] text-emerald-700 font-medium mt-0.5 truncate"><span id="kpi-paid-count">0</span> invoices cleared</p>
+                    <p class="text-[11px] text-emerald-700 font-bold mt-0.5 truncate"><span id="kpi-paid-count">0</span> invoices settled (100%)</p>
                 </div>
             </div>
-            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-amber-100 border-l-4 border-l-amber-500 flex flex-col justify-between min-h-[115px]">
+            <!-- SEPARATE PENDING TOTAL KPI -->
+            <div class="bg-white rounded-2xl p-4 shadow-2xs border border-amber-200 border-l-4 border-l-amber-500 flex flex-col justify-between min-h-[115px]">
                 <div class="flex justify-between items-start">
-                    <p class="text-xs text-amber-800 uppercase font-bold tracking-wider">Balance Due</p>
+                    <div>
+                        <p class="text-xs text-amber-800 uppercase font-black tracking-wider">Pending Total</p>
+                        <span class="text-[10px] text-amber-600 font-semibold">Balance Due / Receivables</span>
+                    </div>
                     <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs shrink-0"><i class="fas fa-clock"></i></span>
                 </div>
                 <div class="mt-2">
                     <p class="text-lg xl:text-xl font-black font-mono text-amber-600 tracking-tight truncate" id="kpi-outstanding">—</p>
-                    <p class="text-[11px] text-amber-700 font-medium mt-0.5 truncate"><span id="kpi-due-count">0</span> invoices awaiting</p>
+                    <p class="text-[11px] text-amber-700 font-bold mt-0.5 truncate"><span id="kpi-due-count">0</span> invoices pending</p>
                 </div>
             </div>
             <div class="bg-white rounded-2xl p-4 shadow-2xs border border-gray-100 flex flex-col justify-between min-h-[115px]">
@@ -105,22 +168,25 @@
             </div>
         </div>
 
-        <!-- Party-Wise Reports & Invoice Breakdown (Paid vs Due) -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <!-- Party-Wise Reports & Invoice Breakdown (Paid vs Pending) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden card-print">
             <div class="p-5 border-b border-gray-100 flex flex-wrap justify-between items-center gap-4 bg-slate-50/70">
                 <div>
                     <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <i class="fas fa-users-line text-cyan-600"></i> Party-Wise Invoices &amp; Ledger
                     </h2>
-                    <p class="text-xs text-gray-500" id="party-report-subtitle">Client account statements with separated paid &amp; due balances</p>
+                    <p class="text-xs text-gray-500" id="party-report-subtitle">Client account statements showing all invoices (paid and not paid) with separate paid &amp; pending totals</p>
                 </div>
                 <!-- Tabs -->
-                <div class="flex items-center gap-1.5 bg-gray-200/70 p-1 rounded-xl text-xs font-semibold">
+                <div class="flex flex-wrap items-center gap-1.5 bg-gray-200/70 p-1 rounded-xl text-xs font-semibold no-print">
                     <button type="button" onclick="switchReportTab('parties')" id="tab-btn-parties" class="px-3.5 py-1.5 rounded-lg transition bg-white text-gray-900 shadow-xs font-bold">
-                        <i class="fas fa-users text-cyan-600 mr-1"></i> Party Summary (<span id="count-parties">0</span>)
+                        <i class="fas fa-users text-cyan-600 mr-1"></i> Party Ledger (<span id="count-parties">0</span>)
+                    </button>
+                    <button type="button" onclick="switchReportTab('all')" id="tab-btn-all" class="px-3.5 py-1.5 rounded-lg transition text-gray-600 hover:text-gray-900 font-semibold">
+                        <i class="fas fa-receipt text-indigo-500 mr-1"></i> All Invoices (<span id="count-all">0</span>)
                     </button>
                     <button type="button" onclick="switchReportTab('due')" id="tab-btn-due" class="px-3.5 py-1.5 rounded-lg transition text-gray-600 hover:text-gray-900 font-semibold">
-                        <i class="fas fa-clock text-amber-500 mr-1"></i> Due Invoices (<span id="count-due">0</span>)
+                        <i class="fas fa-clock text-amber-500 mr-1"></i> Pending Invoices (<span id="count-due">0</span>)
                     </button>
                     <button type="button" onclick="switchReportTab('paid')" id="tab-btn-paid" class="px-3.5 py-1.5 rounded-lg transition text-gray-600 hover:text-gray-900 font-semibold">
                         <i class="fas fa-check-circle text-emerald-500 mr-1"></i> Paid Invoices (<span id="count-paid">0</span>)
@@ -128,38 +194,106 @@
                 </div>
             </div>
 
-            <!-- Tab 1: Party Summary Table -->
-            <div id="tab-content-parties" class="p-5">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+            <!-- TAB 1: Party Summary & Ledger Table -->
+            <div id="tab-content-parties" class="p-5 space-y-4">
+                <!-- Sub Toolbar for Party Ledger -->
+                <div class="flex flex-wrap justify-between items-center gap-3 no-print">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="expandAllParties(true)" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+                            <i class="fas fa-angles-down text-slate-500"></i> Expand All Invoices
+                        </button>
+                        <button type="button" onclick="expandAllParties(false)" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+                            <i class="fas fa-angles-up text-slate-500"></i> Collapse All
+                        </button>
+                    </div>
+                    <div class="relative w-64">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                        <input type="text" id="party-search" oninput="filterPartiesList(this.value)" placeholder="Search party or NTN..." class="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-cyan-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full text-left text-sm" id="main-party-table">
                         <thead class="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200">
                             <tr>
+                                <th class="py-3 px-3 w-10 text-center no-print"></th>
                                 <th class="py-3 px-4">Party / Client Name</th>
-                                <th class="py-3 px-4">Company / NTN</th>
-                                <th class="py-3 px-4 text-center">Invoices</th>
+                                <th class="py-3 px-4">City / NTN</th>
+                                <th class="py-3 px-4 text-center">Invoices (Paid / Pending)</th>
                                 <th class="py-3 px-4 text-right">Total Billed</th>
-                                <th class="py-3 px-4 text-right text-emerald-700">Total Received</th>
-                                <th class="py-3 px-4 text-right text-amber-700">Total Due</th>
+                                <th class="py-3 px-4 text-right text-emerald-700 font-extrabold bg-emerald-50/50">Paid Total</th>
+                                <th class="py-3 px-4 text-right text-amber-700 font-extrabold bg-amber-50/50">Pending Total</th>
                                 <th class="py-3 px-4 text-center">Status</th>
-                                <th class="py-3 px-4 text-right">Action</th>
+                                <th class="py-3 px-4 text-right no-print">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="party-table-body" class="divide-y divide-slate-100">
-                            <tr><td colspan="8" class="text-center py-6 text-gray-400">Loading party ledger...</td></tr>
+                            <tr><td colspan="9" class="text-center py-6 text-gray-400">Loading party ledger...</td></tr>
                         </tbody>
+                        <tfoot id="party-table-footer" class="bg-slate-100/80 font-mono font-bold text-xs border-t-2 border-slate-300">
+                            <!-- Filled dynamically -->
+                        </tfoot>
                     </table>
                 </div>
             </div>
 
-            <!-- Tab 2: Due Invoices Table -->
+            <!-- TAB 2: All Invoices Table (Paid & Pending together) -->
+            <div id="tab-content-all" class="hidden p-5 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 p-3 bg-gradient-to-r from-slate-50 to-blue-50/40 rounded-xl border border-slate-200">
+                    <div class="flex flex-wrap items-center gap-3 text-xs">
+                        <span class="font-bold text-gray-700">All Invoices Summary:</span>
+                        <span class="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-black border border-emerald-300">
+                            <i class="fas fa-check-circle mr-1"></i> Paid Total: <span id="all-tab-paid-total">PKR 0.00</span>
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-black border border-amber-300">
+                            <i class="fas fa-clock mr-1"></i> Pending Total: <span id="all-tab-pending-total">PKR 0.00</span>
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-200 text-slate-800 font-bold border border-slate-300">
+                            Total Billed: <span id="all-tab-billed-total">PKR 0.00</span>
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2 no-print">
+                        <div class="relative w-56">
+                            <i class="fas fa-search absolute left-2.5 top-2 text-gray-400 text-xs"></i>
+                            <input type="text" id="all-invoices-search" oninput="filterAllInvoicesTable(this.value)" placeholder="Search inv #, party..." class="w-full pl-7 pr-3 py-1 text-xs border border-gray-200 rounded-lg bg-white outline-none focus:ring-1 focus:ring-cyan-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full text-left text-sm" id="table-all-invoices">
+                        <thead class="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">Invoice #</th>
+                                <th class="py-3 px-4">Party / Client</th>
+                                <th class="py-3 px-4 text-center">Invoice Date</th>
+                                <th class="py-3 px-4 text-center">Due Date</th>
+                                <th class="py-3 px-4 text-right">Invoice Total</th>
+                                <th class="py-3 px-4 text-right text-emerald-700 font-bold bg-emerald-50/40">Paid Amount</th>
+                                <th class="py-3 px-4 text-right text-amber-700 font-bold bg-amber-50/40">Pending Balance</th>
+                                <th class="py-3 px-4 text-center">Payment Status</th>
+                                <th class="py-3 px-4 text-right no-print">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="all-invoices-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="9" class="text-center py-6 text-gray-400">Loading invoices...</td></tr>
+                        </tbody>
+                        <tfoot id="all-invoices-table-footer" class="bg-slate-100/90 font-mono font-bold text-xs border-t-2 border-slate-300">
+                            <!-- Filled dynamically -->
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: Pending Invoices Table -->
             <div id="tab-content-due" class="hidden p-5 space-y-3">
                 <div class="flex flex-wrap justify-between items-center gap-2">
                     <div class="text-xs text-amber-900 font-semibold bg-amber-50 px-3.5 py-2 rounded-xl border border-amber-200 flex items-center gap-2">
                         <i class="fas fa-exclamation-triangle text-amber-600"></i>
-                        <span>Total Receivables Due:</span>
+                        <span>Separate Pending Total (Receivables Due):</span>
                         <span id="due-total-amount" class="font-extrabold text-amber-800 text-sm">PKR 0.00</span>
                     </div>
-                    <span class="text-xs text-gray-500 font-medium">Unpaid &amp; partially paid invoices with outstanding balance</span>
+                    <span class="text-xs text-gray-500 font-medium">Unpaid &amp; partially paid invoices with balance due</span>
                 </div>
                 <div class="overflow-x-auto border border-gray-100 rounded-xl">
                     <table class="w-full text-left text-sm">
@@ -167,31 +301,31 @@
                             <tr>
                                 <th class="py-3 px-4">Invoice #</th>
                                 <th class="py-3 px-4">Party / Client</th>
-                                <th class="py-3 px-4">Invoice Date</th>
-                                <th class="py-3 px-4">Due Date</th>
+                                <th class="py-3 px-4 text-center">Invoice Date</th>
+                                <th class="py-3 px-4 text-center">Due Date</th>
                                 <th class="py-3 px-4 text-right">Invoice Total</th>
-                                <th class="py-3 px-4 text-right text-emerald-700">Received</th>
-                                <th class="py-3 px-4 text-right text-rose-700 font-bold">Balance Due</th>
+                                <th class="py-3 px-4 text-right text-emerald-700">Paid so far</th>
+                                <th class="py-3 px-4 text-right text-rose-700 font-extrabold bg-rose-50/60">Pending Total</th>
                                 <th class="py-3 px-4 text-center">Status</th>
-                                <th class="py-3 px-4 text-right">Action</th>
+                                <th class="py-3 px-4 text-right no-print">Action</th>
                             </tr>
                         </thead>
                         <tbody id="due-table-body" class="divide-y divide-slate-100">
-                            <tr><td colspan="9" class="text-center py-6 text-gray-400">No due invoices.</td></tr>
+                            <tr><td colspan="9" class="text-center py-6 text-gray-400">No pending invoices.</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Tab 3: Paid Invoices Table -->
+            <!-- TAB 4: Paid Invoices Table -->
             <div id="tab-content-paid" class="hidden p-5 space-y-3">
                 <div class="flex flex-wrap justify-between items-center gap-2">
                     <div class="text-xs text-emerald-900 font-semibold bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 flex items-center gap-2">
                         <i class="fas fa-check-circle text-emerald-600"></i>
-                        <span>Total Amount Received:</span>
+                        <span>Separate Paid Total (Amount Collected):</span>
                         <span id="paid-total-amount" class="font-extrabold text-emerald-800 text-sm">PKR 0.00</span>
                     </div>
-                    <span class="text-xs text-gray-500 font-medium">Invoices settled and cleared in full</span>
+                    <span class="text-xs text-gray-500 font-medium">Invoices cleared and settled in full</span>
                 </div>
                 <div class="overflow-x-auto border border-gray-100 rounded-xl">
                     <table class="w-full text-left text-sm">
@@ -199,12 +333,12 @@
                             <tr>
                                 <th class="py-3 px-4">Invoice #</th>
                                 <th class="py-3 px-4">Party / Client</th>
-                                <th class="py-3 px-4">Invoice Date</th>
+                                <th class="py-3 px-4 text-center">Invoice Date</th>
                                 <th class="py-3 px-4 text-right">Invoice Total</th>
-                                <th class="py-3 px-4 text-right text-emerald-700 font-bold">Received (100%)</th>
+                                <th class="py-3 px-4 text-right text-emerald-700 font-extrabold bg-emerald-50/60">Paid Total (100%)</th>
                                 <th class="py-3 px-4 text-center">FBR Clearance</th>
                                 <th class="py-3 px-4 text-center">Status</th>
-                                <th class="py-3 px-4 text-right">Action</th>
+                                <th class="py-3 px-4 text-right no-print">Action</th>
                             </tr>
                         </thead>
                         <tbody id="paid-table-body" class="divide-y divide-slate-100">
@@ -216,7 +350,7 @@
         </div>
 
         <!-- Revenue Chart + Invoice Status -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 no-print">
             <div class="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                 <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <i class="fas fa-chart-column text-cyan-600"></i> Revenue by Month
@@ -232,7 +366,7 @@
         </div>
 
         <!-- Top Clients + Expenses by Category -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                 <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <i class="fas fa-trophy text-amber-500"></i> Top Clients by Revenue
@@ -248,7 +382,7 @@
         </div>
 
         <!-- Tax Summary + Receivables Aging -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                 <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <i class="fas fa-scale-balanced text-cyan-600"></i> Tax Summary (FBR GST &amp; WHT)
@@ -280,6 +414,8 @@ const STATUS_COLORS = {
 };
 const CAT_COLORS = ['bg-cyan-500','bg-blue-500','bg-indigo-500','bg-purple-500','bg-pink-500','bg-rose-500','bg-amber-500','bg-orange-500'];
 
+let globalReportsData = null;
+
 function fmt(n) {
     return 'PKR ' + Number(n || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -290,7 +426,7 @@ function escHtml(str) {
 }
 
 function switchReportTab(tab) {
-    const tabs = ['parties', 'due', 'paid'];
+    const tabs = ['parties', 'all', 'due', 'paid'];
     tabs.forEach(t => {
         const isMatch = (t === tab);
         $(`#tab-content-${t}`).toggleClass('hidden', !isMatch);
@@ -303,6 +439,28 @@ function switchReportTab(tab) {
     });
 }
 
+function togglePartyLedger(partyKey) {
+    const $row = $(`#party-ledger-${partyKey}`);
+    const $icon = $(`#arrow-${partyKey}`);
+    if ($row.hasClass('hidden')) {
+        $row.removeClass('hidden');
+        $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down text-cyan-600');
+    } else {
+        $row.addClass('hidden');
+        $icon.removeClass('fa-chevron-down text-cyan-600').addClass('fa-chevron-right text-gray-400');
+    }
+}
+
+function expandAllParties(expand) {
+    if (expand) {
+        $('.party-ledger-details').removeClass('hidden');
+        $('.party-expand-icon').removeClass('fa-chevron-right').addClass('fa-chevron-down text-cyan-600');
+    } else {
+        $('.party-ledger-details').addClass('hidden');
+        $('.party-expand-icon').removeClass('fa-chevron-down text-cyan-600').addClass('fa-chevron-right text-gray-400');
+    }
+}
+
 function filterByParty(clientId) {
     if (!clientId) return;
     $('#client_id').val(clientId);
@@ -312,6 +470,27 @@ function filterByParty(clientId) {
 function clearPartyFilter() {
     $('#client_id').val('');
     loadReports();
+}
+
+function filterPartiesList(query) {
+    const q = (query || '').toLowerCase().trim();
+    $('#party-table-body tr.party-row').each(function() {
+        const text = $(this).text().toLowerCase();
+        const partyKey = $(this).data('party-key');
+        const match = (!q || text.indexOf(q) !== -1);
+        $(this).toggle(match);
+        if (!match && partyKey) {
+            $(`#party-ledger-${partyKey}`).addClass('hidden');
+        }
+    });
+}
+
+function filterAllInvoicesTable(query) {
+    const q = (query || '').toLowerCase().trim();
+    $('#all-invoices-table-body tr').each(function() {
+        const text = $(this).text().toLowerCase();
+        $(this).toggle(!q || text.indexOf(q) !== -1);
+    });
 }
 
 function barChart(containerId, items, labelKey, valueKey, colorClass) {
@@ -336,6 +515,113 @@ function barChart(containerId, items, labelKey, valueKey, colorClass) {
     $('#' + containerId).html(html);
 }
 
+function renderPartyInvoicesSubTable(p) {
+    const invoices = p.invoices || [];
+    if (!invoices.length) {
+        return `<div class="p-4 text-xs text-gray-400 italic text-center">No invoice records found for this party.</div>`;
+    }
+
+    const rows = invoices.map(inv => {
+        const isPaid = inv.is_paid;
+        const bal = inv.pending_amount !== undefined ? inv.pending_amount : (inv.balance_due || 0);
+        const paid = inv.paid_amount !== undefined ? inv.paid_amount : (inv.amount_paid || 0);
+
+        let statusBadge = '';
+        if (isPaid) {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fas fa-check mr-1"></i>PAID</span>`;
+        } else if (paid > 0 && bal > 0) {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fas fa-adjust mr-1"></i>PARTIALLY PAID</span>`;
+        } else if (inv.is_overdue) {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fas fa-exclamation mr-1"></i>OVERDUE</span>`;
+        } else {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300"><i class="fas fa-clock mr-1"></i>PENDING</span>`;
+        }
+
+        const fbrBadge = (inv.fbr_status === 'posted' && inv.fbr_invoice_no)
+            ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="${escHtml(inv.fbr_invoice_no)}"><i class="fas fa-check text-[9px] text-emerald-600"></i> FBR</span>`
+            : '';
+
+        return `<tr class="hover:bg-cyan-50/30 transition text-xs border-b border-slate-100">
+            <td class="py-2.5 px-3 font-mono font-bold text-cyan-700">
+                <a href="/invoices/${inv.id}" class="hover:underline flex items-center gap-1.5">
+                    <i class="fas fa-file-invoice text-slate-400 text-[11px]"></i>
+                    ${escHtml(inv.invoice_no)}
+                </a>
+            </td>
+            <td class="py-2.5 px-3 text-center text-slate-600 font-mono">${escHtml(inv.invoice_date)}</td>
+            <td class="py-2.5 px-3 text-center text-slate-600 font-mono ${inv.is_overdue ? 'text-rose-600 font-bold' : ''}">
+                ${inv.due_date ? escHtml(inv.due_date) : '—'}
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-800">${fmt(inv.total_amount)}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-extrabold text-emerald-600 bg-emerald-50/40">${fmt(paid)}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-extrabold ${bal > 0 ? 'text-rose-600 bg-rose-50/40' : 'text-slate-400'}">${fmt(bal)}</td>
+            <td class="py-2.5 px-3 text-center">${statusBadge} ${fbrBadge}</td>
+            <td class="py-2.5 px-3 text-right no-print">
+                <div class="inline-flex items-center gap-1">
+                    <a href="/invoices/${inv.id}" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-[11px] transition">View</a>
+                    <a href="/api/invoices/${inv.id}/pdf" target="_blank" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium text-[11px] transition flex items-center gap-0.5">
+                        <i class="fas fa-file-pdf text-[10px]"></i> PDF
+                    </a>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    return `
+    <div class="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-3 my-2 mx-1 shadow-inner">
+        <!-- Sub Header with Party Details & Explicit Paid / Pending Totals -->
+        <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-200 pb-2.5">
+            <div>
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fas fa-folder-open text-cyan-600"></i> All Invoices for ${escHtml(p.company || p.name)}
+                </span>
+                <span class="text-[11px] text-slate-500 ml-1">(${invoices.length} invoices: ${p.paid_count || 0} paid, ${p.due_count || p.pending_count || 0} pending)</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                    <i class="fas fa-check-circle mr-1"></i> Paid Total: ${fmt(p.paid_total)}
+                </span>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-black ${(p.pending_total > 0) ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-200'} shadow-2xs">
+                    <i class="fas fa-clock mr-1"></i> Pending Total: ${fmt(p.pending_total)}
+                </span>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-2xs">
+                    Total Billed: ${fmt(p.total_billed)}
+                </span>
+            </div>
+        </div>
+
+        <!-- Invoices List Table -->
+        <div class="overflow-x-auto bg-white rounded-lg border border-slate-200">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100/80 text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200">
+                    <tr>
+                        <th class="py-2 px-3">Invoice #</th>
+                        <th class="py-2 px-3 text-center">Invoice Date</th>
+                        <th class="py-2 px-3 text-center">Due Date</th>
+                        <th class="py-2 px-3 text-right">Invoice Total</th>
+                        <th class="py-2 px-3 text-right text-emerald-700 font-bold bg-emerald-50/50">Paid Amount</th>
+                        <th class="py-2 px-3 text-right text-amber-700 font-bold bg-amber-50/50">Pending Balance</th>
+                        <th class="py-2 px-3 text-center">Status</th>
+                        <th class="py-2 px-3 text-right no-print">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    ${rows}
+                </tbody>
+                <tfoot class="bg-slate-50 font-mono font-bold text-xs border-t border-slate-200">
+                    <tr>
+                        <td colspan="3" class="py-2 px-3 text-slate-600 uppercase text-[10px] tracking-wider">Party Invoice Totals:</td>
+                        <td class="py-2 px-3 text-right text-slate-800">${fmt(p.total_billed)}</td>
+                        <td class="py-2 px-3 text-right text-emerald-600 bg-emerald-50/60 font-black">${fmt(p.paid_total)}</td>
+                        <td class="py-2 px-3 text-right ${p.pending_total > 0 ? 'text-rose-600 bg-rose-50/60 font-black' : 'text-slate-400'}">${fmt(p.pending_total)}</td>
+                        <td colspan="2" class="py-2 px-3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>`;
+}
+
 function loadReports() {
     const from = $('#from_date').val();
     const to = $('#to_date').val();
@@ -348,8 +634,13 @@ function loadReports() {
     if (clientId) params.push('client_id=' + encodeURIComponent(clientId));
     if (params.length) url += '?' + params.join('&');
 
+    $('#print-date').text(new Date().toLocaleDateString('en-PK', { year:'numeric', month:'short', day:'numeric' }));
+    $('#print-period-label').text(`Period: ${from || 'All'} to ${to || 'All'}`);
+
     $.ajax({ url, headers: { Authorization: 'Bearer ' + token } })
     .done(function(d) {
+        globalReportsData = d;
+
         // Populate Client Dropdown if empty
         if ($('#client_id option').length <= 1 && d.clients_list?.length) {
             d.clients_list.forEach(c => {
@@ -366,10 +657,23 @@ function loadReports() {
             const selectedOpt = $('#client_id option:selected').text();
             $('#active-party-name').text(selectedOpt || `Client #${d.selected_client_id}`);
             $('#active-party-banner').removeClass('hidden');
-            $('#party-report-subtitle').text(`Showing account transactions and invoices for: ${selectedOpt}`);
+            $('#party-report-subtitle').text(`Showing account transactions and all invoices for: ${selectedOpt}`);
+
+            $('#active-party-metrics').html(`
+                <span class="px-3 py-1 rounded-xl bg-emerald-100 text-emerald-900 font-extrabold text-xs border border-emerald-300">
+                    <i class="fas fa-check-circle mr-1 text-emerald-600"></i> Paid Total: ${fmt(d.kpis.total_paid)}
+                </span>
+                <span class="px-3 py-1 rounded-xl bg-amber-100 text-amber-900 font-extrabold text-xs border border-amber-300">
+                    <i class="fas fa-clock mr-1 text-amber-600"></i> Pending Total: ${fmt(d.kpis.total_outstanding)}
+                </span>
+                <span class="px-3 py-1 rounded-xl bg-white text-slate-800 font-bold text-xs border border-slate-200">
+                    Total Invoiced: ${fmt(d.kpis.total_revenue)}
+                </span>
+                <span class="text-xs text-slate-500 font-medium">(${d.kpis.invoice_count} invoices: ${d.kpis.paid_count} paid, ${d.kpis.due_count} pending)</span>
+            `);
         } else {
             $('#active-party-banner').addClass('hidden');
-            $('#party-report-subtitle').text('Client account statements with separated paid & due balances');
+            $('#party-report-subtitle').text('Client account statements showing all invoices (paid and not paid) with separate paid & pending totals');
         }
 
         // KPIs
@@ -383,65 +687,196 @@ function loadReports() {
         $('#kpi-paid-count').text(d.kpis.paid_count || 0);
         $('#kpi-due-count').text(d.kpis.due_count || 0);
 
-        // Tab Counts & Totals
+        // Tab Counts & Data Lists
         const partyList = d.party_reports || [];
+        const allList = d.all_invoices || [];
         const dueList = d.due_invoices || [];
         const paidList = d.paid_invoices || [];
 
         $('#count-parties').text(partyList.length);
+        $('#count-all').text(allList.length);
         $('#count-due').text(dueList.length);
         $('#count-paid').text(paidList.length);
 
         const totalDueAmount = dueList.reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
         const totalPaidAmount = paidList.reduce((sum, inv) => sum + (inv.amount_paid || inv.total_amount || 0), 0);
+        const totalBilledAmount = allList.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
         $('#due-total-amount').text(fmt(totalDueAmount));
         $('#paid-total-amount').text(fmt(totalPaidAmount));
 
-        // 1. Render Party Summary Table
-        if (partyList.length) {
-            $('#party-table-body').html(partyList.map(p => {
-                const hasDue = (p.total_due > 0.01);
-                const statusBadge = hasDue
-                    ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">DUE: ${fmt(p.total_due)}</span>`
-                    : `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><i class="fas fa-check-circle"></i> ALL PAID</span>`;
-                
-                const filterBtn = p.client_id
-                    ? `<button type="button" onclick="filterByParty(${p.client_id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 transition">
-                         <i class="fas fa-filter text-[10px]"></i> Statement
-                       </button>`
-                    : '-';
+        $('#all-tab-paid-total').text(fmt(totalPaidAmount));
+        $('#all-tab-pending-total').text(fmt(totalDueAmount));
+        $('#all-tab-billed-total').text(fmt(totalBilledAmount));
 
-                const pComp = p.company || '';
-                const pName = p.name || 'Valued Party';
+        // 1. RENDER PARTY SUMMARY & LEDGER TABLE
+        if (partyList.length) {
+            let grandBilled = 0;
+            let grandPaid = 0;
+            let grandPending = 0;
+            let grandCount = 0;
+
+            const partyRowsHtml = partyList.map((party, idx) => {
+                grandBilled += (party.total_billed || 0);
+                grandPaid += (party.paid_total || party.total_received || 0);
+                grandPending += (party.pending_total || party.total_due || 0);
+                grandCount += (party.invoice_count || 0);
+
+                const hasDue = ((party.pending_total || party.total_due) > 0.01);
+                const statusBadge = hasDue
+                    ? `<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300">PENDING: ${fmt(party.pending_total || party.total_due)}</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fas fa-check-circle mr-1"></i> ALL PAID</span>`;
+
+                const partyKey = party.party_key || (party.client_id ? String(party.client_id) : `p_${idx}`);
+                const pComp = party.company || '';
+                const pName = party.name || 'Valued Party';
                 const boldParty = pComp ? pComp : pName;
                 const subParty = (pComp && pName && pName.toLowerCase() !== pComp.toLowerCase()) ? pName : '';
 
-                return `<tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                    <td class="py-3 px-4">
-                        <div class="font-bold text-gray-900">${escHtml(boldParty)}</div>
-                        ${subParty ? `<div class="text-xs text-gray-500">${escHtml(subParty)}</div>` : ''}
-                        ${p.phone || p.email ? `<div class="text-[11px] text-gray-400">${escHtml(p.phone || p.email)}</div>` : ''}
+                const subTableHtml = renderPartyInvoicesSubTable(party);
+
+                return `
+                <tr class="party-row hover:bg-slate-50/80 transition border-b border-slate-100" data-party-key="${escHtml(partyKey)}">
+                    <td class="py-3 px-3 text-center no-print">
+                        <button type="button" onclick="togglePartyLedger('${escHtml(partyKey)}')" class="p-1 rounded hover:bg-slate-200 text-slate-500 transition" title="Toggle invoices">
+                            <i id="arrow-${escHtml(partyKey)}" class="fas fa-chevron-right text-xs text-gray-400 party-expand-icon"></i>
+                        </button>
                     </td>
                     <td class="py-3 px-4">
-                        <div class="text-gray-700 font-medium">${escHtml(p.city || p.company || '—')}</div>
-                        ${p.ntn ? `<div class="text-[11px] text-gray-400 font-mono">NTN: ${escHtml(p.ntn)}</div>` : ''}
+                        <div class="font-extrabold text-gray-900 cursor-pointer flex items-center gap-1.5" onclick="togglePartyLedger('${escHtml(partyKey)}')">
+                            <span>${escHtml(boldParty)}</span>
+                        </div>
+                        ${subParty ? `<div class="text-xs text-gray-500">${escHtml(subParty)}</div>` : ''}
+                        ${party.phone || party.email ? `<div class="text-[11px] text-gray-400">${escHtml(party.phone || party.email)}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="text-gray-700 font-medium text-xs">${escHtml(party.city || party.company || '—')}</div>
+                        ${party.ntn ? `<div class="text-[11px] text-gray-400 font-mono">NTN: ${escHtml(party.ntn)}</div>` : ''}
                     </td>
                     <td class="py-3 px-4 text-center">
-                        <span class="inline-block px-2.5 py-0.5 bg-slate-100 text-slate-800 rounded font-semibold text-xs font-mono">${p.invoice_count}</span>
+                        <button type="button" onclick="togglePartyLedger('${escHtml(partyKey)}')" class="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-cyan-50 hover:text-cyan-800 text-slate-800 rounded-lg font-bold text-xs transition border border-slate-200" title="Click to view all invoices">
+                            <i class="fas fa-file-invoice text-slate-400 text-[10px]"></i>
+                            <span>${party.invoice_count}</span>
+                            <span class="text-[10px] text-slate-500 font-normal">(${party.paid_count || 0} paid, ${party.due_count || party.pending_count || 0} pending)</span>
+                        </button>
                     </td>
-                    <td class="py-3 px-4 text-right font-mono font-semibold text-gray-800">${fmt(p.total_billed)}</td>
-                    <td class="py-3 px-4 text-right font-mono font-bold text-emerald-600">${fmt(p.total_received)}</td>
-                    <td class="py-3 px-4 text-right font-mono font-bold ${hasDue ? 'text-amber-600' : 'text-gray-400'}">${fmt(p.total_due)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-semibold text-gray-800">${fmt(party.total_billed)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-black text-emerald-600 bg-emerald-50/30">${fmt(party.paid_total || party.total_received)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-black ${hasDue ? 'text-amber-600 bg-amber-50/30' : 'text-gray-400'}">${fmt(party.pending_total || party.total_due)}</td>
                     <td class="py-3 px-4 text-center">${statusBadge}</td>
-                    <td class="py-3 px-4 text-right">${filterBtn}</td>
+                    <td class="py-3 px-4 text-right no-print">
+                        <div class="inline-flex items-center gap-1.5 justify-end">
+                            <button type="button" onclick="togglePartyLedger('${escHtml(partyKey)}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1">
+                                <i class="fas fa-list text-[10px]"></i> Invoices
+                            </button>
+                            ${party.client_id ? `
+                                <button type="button" onclick="filterByParty(${party.client_id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 transition flex items-center gap-1">
+                                    <i class="fas fa-filter text-[10px]"></i> Statement
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+                <tr id="party-ledger-${escHtml(partyKey)}" class="party-ledger-details hidden bg-slate-50/40 border-b-2 border-slate-200">
+                    <td colspan="9" class="p-2 sm:p-4">
+                        ${subTableHtml}
+                    </td>
                 </tr>`;
-            }).join(''));
+            }).join('');
+
+            $('#party-table-body').html(partyRowsHtml);
+            $('#party-table-footer').html(`
+                <tr>
+                    <td class="py-3 px-3 no-print"></td>
+                    <td colspan="2" class="py-3 px-4 uppercase tracking-wider text-slate-700 text-xs">Total Across All Parties (${partyList.length}):</td>
+                    <td class="py-3 px-4 text-center font-bold">${grandCount} Invoices</td>
+                    <td class="py-3 px-4 text-right font-bold text-slate-900">${fmt(grandBilled)}</td>
+                    <td class="py-3 px-4 text-right font-black text-emerald-700 bg-emerald-100/60">${fmt(grandPaid)}</td>
+                    <td class="py-3 px-4 text-right font-black text-amber-700 bg-amber-100/60">${fmt(grandPending)}</td>
+                    <td colspan="2" class="py-3 px-4"></td>
+                </tr>
+            `);
         } else {
-            $('#party-table-body').html('<tr><td colspan="8" class="text-center py-6 text-gray-400">No parties found in selected period.</td></tr>');
+            $('#party-table-body').html('<tr><td colspan="9" class="text-center py-6 text-gray-400">No parties found in selected period.</td></tr>');
+            $('#party-table-footer').html('');
         }
 
-        // 2. Render Due Invoices Table
+        // 2. RENDER ALL INVOICES TABLE (PAID & PENDING TOGETHER)
+        if (allList.length) {
+            let invGrandBilled = 0;
+            let invGrandPaid = 0;
+            let invGrandPending = 0;
+
+            const allRowsHtml = allList.map(inv => {
+                const tot = inv.total_amount || 0;
+                const paid = (inv.paid_amount !== undefined) ? inv.paid_amount : (inv.amount_paid || 0);
+                const bal = (inv.pending_amount !== undefined) ? inv.pending_amount : (inv.balance_due || 0);
+
+                invGrandBilled += tot;
+                invGrandPaid += paid;
+                invGrandPending += bal;
+
+                let statusBadge = '';
+                if (inv.is_paid) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-2xs"><i class="fas fa-check mr-1"></i> PAID</span>`;
+                } else if (paid > 0 && bal > 0) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-2xs"><i class="fas fa-adjust mr-1"></i> PARTIALLY PAID</span>`;
+                } else if (inv.is_overdue) {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500 text-white shadow-2xs"><i class="fas fa-exclamation-triangle mr-1"></i> OVERDUE</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500 text-white shadow-2xs capitalize">${escHtml(inv.status.replace('_', ' '))}</span>`;
+                }
+
+                const iComp = inv.client_company || '';
+                const iName = inv.client_name || 'Valued Customer';
+                const boldClient = iComp ? iComp : iName;
+                const subClient = (iComp && iName && iName.toLowerCase() !== iComp.toLowerCase()) ? iName : '';
+
+                return `<tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                    <td class="py-3 px-4 font-mono font-bold text-cyan-700">
+                        <a href="/invoices/${inv.id}" class="hover:underline flex items-center gap-1.5">
+                            <i class="fas fa-file-invoice text-slate-400"></i> ${escHtml(inv.invoice_no)}
+                        </a>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-gray-900">${escHtml(boldClient)}</div>
+                        ${subClient ? `<div class="text-xs text-gray-500">${escHtml(subClient)}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4 text-center text-gray-600 text-xs font-mono">${escHtml(inv.invoice_date)}</td>
+                    <td class="py-3 px-4 text-center text-xs font-mono ${inv.is_overdue ? 'text-rose-600 font-bold' : 'text-gray-600'}">
+                        ${inv.due_date ? escHtml(inv.due_date) : '—'}
+                    </td>
+                    <td class="py-3 px-4 text-right font-mono font-semibold text-gray-800">${fmt(tot)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-extrabold text-emerald-600 bg-emerald-50/40">${fmt(paid)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-extrabold ${bal > 0 ? 'text-amber-700 bg-amber-50/40' : 'text-gray-400'}">${fmt(bal)}</td>
+                    <td class="py-3 px-4 text-center">${statusBadge}</td>
+                    <td class="py-3 px-4 text-right no-print">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <a href="/invoices/${inv.id}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">View</a>
+                            <a href="/api/invoices/${inv.id}/pdf" target="_blank" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition flex items-center gap-1">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            $('#all-invoices-table-body').html(allRowsHtml);
+            $('#all-invoices-table-footer').html(`
+                <tr>
+                    <td colspan="4" class="py-3 px-4 uppercase tracking-wider text-slate-700 text-xs">Total Invoices (${allList.length}):</td>
+                    <td class="py-3 px-4 text-right font-bold text-slate-900">${fmt(invGrandBilled)}</td>
+                    <td class="py-3 px-4 text-right font-black text-emerald-700 bg-emerald-100/60">${fmt(invGrandPaid)}</td>
+                    <td class="py-3 px-4 text-right font-black text-amber-700 bg-amber-100/60">${fmt(invGrandPending)}</td>
+                    <td colspan="2" class="py-3 px-4"></td>
+                </tr>
+            `);
+        } else {
+            $('#all-invoices-table-body').html('<tr><td colspan="9" class="text-center py-6 text-gray-400">No invoices found.</td></tr>');
+            $('#all-invoices-table-footer').html('');
+        }
+
+        // 3. RENDER DUE INVOICES TABLE
         if (dueList.length) {
             $('#due-table-body').html(dueList.map(inv => {
                 const isOverdue = inv.is_overdue;
@@ -474,7 +909,7 @@ function loadReports() {
                             ${escHtml(inv.status.replace('_', ' '))}
                         </span>
                     </td>
-                    <td class="py-3 px-4 text-right">
+                    <td class="py-3 px-4 text-right no-print">
                         <a href="/invoices/${inv.id}" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs inline-flex items-center gap-1 transition">
                             <i class="fas fa-dollar-sign"></i> Pay / View
                         </a>
@@ -482,10 +917,10 @@ function loadReports() {
                 </tr>`;
             }).join(''));
         } else {
-            $('#due-table-body').html('<tr><td colspan="9" class="text-center py-6 text-gray-400"><i class="fas fa-check-double text-emerald-500 mr-1.5"></i> All invoices are paid in full! No due invoices.</td></tr>');
+            $('#due-table-body').html('<tr><td colspan="9" class="text-center py-6 text-gray-400"><i class="fas fa-check-double text-emerald-500 mr-1.5"></i> All invoices are paid in full! No pending invoices.</td></tr>');
         }
 
-        // 3. Render Paid Invoices Table
+        // 4. RENDER PAID INVOICES TABLE
         if (paidList.length) {
             $('#paid-table-body').html(paidList.map(inv => {
                 const fbrBadge = (inv.fbr_status === 'posted' && inv.fbr_invoice_no)
@@ -516,7 +951,7 @@ function loadReports() {
                             <i class="fas fa-check mr-1"></i> PAID
                         </span>
                     </td>
-                    <td class="py-3 px-4 text-right flex justify-end gap-1.5 items-center">
+                    <td class="py-3 px-4 text-right flex justify-end gap-1.5 items-center no-print">
                         <a href="/invoices/${inv.id}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
                             View
                         </a>
@@ -530,10 +965,9 @@ function loadReports() {
             $('#paid-table-body').html('<tr><td colspan="8" class="text-center py-6 text-gray-400">No paid invoices found in this period.</td></tr>');
         }
 
-        // Revenue by month
+        // Charts
         barChart('revenue-chart', d.revenue_by_month, 'month', 'revenue', 'bg-cyan-500');
 
-        // Invoice status
         const statusItems = Object.entries(d.invoice_status).map(([k,v]) => ({label: k, count: v}));
         if (statusItems.length) {
             const total = statusItems.reduce((s,i) => s + i.count, 0);
@@ -551,13 +985,9 @@ function loadReports() {
             $('#status-chart').html('<p class="text-sm text-gray-400 text-center py-4">No data</p>');
         }
 
-        // Top clients
         barChart('clients-chart', d.top_clients, 'name', 'revenue', CAT_COLORS);
-
-        // Expenses by category
         barChart('expenses-chart', d.expenses_by_category, 'category', 'amount', CAT_COLORS);
 
-        // Tax summary
         const tax = d.tax_summary;
         const totalTax = tax.gst + tax.wht + tax.fed;
         $('#tax-summary').html(`
@@ -567,7 +997,6 @@ function loadReports() {
             <div class="flex justify-between py-3 mt-1 bg-slate-50 px-3 rounded-xl border border-slate-200"><span class="text-sm font-bold text-gray-800">Net Tax Payable</span><span class="font-extrabold text-lg text-emerald-700">${fmt(totalTax - tax.wht)}</span></div>
         `);
 
-        // Receivables aging
         const aging = d.receivables_aging;
         const agingItems = [
             {label: 'Current (not due)', value: aging.current, color: 'bg-emerald-500'},
